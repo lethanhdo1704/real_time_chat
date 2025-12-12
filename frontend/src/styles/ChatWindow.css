@@ -1,0 +1,422 @@
+/* src/styles/ChatWindow.css */
+
+.chat-window {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #0e1621 0%, #17212b 100%);
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Pattern overlay cho background */
+.chat-window::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 255, 255, 0.008) 2px,
+      rgba(255, 255, 255, 0.008) 4px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ========== MESSAGES LIST ========== */
+.messages-list {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+  height: 0; /* Fix cho flex để scrollbar hoạt động đúng */
+}
+
+/* Custom Scrollbar */
+.messages-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messages-list::-webkit-scrollbar-thumb {
+  background: rgba(82, 136, 193, 0.3);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.messages-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(82, 136, 193, 0.5);
+}
+
+/* Empty state */
+.messages-list:empty::after {
+  content: 'Chưa có tin nhắn nào. Hãy bắt đầu cuộc trò chuyện!';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #6b7280;
+  font-size: 15px;
+  text-align: center;
+  opacity: 0.7;
+}
+
+/* ========== MESSAGE ========== */
+.message {
+  display: flex;
+  margin-bottom: 4px;
+  animation: messageSlide 0.3s ease;
+}
+
+@keyframes messageSlide {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Message alignment */
+.message.me {
+  justify-content: flex-end;
+}
+
+.message.other {
+  justify-content: flex-start;
+}
+
+/* ========== MESSAGE CONTENT ========== */
+.message-content {
+  max-width: 70%;
+  padding: 10px 16px;
+  border-radius: 16px;
+  word-wrap: break-word;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.message-content:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* My messages styling */
+.message.me .message-content {
+  background: linear-gradient(135deg, #5288c1 0%, #4a7fb8 100%);
+  color: #ffffff;
+  border-radius: 16px 16px 4px 16px;
+  box-shadow: 0 2px 8px rgba(82, 136, 193, 0.3);
+}
+
+.message.me .message-content:hover {
+  box-shadow: 0 4px 12px rgba(82, 136, 193, 0.4);
+}
+
+/* Other's messages styling */
+.message.other .message-content {
+  background: linear-gradient(135deg, #182533 0%, #1a2530 100%);
+  color: #ffffff;
+  border-radius: 16px 16px 16px 4px;
+}
+
+/* Sender name */
+.sender-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5288c1;
+  margin-bottom: 4px;
+  opacity: 0.9;
+}
+
+/* Message text */
+.message-content p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* ========== INPUT AREA ========== */
+.input-area {
+  display: flex;
+  padding: 16px 20px;
+  background: linear-gradient(180deg, #1a2530 0%, #1e2732 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 12px;
+  align-items: center;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+/* Input field */
+.input-area input {
+  flex: 1;
+  padding: 12px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  outline: none;
+  background-color: #0e1621;
+  color: #ffffff;
+  font-size: 15px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.input-area input::placeholder {
+  color: #6b7280;
+}
+
+.input-area input:focus {
+  background-color: #17212b;
+  border-color: #5288c1;
+  box-shadow: 0 0 0 3px rgba(82, 136, 193, 0.1);
+}
+
+.input-area input:hover:not(:focus) {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Send button */
+.input-area button {
+  padding: 12px 24px;
+  border: none;
+  background: linear-gradient(135deg, #5288c1 0%, #4a7fb8 100%);
+  color: #fff;
+  cursor: pointer;
+  border-radius: 22px;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  min-width: 80px;
+  box-shadow: 0 2px 8px rgba(82, 136, 193, 0.3);
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.input-area button:hover {
+  background: linear-gradient(135deg, #6099d4 0%, #5288c1 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(82, 136, 193, 0.4);
+}
+
+.input-area button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(82, 136, 193, 0.3);
+}
+
+.input-area button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  background: #4a5568;
+}
+
+/* Loading state cho button */
+.input-area button.sending {
+  position: relative;
+  color: transparent;
+}
+
+.input-area button.sending::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  margin-left: -8px;
+  border: 2px solid #ffffff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ========== MESSAGE TIMESTAMP ========== */
+.message-time {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 4px;
+  display: block;
+}
+
+.message.me .message-time {
+  text-align: right;
+}
+
+.message.other .message-time {
+  text-align: left;
+}
+
+/* ========== TYPING INDICATOR ========== */
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 10px 16px;
+  background: #182533;
+  border-radius: 16px;
+  width: fit-content;
+  margin-left: 8px;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  background: #5288c1;
+  border-radius: 50%;
+  animation: typing 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 768px) {
+  .message-content {
+    max-width: 85%;
+  }
+  
+  .messages-list {
+    padding: 16px;
+  }
+  
+  .input-area {
+    padding: 12px 16px;
+  }
+  
+  .input-area input {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+  
+  .input-area button {
+    padding: 10px 20px;
+    min-width: 70px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .message-content {
+    max-width: 90%;
+    font-size: 14px;
+  }
+  
+  .sender-name {
+    font-size: 11px;
+  }
+  
+  .input-area {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  
+  .input-area input {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+  
+  .input-area button {
+    padding: 10px 16px;
+    min-width: 60px;
+    font-size: 13px;
+  }
+}
+
+/* ========== DARK THEME VARIANTS ========== */
+.chat-window.light-theme {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+}
+
+.chat-window.light-theme .message.me .message-content {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.chat-window.light-theme .message.other .message-content {
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+}
+
+.chat-window.light-theme .input-area {
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+}
+
+.chat-window.light-theme .input-area input {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #1f2937;
+}
+
+/* ========== ACCESSIBILITY ========== */
+.message-content:focus-visible {
+  outline: 2px solid #5288c1;
+  outline-offset: 2px;
+}
+
+.input-area input:focus-visible,
+.input-area button:focus-visible {
+  outline: 2px solid #5288c1;
+  outline-offset: 2px;
+}
+
+/* Screen reader only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
