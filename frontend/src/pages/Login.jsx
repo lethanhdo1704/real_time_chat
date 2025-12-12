@@ -55,7 +55,7 @@ export default function Login() {
             className="toggle-eye"
             onClick={() => setShowPassword((prev) => !prev)}
           >
-            {showPassword ? "🙈" : "👁️"}
+            {showPassword ? "👁️" : "🙈"}
           </span>
         </div>
 
