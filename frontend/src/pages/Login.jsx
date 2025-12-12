@@ -1,21 +1,26 @@
 // src/pages/Login.jsx
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
-import "../styles/Auth.css"; // CSS dùng chung cho Login/Register
+import "../styles/Auth.css";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { login } = useContext(AuthContext);
+
+  const { login, user } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  // 🚀 Navigate sau khi LOGIN thành công
+  useEffect(() => {
+    if (user) navigate("/");
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await login(email, password); // gọi login context
-      navigate("/"); // chuyển sang trang home sau login
+      await login(email, password);
     } catch (err) {
       setError(err.response?.data?.error || "Server error");
     }
@@ -24,7 +29,9 @@ export default function Login() {
   return (
     <div className="auth-container">
       <h2>Login</h2>
+
       {error && <p className="error">{error}</p>}
+
       <form onSubmit={handleSubmit}>
         <input
           type="email"
@@ -33,6 +40,7 @@ export default function Login() {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
+
         <input
           type="password"
           placeholder="Password"
@@ -40,8 +48,10 @@ export default function Login() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
+
         <button type="submit">Login</button>
       </form>
+
       <p>
         Don't have an account? <Link to="/register">Register here</Link>
       </p>

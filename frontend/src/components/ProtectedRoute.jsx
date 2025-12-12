@@ -4,13 +4,13 @@ import { AuthContext } from "../context/AuthContext";
 import { Navigate } from "react-router-dom";
 
 export default function ProtectedRoute({ children }) {
-  const { token } = useContext(AuthContext);
+  const { user, loading } = useContext(AuthContext);
 
-  // Nếu chưa login (không có token) → redirect sang /login
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
+  // Đang load user từ token -> chờ
+  if (loading) return <div>Loading...</div>;
 
-  // Nếu đã login → hiển thị trang
+  // Không có user -> chưa login
+  if (!user) return <Navigate to="/login" replace />;
+
   return children;
 }

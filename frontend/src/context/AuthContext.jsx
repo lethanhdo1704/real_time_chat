@@ -6,51 +6,67 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [token, setToken] = useState(() => localStorage.getItem("token"));
+  const [loading, setLoading] = useState(true);
 
+  // Load user từ token khi F5
   useEffect(() => {
-    if (token) {
-      axios
-        .get("http://localhost:5000/api/users/me", {
+    const loadUser = async () => {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const res = await axios.get("http://localhost:5000/api/users/me", {
           headers: { Authorization: `Bearer ${token}` },
-        })
-        .then(res => setUser(res.data))
-        .catch(() => logout());
-    }
+        });
+
+        setUser(res.data);
+      } catch {
+        // Token sai -> logout nhẹ (ko navigate)
+        localStorage.removeItem("token");
+        setToken(null);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUser();
   }, [token]);
 
-  // Gọi API register
+  // REGISTER
   const register = async (username, email, password) => {
-    try {
-      const res = await axios.post(
-        "http://localhost:5000/api/auth/register",
-        { username, email, password },
-        { headers: { "Content-Type": "application/json" } }
-      );
-      setToken(res.data.token);
-      localStorage.setItem("token", res.data.token);
-      return res.data;
-    } catch (err) {
-      throw err;
-    }
+    const res = await axios.post(
+      "http://localhost:5000/api/auth/register",
+      { username, email, password }
+    );
+
+    localStorage.setItem("token", res.data.token);
+    setToken(res.data.token);
+    setUser(res.data.user);
+
+    return res.data;
   };
 
-  // Gọi API login
+  // LOGIN
   const login = async (email, password) => {
-    try {
-      const res = await axios.post(
-        "http://localhost:5000/api/auth/login",
-        { email, password },
-        { headers: { "Content-Type": "application/json" } }
-      );
-      setToken(res.data.token);
-      localStorage.setItem("token", res.data.token);
-      return res.data;
-    } catch (err) {
-      throw err;
-    }
+    const res = await axios.post(
+      "http://localhost:5000/api/auth/login",
+      { email, password }
+    );
+
+    localStorage.setItem("token", res.data.token);
+    setToken(res.data.token);
+
+    // 🚀 Set user ngay lập tức -> Không cần đợi loadUser()
+    setUser(res.data.user);
+
+    return res.data;
   };
 
+  // LOGOUT
   const logout = () => {
     localStorage.removeItem("token");
     setToken(null);
@@ -58,7 +74,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, register }}>
+    <AuthContext.Provider
+      value={{ user, token, login, logout, register, loading }}
+    >
       {children}
     </AuthContext.Provider>
   );
