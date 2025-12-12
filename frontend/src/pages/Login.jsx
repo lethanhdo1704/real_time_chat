@@ -3,16 +3,16 @@ import { useState, useContext, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import "../styles/Auth.css";
-
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // 👁️ NEW
   const [error, setError] = useState("");
 
   const { login, user } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // 🚀 Navigate sau khi LOGIN thành công
+  // Điều hướng sau khi login thành công
   useEffect(() => {
     if (user) navigate("/");
   }, [user, navigate]);
@@ -41,13 +41,23 @@ export default function Login() {
           required
         />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+        {/* ==== PASSWORD INPUT WITH TOGGLE ==== */}
+        <div className="password-wrapper">
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+
+          <span
+            className="toggle-eye"
+            onClick={() => setShowPassword((prev) => !prev)}
+          >
+            {showPassword ? "🙈" : "👁️"}
+          </span>
+        </div>
 
         <button type="submit">Login</button>
       </form>
