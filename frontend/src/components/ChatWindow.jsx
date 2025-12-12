@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import socket from "../socket";
 import "../styles/ChatWindow.css";
@@ -7,6 +7,8 @@ export default function ChatWindow() {
   const { user } = useContext(AuthContext);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+
+  const bottomRef = useRef(null); // ⬅️ dòng đánh dấu cuối
 
   useEffect(() => {
     // Lấy tin nhắn từ MongoDB
@@ -21,6 +23,11 @@ export default function ChatWindow() {
 
     return () => socket.off("receiveMessage");
   }, []);
+
+  // ⬅️ Auto scroll mỗi khi messages thay đổi
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const sendMessage = () => {
     if (!text.trim()) return;
@@ -51,6 +58,9 @@ export default function ChatWindow() {
             </div>
           </div>
         ))}
+
+        {/* Dòng đánh dấu cuối để scroll tới */}
+        <div ref={bottomRef}></div>
       </div>
 
       <div className="input-area">

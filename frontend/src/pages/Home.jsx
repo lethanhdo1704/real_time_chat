@@ -34,7 +34,7 @@ export default function Home() {
       </div>
 
       {/* Chat */}
-      <div className="chat-container">
+      <div className="home-chat-container">
         <ChatWindow currentRoom={currentRoom} user={user} />
       </div>
     </div>
