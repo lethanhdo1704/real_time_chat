@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("token", res.data.token);
     setToken(res.data.token);
 
-    // 🚀 Set user ngay lập tức -> Không cần đợi loadUser()
+    //  Set user ngay lập tức -> Không cần đợi loadUser()
     setUser(res.data.user);
 
     return res.data;
