@@ -8,7 +8,7 @@ export default function ChatWindow() {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
 
-  const bottomRef = useRef(null); // ⬅️ dòng đánh dấu cuối
+  const bottomRef = useRef(null);
 
   useEffect(() => {
     // Lấy tin nhắn từ MongoDB
@@ -24,7 +24,7 @@ export default function ChatWindow() {
     return () => socket.off("receiveMessage");
   }, []);
 
-  // ⬅️ Auto scroll mỗi khi messages thay đổi
+  // Auto scroll mỗi khi messages thay đổi
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -40,6 +40,14 @@ export default function ChatWindow() {
 
     socket.emit("sendMessage", newMsg);
     setText("");
+  };
+
+  // Xử lý khi nhấn Enter
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
   return (
@@ -67,6 +75,7 @@ export default function ChatWindow() {
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onKeyPress={handleKeyPress}
           placeholder="Nhập tin nhắn..."
         />
         <button onClick={sendMessage}>Gửi</button>
