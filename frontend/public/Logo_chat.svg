@@ -4,51 +4,44 @@
   viewBox="0 0 200 200"
   xmlns="http://www.w3.org/2000/svg"
 >
-  <!-- Gradient -->
   <defs>
-    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6366F1" />
-      <stop offset="100%" stop-color="#22D3EE" />
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#22D3EE"/>
     </linearGradient>
   </defs>
 
-  <!-- Outer circle -->
-  <circle
-    cx="100"
-    cy="100"
-    r="90"
-    fill="url(#bgGradient)"
-  />
+  <!-- App background -->
+  <circle cx="100" cy="100" r="90" fill="url(#bg)" />
 
   <!-- Chat bubble -->
   <rect
-    x="55"
-    y="60"
-    width="90"
-    height="55"
-    rx="18"
-    fill="white"
-  />
-
-  <!-- Chat tail -->
-  <path
-    d="M85 115 L95 135 L105 115 Z"
+    x="45"
+    y="55"
+    width="110"
+    height="80"
+    rx="26"
     fill="white"
   />
 
   <!-- Typing dots -->
-  <circle cx="80" cy="88" r="4" fill="#6366F1" />
-  <circle cx="100" cy="88" r="4" fill="#6366F1" />
-  <circle cx="120" cy="88" r="4" fill="#6366F1" />
+  <circle cx="80" cy="90" r="5" fill="#4F46E5" />
+  <circle cx="100" cy="90" r="5" fill="#4F46E5" />
+  <circle cx="120" cy="90" r="5" fill="#4F46E5" />
 
-  <!-- Real-time ring -->
-  <circle
-    cx="100"
-    cy="100"
-    r="65"
-    stroke="white"
-    stroke-width="3"
-    fill="none"
-    opacity="0.25"
-  />
+  <!-- Lightning bolt (bigger, yellow, rotated 15deg around center) -->
+  <g transform="rotate(15 100 120)">
+    <path
+      d="
+        M100 95
+        L84 130
+        L112 130
+        L76 170
+        L94 138
+        L66 138
+        Z
+      "
+      fill="#FACC15"
+    />
+  </g>
 </svg>
