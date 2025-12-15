@@ -1,0 +1,54 @@
+<svg
+  width="200"
+  height="200"
+  viewBox="0 0 200 200"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <!-- Gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#22D3EE" />
+    </linearGradient>
+  </defs>
+
+  <!-- Outer circle -->
+  <circle
+    cx="100"
+    cy="100"
+    r="90"
+    fill="url(#bgGradient)"
+  />
+
+  <!-- Chat bubble -->
+  <rect
+    x="55"
+    y="60"
+    width="90"
+    height="55"
+    rx="18"
+    fill="white"
+  />
+
+  <!-- Chat tail -->
+  <path
+    d="M85 115 L95 135 L105 115 Z"
+    fill="white"
+  />
+
+  <!-- Typing dots -->
+  <circle cx="80" cy="88" r="4" fill="#6366F1" />
+  <circle cx="100" cy="88" r="4" fill="#6366F1" />
+  <circle cx="120" cy="88" r="4" fill="#6366F1" />
+
+  <!-- Real-time ring -->
+  <circle
+    cx="100"
+    cy="100"
+    r="65"
+    stroke="white"
+    stroke-width="3"
+    fill="none"
+    opacity="0.25"
+  />
+</svg>
