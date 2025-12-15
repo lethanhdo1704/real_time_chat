@@ -1,16 +1,15 @@
-import dotenv from "dotenv";
-dotenv.config();
 
 import express from "express";
 import cors from "cors";
 import connectDB from "./config/db.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
-
+import 'dotenv/config';
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import messageRoutes from "./routes/messages.js";
 import Message from "./models/Message.js";
+import otpRoutes from "./routes/otp.js";
 
 const app = express();
 
@@ -27,6 +26,7 @@ connectDB();
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/otp", otpRoutes);
 
 // Socket server
 const server = createServer(app);

@@ -3,16 +3,15 @@ import jwt from "jsonwebtoken";
 
 export default function auth(req, res, next) {
   try {
-    // Lấy token từ header Authorization
-    let authHeader = req.header("Authorization");
+    const authHeader = req.header("Authorization");
 
     if (!authHeader) {
       return res.status(401).json({ error: "Missing Authorization header" });
     }
 
-    // Trường hợp Authorization: Bearer xxxxxx
-    let token = authHeader.startsWith("Bearer ")
-      ? authHeader.replace("Bearer ", "")
+    // Authorization: Bearer xxx
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
       : authHeader;
 
     if (!token) {
@@ -20,14 +19,27 @@ export default function auth(req, res, next) {
     }
 
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ error: "Server configuration error (JWT_SECRET missing)" });
+      return res
+        .status(500)
+        .json({ error: "JWT_SECRET not configured" });
     }
 
-    // Xác thực token
+    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Gắn user ID vào request
-    req.userId = decoded.userId;
+    /**
+     * JWT payload:
+     * {
+     *   uid: string,
+     *   role: "user" | "admin"
+     * }
+     */
+
+    // Gắn thông tin user vào request
+    req.user = {
+      uid: decoded.uid,
+      role: decoded.role,
+    };
 
     next();
   } catch (err) {
@@ -35,4 +47,3 @@ export default function auth(req, res, next) {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 }
-

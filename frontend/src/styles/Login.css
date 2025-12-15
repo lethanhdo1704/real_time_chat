@@ -1,0 +1,291 @@
+/* ===================================
+   LOGIN.CSS - FACEBOOK STYLE (STANDALONE)
+   =================================== */
+
+/* Reset cơ bản */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Body & Root */
+body {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  color: #1c1e21;
+}
+
+/* Container chính */
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1000px;
+  width: 100%;
+  gap: 60px;
+  margin-bottom: 30px;
+}
+
+/* ===================================
+   LEFT SIDE - BRANDING
+   =================================== */
+.branding {
+  flex: 1;
+  max-width: 500px;
+}
+
+.logo {
+  color: #1877f2;
+  font-size: 60px;
+  font-weight: bold;
+  margin-bottom: 16px;
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.2;
+}
+
+.tagline {
+  font-size: 28px;
+  line-height: 32px;
+  color: #1c1e21;
+  font-weight: normal;
+}
+
+/* ===================================
+   RIGHT SIDE - LOGIN FORM
+   =================================== */
+.login-box {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  width: 396px;
+}
+
+.login-box form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Input fields */
+.login-box input[type="email"],
+.login-box input[type="password"],
+.login-box input[type="text"] {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 17px;
+  border: 1px solid #dddfe2;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.login-box input:focus {
+  border-color: #1877f2;
+  box-shadow: 0 0 0 2px #e7f3ff;
+}
+
+.login-box input::placeholder {
+  color: #90949c;
+}
+
+/* Password wrapper */
+.login-box .password-wrapper {
+  position: relative;
+  width: 100%;
+  display: block;
+}
+
+.login-box .password-wrapper input {
+  padding-right: 45px;
+  width: 100%;
+  display: block;
+}
+
+.login-box .toggle-eye {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  font-size: 20px;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+
+.login-box .toggle-eye:hover {
+  opacity: 0.7;
+}
+
+/* Login button */
+.login-btn {
+  background: #1877f2;
+  color: white;
+  padding: 14px 16px;
+  font-size: 20px;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 8px;
+  font-family: inherit;
+}
+
+.login-btn:hover:not(:disabled) {
+  background: #166fe5;
+}
+
+.login-btn:disabled {
+  background: #e4e6eb;
+  color: #bcc0c4;
+  cursor: not-allowed;
+}
+
+/* Forgot password */
+.forgot-password {
+  text-align: center;
+  padding: 16px 0;
+  border-bottom: 1px solid #dadde1;
+}
+
+.forgot-password a {
+  color: #1877f2;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.forgot-password a:hover {
+  text-decoration: underline;
+}
+
+/* Create account section */
+.create-account {
+  text-align: center;
+  padding-top: 24px;
+}
+
+.create-btn {
+  background: #42b72a;
+  color: white;
+  padding: 14px 48px;
+  font-size: 17px;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: inline-block;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.create-btn:hover {
+  background: #36a420;
+}
+
+/* Error message */
+.login-box .error {
+  background: #ffebe8;
+  border: 1px solid #dd3c10;
+  color: #dd3c10;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  font-weight: normal;
+}
+
+/* Page link footer */
+.page-link {
+  text-align: center;
+  font-size: 14px;
+  color: #1c1e21;
+  max-width: 1000px;
+  width: 100%;
+}
+
+.page-link a {
+  color: #1c1e21;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.page-link a:hover {
+  text-decoration: underline;
+}
+
+/* ===================================
+   RESPONSIVE
+   =================================== */
+@media (max-width: 900px) {
+  .login-wrapper {
+    flex-direction: column;
+    gap: 40px;
+    text-align: center;
+  }
+
+  .branding {
+    max-width: 100%;
+  }
+
+  .logo {
+    font-size: 48px;
+  }
+
+  .tagline {
+    font-size: 24px;
+    line-height: 28px;
+  }
+}
+
+@media (max-width: 500px) {
+  .auth-container {
+    padding: 10px;
+  }
+
+  .login-box {
+    width: 100%;
+    max-width: 396px;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+  }
+
+  .login-box form {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .create-account {
+    background: white;
+    margin-top: 16px;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .logo {
+    font-size: 40px;
+  }
+
+  .tagline {
+    font-size: 20px;
+    line-height: 28px;
+  }
+}

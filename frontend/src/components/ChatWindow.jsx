@@ -4,27 +4,33 @@ import socket from "../socket";
 import "../styles/ChatWindow.css";
 
 export default function ChatWindow() {
-  const { user } = useContext(AuthContext);
+  const { user, token } = useContext(AuthContext);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
-
   const bottomRef = useRef(null);
 
+  // Load message + socket
   useEffect(() => {
-    // Lấy tin nhắn từ MongoDB
-    fetch("http://localhost:5000/api/messages")
+    if (!user) return;
+
+    // Load tin nhắn từ backend
+    fetch("http://localhost:5000/api/messages", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
       .then(res => res.json())
       .then(data => setMessages(data));
 
-    // Nhận tin nhắn realtime
+    // Nhận realtime message
     socket.on("receiveMessage", (msg) => {
       setMessages(prev => [...prev, msg]);
     });
 
     return () => socket.off("receiveMessage");
-  }, []);
+  }, [user, token]);
 
-  // Auto scroll mỗi khi messages thay đổi
+  // Auto scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -32,17 +38,15 @@ export default function ChatWindow() {
   const sendMessage = () => {
     if (!text.trim()) return;
 
-    const newMsg = {
-      senderId: user._id,
-      senderName: user.username,
+    socket.emit("sendMessage", {
+      senderId: user.uid,
+      senderName: user.nickname,
       text,
-    };
+    });
 
-    socket.emit("sendMessage", newMsg);
     setText("");
   };
 
-  // Xử lý khi nhấn Enter
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -50,32 +54,37 @@ export default function ChatWindow() {
     }
   };
 
+  if (!user) return null;
+
   return (
     <div className="chat-window">
       <div className="messages-list">
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`message ${msg.senderId === user._id ? "me" : "other"}`}
-          >
-            <div className="message-content">
-              {msg.senderId !== user._id && (
-                <p className="sender-name">{msg.senderName}</p>
-              )}
-              <p>{msg.text}</p>
-            </div>
-          </div>
-        ))}
+        {messages.map((msg, i) => {
+          const isMe = msg.senderId === user.uid;
 
-        {/* Dòng đánh dấu cuối để scroll tới */}
-        <div ref={bottomRef}></div>
+          return (
+            <div
+              key={i}
+              className={`message ${isMe ? "me" : "other"}`}
+            >
+              <div className="message-content">
+                {!isMe && (
+                  <p className="sender-name">{msg.senderName}</p>
+                )}
+                <p>{msg.text}</p>
+              </div>
+            </div>
+          );
+        })}
+
+        <div ref={bottomRef} />
       </div>
 
       <div className="input-area">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyPress}
           placeholder="Nhập tin nhắn..."
         />
         <button onClick={sendMessage}>Gửi</button>

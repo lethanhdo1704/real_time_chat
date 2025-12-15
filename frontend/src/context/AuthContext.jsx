@@ -5,62 +5,73 @@ import axios from "axios";
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  const [token, setToken] = useState(() => {
+    return localStorage.getItem("token") || sessionStorage.getItem("token") || null;
+  });
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(() => localStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
 
-  // Load user từ token khi F5
   useEffect(() => {
     const loadUser = async () => {
       if (!token) {
         setLoading(false);
         return;
       }
-
       try {
         const res = await axios.get("http://localhost:5000/api/users/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
-
         setUser(res.data);
       } catch {
-        // Token sai -> logout nhẹ (ko navigate)
         localStorage.removeItem("token");
+        sessionStorage.removeItem("token");
         setToken(null);
         setUser(null);
       } finally {
         setLoading(false);
       }
     };
-
     loadUser();
   }, [token]);
 
   // REGISTER
-  const register = async (username, email, password) => {
-    const res = await axios.post(
-      "http://localhost:5000/api/auth/register",
-      { username, email, password }
-    );
+  const register = async ({ nickname, email, password, otp }) => {
+    const res = await axios.post("http://localhost:5000/api/auth/register", {
+      nickname,
+      email,
+      password,
+      otp,
+    });
 
-    localStorage.setItem("token", res.data.token);
-    setToken(res.data.token);
-    setUser(res.data.user);
+    // Nếu backend trả token sau verify OTP
+    if (res.data.token) {
+      localStorage.setItem("token", res.data.token);
+      setToken(res.data.token);
+      setUser(res.data.user);
+    }
 
     return res.data;
   };
 
+  // SEND OTP
+  const sendOTP = async (email) => {
+    const res = await axios.post("http://localhost:5000/api/otp/send", { email });
+    return res.data;
+  };
+
   // LOGIN
-  const login = async (email, password) => {
-    const res = await axios.post(
-      "http://localhost:5000/api/auth/login",
-      { email, password }
-    );
+  const login = async (email, password, rememberMe = false) => {
+    const res = await axios.post("http://localhost:5000/api/auth/login", { email, password });
 
-    localStorage.setItem("token", res.data.token);
+    if (rememberMe) {
+      localStorage.setItem("token", res.data.token);
+      sessionStorage.removeItem("token");
+    } else {
+      sessionStorage.setItem("token", res.data.token);
+      localStorage.removeItem("token");
+    }
+
     setToken(res.data.token);
-
-    //  Set user ngay lập tức -> Không cần đợi loadUser()
     setUser(res.data.user);
 
     return res.data;
@@ -69,13 +80,14 @@ export const AuthProvider = ({ children }) => {
   // LOGOUT
   const logout = () => {
     localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
     setToken(null);
     setUser(null);
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, token, login, logout, register, loading }}
+      value={{ user, token, login, logout, register, sendOTP, loading, setToken }}
     >
       {children}
     </AuthContext.Provider>
