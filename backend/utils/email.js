@@ -11,7 +11,7 @@ export const sendOTPEmail = async (to, otp) => {
   });
 
   const mailOptions = {
-    from: `"Your App Name" <${process.env.EMAIL_USER}>`,
+    from: `"REAL TIME CHAT" <${process.env.EMAIL_USER}>`,
     to,
     subject: "🔐 Mã Xác Thực OTP - Đăng Nhập Tài Khoản",
     html: `
@@ -140,7 +140,7 @@ export const sendOTPEmail = async (to, otp) => {
             <p class="greeting">Xin chào,</p>
             
             <p class="message">
-              Chúng tôi đã nhận được yêu cầu đăng nhập vào tài khoản của bạn. 
+              Chúng tôi đã nhận được yêu cầu đăng ký tài khoản của bạn. 
               Để đảm bảo an toàn, vui lòng sử dụng mã OTP bên dưới để hoàn tất quá trình xác thực.
             </p>
             
@@ -180,7 +180,7 @@ export const sendOTPEmail = async (to, otp) => {
             
             <p class="message" style="margin-top: 20px; color: #333; font-weight: 500;">
               Trân trọng,<br>
-              Đội ngũ Real Time Chat App
+              Đội ngũ Real Time Chat
             </p>
           </div>
           
@@ -188,8 +188,8 @@ export const sendOTPEmail = async (to, otp) => {
             <p>Email này được gửi tự động từ hệ thống bảo mật của chúng tôi.</p>
             <p>
               © 2025 Real Time Chat App. All rights reserved.<br>
-              <a href="https://yourwebsite.com">yourwebsite.com</a> | 
-              <a href="https://yourwebsite.com/support">Trung tâm hỗ trợ</a>
+              <a href="https://realtimechat.com">realtimechat.com</a> | 
+              <a href="https://realtimechat.com/support">Trung tâm hỗ trợ</a>
             </p>
           </div>
         </div>
