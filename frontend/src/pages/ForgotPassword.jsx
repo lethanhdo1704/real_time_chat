@@ -5,15 +5,15 @@ import { useNavigate, Link } from "react-router-dom";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]); // 6 ô OTP
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   
-  const [step, setStep] = useState(1); // 1: nhập email, 2: nhập OTP + mật khẩu mới
+  const [step, setStep] = useState(1);
   const [timer, setTimer] = useState(0);
   const [otpMessage, setOtpMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState(""); // Thêm state cho success message
 
-  // Toggle password
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -23,7 +23,6 @@ export default function ForgotPassword() {
   const { sendForgotOTP, verifyForgotOTP } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // Refs cho 6 ô OTP
   const otpRefs = useRef([]);
 
   // =====================
@@ -49,6 +48,7 @@ export default function ForgotPassword() {
     e.preventDefault();
     setError("");
     setOtpMessage("");
+    setSuccessMessage("");
     
     const emailErr = validateEmail(email);
     if (emailErr) return setError(emailErr);
@@ -57,12 +57,10 @@ export default function ForgotPassword() {
       setLoading(true);
       await sendForgotOTP(email);
       
-      // Chuyển sang bước 2
       setStep(2);
       setTimer(300);
       setOtpMessage("OTP đã gửi đến Gmail của bạn (hợp lệ 5 phút)");
       
-      // Focus vào ô OTP đầu tiên
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
       
     } catch (err) {
@@ -141,6 +139,7 @@ export default function ForgotPassword() {
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
 
     const pwErr = validatePassword(newPassword);
     if (pwErr) return setError(pwErr);
@@ -158,9 +157,13 @@ export default function ForgotPassword() {
       setLoading(true);
       await verifyForgotOTP({ email, otp: otpValue, newPassword });
       
-      // Thành công - chuyển về trang login
-      alert("Đặt lại mật khẩu thành công! Vui lòng đăng nhập.");
-      navigate("/login");
+      // Hiển thị thông báo thành công
+      setSuccessMessage("Đặt lại mật khẩu thành công!");
+      
+      // Chờ 2 giây để người dùng thấy thông báo, sau đó chuyển trang
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
       
     } catch (err) {
       console.error("Reset password error:", err);
@@ -183,6 +186,7 @@ export default function ForgotPassword() {
   const handleResendOTP = async () => {
     setError("");
     setOtpMessage("");
+    setSuccessMessage("");
     
     try {
       setLoading(true);
@@ -190,7 +194,7 @@ export default function ForgotPassword() {
       
       setTimer(300);
       setOtpMessage("OTP mới đã được gửi đến Gmail của bạn");
-      setOtp(["", "", "", "", "", ""]); // Clear OTP cũ
+      setOtp(["", "", "", "", "", ""]);
       otpRefs.current[0]?.focus();
       
     } catch (err) {
@@ -270,6 +274,19 @@ export default function ForgotPassword() {
           {/* Step 2: Nhập OTP + Mật khẩu mới */}
           {step === 2 && (
             <form onSubmit={handleResetPassword} className="space-y-5">
+              {/* Success Message - Hiển thị khi reset thành công */}
+              {successMessage && (
+                <div className="flex items-center gap-3 text-sm text-green-700 bg-green-50 border border-green-200 px-4 py-3 rounded-xl animate-pulse">
+                  <svg className="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <p className="font-semibold">{successMessage}</p>
+                    <p className="text-xs mt-1">Đang chuyển đến trang đăng nhập...</p>
+                  </div>
+                </div>
+              )}
+
               {/* Error Message */}
               {error && (
                 <div className="flex items-center gap-3 text-sm text-red-700 bg-red-50 border border-red-200 px-4 py-3 rounded-xl">
@@ -280,8 +297,8 @@ export default function ForgotPassword() {
                 </div>
               )}
 
-              {/* Success Message */}
-              {otpMessage && (
+              {/* OTP Message */}
+              {otpMessage && !successMessage && (
                 <div className="flex items-center gap-3 text-sm text-green-700 bg-green-50 border border-green-200 px-4 py-3 rounded-xl">
                   <svg className="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -320,12 +337,13 @@ export default function ForgotPassword() {
                       onKeyDown={(e) => handleOtpKeyDown(index, e)}
                       onPaste={index === 0 ? handleOtpPaste : undefined}
                       required
-                      className="w-12 h-14 text-center text-xl font-semibold border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 hover:bg-white"
+                      disabled={!!successMessage}
+                      className="w-12 h-14 text-center text-xl font-semibold border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 hover:bg-white disabled:opacity-50"
                     />
                   ))}
                 </div>
                 {/* Resend OTP */}
-                {timer === 0 && (
+                {timer === 0 && !successMessage && (
                   <div className="text-center">
                     <button
                       type="button"
@@ -349,12 +367,14 @@ export default function ForgotPassword() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white pr-12"
+                    disabled={!!successMessage}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white pr-12 disabled:opacity-50"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    disabled={!!successMessage}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                   >
                     {showPassword ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -380,12 +400,14 @@ export default function ForgotPassword() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white pr-12"
+                    disabled={!!successMessage}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white pr-12 disabled:opacity-50"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    disabled={!!successMessage}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                   >
                     {showConfirmPassword ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,7 +426,7 @@ export default function ForgotPassword() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !!successMessage}
                 className="w-full bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-3.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
               >
                 {loading ? (
@@ -415,19 +437,28 @@ export default function ForgotPassword() {
                     </svg>
                     Đang xử lý...
                   </span>
+                ) : successMessage ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Thành công!
+                  </span>
                 ) : (
                   "Đặt lại mật khẩu"
                 )}
               </button>
 
               {/* Back Button */}
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="w-full text-gray-600 hover:text-gray-800 py-2 text-sm font-medium transition-colors"
-              >
-                ← Quay lại
-              </button>
+              {!successMessage && (
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="w-full text-gray-600 hover:text-gray-800 py-2 text-sm font-medium transition-colors"
+                >
+                  ← Quay lại
+                </button>
+              )}
             </form>
           )}
 

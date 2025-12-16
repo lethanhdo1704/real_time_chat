@@ -41,7 +41,7 @@ export const sendForgotPasswordOTP = async (to, otp) => {
             overflow: hidden;
           }
           .header {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 40px 20px;
             text-align: center;
             color: white;
@@ -66,7 +66,7 @@ export const sendForgotPasswordOTP = async (to, otp) => {
             margin-bottom: 30px;
           }
           .otp-box {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 10px;
             padding: 30px;
             text-align: center;
