@@ -11,6 +11,7 @@ import messageRoutes from "./routes/messages.js";
 import otpForgotRoutes from "./routes/otp/forgot.js";
 import otpRegisterRoutes from "./routes/otp/register.js";
 import Message from "./models/Message.js";
+import friendsRoutes from "./routes/friend.js";
 
 const app = express();
 
@@ -34,6 +35,9 @@ app.use("/api/messages", messageRoutes);
 // OTP routes tách riêng
 app.use("/api/otp/forgot", otpForgotRoutes);
 app.use("/api/otp/register", otpRegisterRoutes);
+
+// Friend routes
+app.use("/api/friends", friendsRoutes);
 
 // Socket server
 const server = createServer(app);
