@@ -16,7 +16,7 @@ const OTPSchema = new mongoose.Schema({
   expiresAt: {
     type: Date,
     required: true,
-    index: { expireAfterSeconds: 0 }, // ⭐ TỰ XÓA
+    index: { expireAfterSeconds: 0 }, 
   },
 }, { timestamps: true });
 

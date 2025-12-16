@@ -1,7 +1,12 @@
-// backend/utils/email.js
+// backend/utils/emailRegister.js
 import nodemailer from "nodemailer";
+import path from "path";
+import { fileURLToPath } from "url";
 
-export const sendOTPEmail = async (to, otp) => {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export const sendRegisterOTP = async (to, otp) => {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -9,6 +14,7 @@ export const sendOTPEmail = async (to, otp) => {
       pass: process.env.EMAIL_PASS,
     },
   });
+
 
   const mailOptions = {
     from: `"REAL TIME CHAT" <${process.env.EMAIL_USER}>`,

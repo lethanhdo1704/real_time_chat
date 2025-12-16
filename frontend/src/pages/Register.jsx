@@ -21,7 +21,7 @@ export default function Register() {
   const [captcha, setCaptcha] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { register, sendOTP } = useContext(AuthContext);
+  const { register, sendRegisterOTP } = useContext(AuthContext);
   const navigate = useNavigate();
 
   // Refs cho 6 ô OTP
@@ -50,7 +50,7 @@ export default function Register() {
   // =====================
   // SEND OTP
   // =====================
-  const handleSendOTP = async () => {
+  const handlesendRegisterOTP = async () => {
     setError("");
     setOtpMessage("");
     const emailErr = validateEmail(email);
@@ -58,7 +58,7 @@ export default function Register() {
 
     try {
       setLoading(true);
-      await sendOTP(email);
+      await sendRegisterOTP(email);
       setOtpSent(true);
       setTimer(300);
       setOtpMessage("OTP đã gửi đến Gmail của bạn (hợp lệ 5 phút)");
@@ -208,7 +208,7 @@ export default function Register() {
                 />
                 <button
                   type="button"
-                  onClick={handleSendOTP}
+                  onClick={handlesendRegisterOTP}
                   disabled={loading || timer > 0}
                   className="px-5 py-3 bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >

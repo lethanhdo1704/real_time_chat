@@ -1,40 +1,47 @@
-
 import express from "express";
 import cors from "cors";
 import connectDB from "./config/db.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import 'dotenv/config';
+import "dotenv/config";
+
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import messageRoutes from "./routes/messages.js";
+import otpForgotRoutes from "./routes/otp/forgot.js";
+import otpRegisterRoutes from "./routes/otp/register.js";
 import Message from "./models/Message.js";
-import otpRoutes from "./routes/otp.js";
 
 const app = express();
 
-app.use(cors({
-  origin: "http://localhost:5173",
-  methods: ["GET", "POST"]
-}));
-
+// Middleware
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+  })
+);
 app.use(express.json());
 
+// Connect DB
 connectDB();
 
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
-app.use("/api/otp", otpRoutes);
+
+// OTP routes tách riêng
+app.use("/api/otp/forgot", otpForgotRoutes);
+app.use("/api/otp/register", otpRegisterRoutes);
 
 // Socket server
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
     origin: "http://localhost:5173",
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+  },
 });
 
 io.on("connection", (socket) => {
@@ -46,7 +53,7 @@ io.on("connection", (socket) => {
     const msg = await Message.create({
       senderId: data.senderId,
       senderName: data.senderName,
-      text: data.text
+      text: data.text,
     });
 
     io.to("global-room").emit("receiveMessage", msg);
@@ -57,6 +64,7 @@ io.on("connection", (socket) => {
   });
 });
 
+// Start server
 server.listen(process.env.PORT, () => {
-  console.log("Server running on", process.env.PORT);
+  console.log("Server running on port", process.env.PORT);
 });

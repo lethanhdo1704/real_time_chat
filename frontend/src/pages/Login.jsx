@@ -90,7 +90,7 @@ export default function Login() {
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-xl p-5 lg:p-8 border border-gray-100 my-auto">
             <div className="mb-5 text-center">
               {/* Gradient Icon */}
-              <div className="mb-3 inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full shadow-lg">
+              <div className="mb-3 inline-flex items-center justify-center w-14 h-14 bg-linear-to-br from-indigo-600 to-purple-600 rounded-full shadow-lg">
                 <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
@@ -172,7 +172,7 @@ export default function Login() {
                   <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                   <span className="text-gray-600">Ghi nhớ đăng nhập</span>
                 </label>
-                <a href="#" className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
+                <a href="/ForgotPassword" className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
                   Quên mật khẩu?
                 </a>
               </div>
@@ -181,7 +181,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-2.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
+                className="w-full bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white py-2.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
