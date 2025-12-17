@@ -1,0 +1,27 @@
+{
+  "home": {
+    "loading": "Đang tải...",
+    "header": {
+      "logout": "Đăng xuất",
+      "copyUID": "Sao chép UID",
+      "uidLabel": "UID:"
+    },
+    "toast": {
+      "copiedUID": "Đã sao chép UID!"
+    },
+    "tabs": {
+      "friends": "Bạn bè",
+      "groups": "Nhóm",
+      "requests": "Lời mời",
+      "add": "Thêm bạn"
+    },
+    "welcome": {
+      "title": "Chào mừng đến với Chat",
+      "subtitle": "Chọn một người bạn hoặc nhóm để bắt đầu trò chuyện",
+      "features": {
+        "privateChat": "Chat riêng tư",
+        "groupChat": "Chat nhóm"
+      }
+    }
+  }
+}

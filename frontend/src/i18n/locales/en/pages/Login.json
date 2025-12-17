@@ -1,0 +1,32 @@
+{
+  "appTitle": "REAL TIME CHAT",
+  "appSubtitle": "Instant Connection – Unlimited Conversations",
+  
+  "features": {
+    "realtime": "Super fast realtime messaging",
+    "security": "End-to-end encryption",
+    "ui": "Modern, easy-to-use interface"
+  },
+  
+  "login": {
+    "title": "Welcome back!",
+    "subtitle": "Login to continue chatting",
+    "email": "Email",
+    "emailPlaceholder": "example@email.com",
+    "password": "Password",
+    "passwordPlaceholder": "••••••••",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot password?",
+    "loginButton": "Login",
+    "loggingIn": "Logging in...",
+    "or": "Or",
+    "noAccount": "Don't have an account?",
+    "createAccount": "Create new account"
+  },
+  
+  "errors": {
+    "serverError": "Server error",
+    "invalidCredentials": "Invalid email or password",
+    "networkError": "Network connection error"
+  }
+}

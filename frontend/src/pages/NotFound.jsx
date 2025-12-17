@@ -1,4 +1,10 @@
+// src/pages/NotFound.jsx
+import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
+
 export default function NotFound() {
+  const { t } = useTranslation("notFound");
+
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
       
@@ -14,23 +20,24 @@ export default function NotFound() {
         {/* Glowing 404 */}
         <div className="mb-8 relative">
           <h1 className="text-9xl md:text-[12rem] font-bold bg-linear-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent animate-pulse drop-shadow-2xl">
-            404
+            {t("errorCode")}
           </h1>
           <div className="absolute inset-0 blur-3xl bg-linear-to-r from-purple-500/50 via-pink-500/50 to-purple-500/50 animate-pulse"></div>
         </div>
 
         {/* Message */}
         <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 drop-shadow-lg">
-          Page Not Found
+          {t("title")}
         </h2>
 
         <p className="text-lg md:text-xl text-slate-300 mb-12 leading-relaxed px-4">
-          Oops! The page you're looking for seems to have wandered off into the digital void.
+          {t("description")}
         </p>
 
         {/* Home Button with hover effect */}
-        <a 
-          href="/" 
+        <Link
+          to="/"
+          aria-label={t("button.ariaLabel")}
           className="inline-flex items-center gap-3 px-8 py-4 bg-linear-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-full hover:from-purple-600 hover:to-pink-600 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-purple-500/50"
         >
           <svg
@@ -46,8 +53,8 @@ export default function NotFound() {
               d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
             />
           </svg>
-          Go Back Home
-        </a>
+          {t("button.text")}
+        </Link>
 
         {/* Animated decorative dots */}
         <div className="flex justify-center gap-2 mt-16">

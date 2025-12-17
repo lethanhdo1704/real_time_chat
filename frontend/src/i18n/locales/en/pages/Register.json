@@ -1,0 +1,35 @@
+{
+  "title": "Create new account",
+  "subtitle": "Fill in the information to start chatting",
+  "email": "Email",
+  "emailPlaceholder": "example@gmail.com",
+  "sendOtp": "Send OTP",
+  "otpCode": "OTP Code",
+  "otpSentSuccess": "OTP sent to your Gmail (valid for 5 minutes)",
+  "nickname": "Nickname",
+  "nicknamePlaceholder": "Display name (2-20 characters)",
+  "password": "Password",
+  "passwordPlaceholder": "Minimum 6 characters, letters and numbers",
+  "confirmPassword": "Confirm Password",
+  "confirmPasswordPlaceholder": "Re-enter password",
+  "registerButton": "Register now",
+  "registering": "Registering...",
+  "haveAccount": "Already have an account?",
+  "loginNow": "Login now",
+  
+  "validation": {
+    "emailMustBeGmail": "Email must be Gmail (@gmail.com)",
+    "nicknameLength": "Nickname must be 2–20 characters",
+    "passwordMinLength": "Password must be at least 6 characters",
+    "passwordMustHaveLetter": "Password must contain letters",
+    "passwordMustHaveNumber": "Password must contain numbers",
+    "passwordNotMatch": "Passwords do not match",
+    "pleaseVerifyCaptcha": "Please verify reCAPTCHA",
+    "pleaseEnterFullOtp": "Please enter all 6 OTP digits",
+    "cannotSendOtp": "Cannot send OTP"
+  },
+  
+  "errors": {
+    "serverError": "Server error"
+  }
+}

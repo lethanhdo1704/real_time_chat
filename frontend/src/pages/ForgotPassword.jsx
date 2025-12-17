@@ -2,8 +2,11 @@
 import { useState, useContext, useEffect, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next"; // Thêm import
 
 export default function ForgotPassword() {
+  const { t } = useTranslation("forgotPassword"); // Khởi tạo hook translate
+  
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [newPassword, setNewPassword] = useState("");
@@ -12,7 +15,7 @@ export default function ForgotPassword() {
   const [step, setStep] = useState(1);
   const [timer, setTimer] = useState(0);
   const [otpMessage, setOtpMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState(""); // Thêm state cho success message
+  const [successMessage, setSuccessMessage] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -30,14 +33,14 @@ export default function ForgotPassword() {
   // =====================
   const validateEmail = (email) => {
     const regex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-    if (!regex.test(email.trim())) return "Email phải là Gmail (@gmail.com)";
+    if (!regex.test(email.trim())) return t("forgotPassword.errors.emailInvalid");
     return "";
   };
 
   const validatePassword = (pw) => {
-    if (pw.length < 6) return "Mật khẩu phải từ 6 ký tự";
-    if (!/[A-Za-z]/.test(pw)) return "Mật khẩu phải có chữ";
-    if (!/[0-9]/.test(pw)) return "Mật khẩu phải có số";
+    if (pw.length < 6) return t("forgotPassword.errors.passwordTooShort");
+    if (!/[A-Za-z]/.test(pw)) return t("forgotPassword.errors.passwordNoLetters");
+    if (!/[0-9]/.test(pw)) return t("forgotPassword.errors.passwordNoNumbers");
     return "";
   };
 
@@ -59,7 +62,7 @@ export default function ForgotPassword() {
       
       setStep(2);
       setTimer(300);
-      setOtpMessage("OTP đã gửi đến Gmail của bạn (hợp lệ 5 phút)");
+      setOtpMessage(t("forgotPassword.form.otp.sent"));
       
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
       
@@ -69,7 +72,7 @@ export default function ForgotPassword() {
       const errorMessage = err.response?.data?.error || 
                           err.response?.data?.message || 
                           err.message || 
-                          "Không thể gửi OTP";
+                          t("forgotPassword.errors.sendOTPFailed");
       
       setError(errorMessage);
       
@@ -145,22 +148,20 @@ export default function ForgotPassword() {
     if (pwErr) return setError(pwErr);
 
     if (newPassword !== confirmPassword) {
-      return setError("Mật khẩu xác nhận không khớp");
+      return setError(t("forgotPassword.errors.passwordMismatch"));
     }
 
     const otpValue = otp.join("");
     if (otpValue.length !== 6) {
-      return setError("Vui lòng nhập đủ 6 số OTP");
+      return setError(t("forgotPassword.errors.otpIncomplete"));
     }
 
     try {
       setLoading(true);
       await verifyForgotOTP({ email, otp: otpValue, newPassword });
       
-      // Hiển thị thông báo thành công
-      setSuccessMessage("Đặt lại mật khẩu thành công!");
+      setSuccessMessage(t("forgotPassword.messages.success"));
       
-      // Chờ 2 giây để người dùng thấy thông báo, sau đó chuyển trang
       setTimeout(() => {
         navigate("/login");
       }, 2000);
@@ -171,7 +172,7 @@ export default function ForgotPassword() {
       const errorMessage = err.response?.data?.error || 
                           err.response?.data?.message || 
                           err.message || 
-                          "Không thể đặt lại mật khẩu";
+                          t("forgotPassword.errors.resetFailed");
       
       setError(errorMessage);
       
@@ -193,14 +194,14 @@ export default function ForgotPassword() {
       await sendForgotOTP(email);
       
       setTimer(300);
-      setOtpMessage("OTP mới đã được gửi đến Gmail của bạn");
+      setOtpMessage(t("forgotPassword.form.otp.resent"));
       setOtp(["", "", "", "", "", ""]);
       otpRefs.current[0]?.focus();
       
     } catch (err) {
       const errorMessage = err.response?.data?.error || 
                           err.response?.data?.message || 
-                          "Không thể gửi lại OTP";
+                          t("forgotPassword.errors.resendFailed");
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -218,9 +219,14 @@ export default function ForgotPassword() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
               </svg>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Quên mật khẩu</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              {t("forgotPassword.title")}
+            </h2>
             <p className="text-gray-600">
-              {step === 1 ? "Nhập email để nhận mã OTP" : "Nhập OTP và mật khẩu mới"}
+              {step === 1 
+                ? t("forgotPassword.subtitle.step1")
+                : t("forgotPassword.subtitle.step2")
+              }
             </p>
           </div>
 
@@ -239,10 +245,12 @@ export default function ForgotPassword() {
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t("forgotPassword.form.email.label")}
+                </label>
                 <input
                   type="email"
-                  placeholder="example@gmail.com"
+                  placeholder={t("forgotPassword.form.email.placeholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -262,10 +270,10 @@ export default function ForgotPassword() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Đang gửi...
+                    {t("forgotPassword.buttons.sending")}
                   </span>
                 ) : (
-                  "Gửi mã OTP"
+                  t("forgotPassword.buttons.sendOTP")
                 )}
               </button>
             </form>
@@ -274,7 +282,7 @@ export default function ForgotPassword() {
           {/* Step 2: Nhập OTP + Mật khẩu mới */}
           {step === 2 && (
             <form onSubmit={handleResetPassword} className="space-y-5">
-              {/* Success Message - Hiển thị khi reset thành công */}
+              {/* Success Message */}
               {successMessage && (
                 <div className="flex items-center gap-3 text-sm text-green-700 bg-green-50 border border-green-200 px-4 py-3 rounded-xl animate-pulse">
                   <svg className="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -282,7 +290,7 @@ export default function ForgotPassword() {
                   </svg>
                   <div>
                     <p className="font-semibold">{successMessage}</p>
-                    <p className="text-xs mt-1">Đang chuyển đến trang đăng nhập...</p>
+                    <p className="text-xs mt-1">{t("forgotPassword.messages.redirecting")}</p>
                   </div>
                 </div>
               )}
@@ -310,14 +318,16 @@ export default function ForgotPassword() {
               {/* Email Display */}
               <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
                 <p className="text-sm text-gray-600">
-                  Email: <span className="font-semibold text-gray-900">{email}</span>
+                  {t("forgotPassword.messages.emailDisplay")} <span className="font-semibold text-gray-900">{email}</span>
                 </p>
               </div>
 
               {/* OTP Input */}
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-gray-700">Mã OTP</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    {t("forgotPassword.form.otp.label")}
+                  </label>
                   {timer > 0 && (
                     <span className="text-sm text-indigo-600 font-semibold">
                       {formatTimer(timer)}
@@ -351,7 +361,7 @@ export default function ForgotPassword() {
                       disabled={loading}
                       className="text-sm text-indigo-600 hover:text-indigo-700 font-medium disabled:opacity-50"
                     >
-                      Gửi lại mã OTP
+                      {t("forgotPassword.form.otp.resendButton")}
                     </button>
                   </div>
                 )}
@@ -359,11 +369,13 @@ export default function ForgotPassword() {
 
               {/* New Password */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mật khẩu mới</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t("forgotPassword.form.newPassword.label")}
+                </label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
-                    placeholder="Tối thiểu 6 ký tự, có chữ và số"
+                    placeholder={t("forgotPassword.form.newPassword.placeholder")}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
@@ -392,11 +404,13 @@ export default function ForgotPassword() {
 
               {/* Confirm Password */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Xác nhận mật khẩu</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t("forgotPassword.form.confirmPassword.label")}
+                </label>
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Nhập lại mật khẩu mới"
+                    placeholder={t("forgotPassword.form.confirmPassword.placeholder")}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
@@ -435,17 +449,17 @@ export default function ForgotPassword() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Đang xử lý...
+                    {t("forgotPassword.buttons.processing")}
                   </span>
                 ) : successMessage ? (
                   <span className="flex items-center justify-center gap-2">
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
-                    Thành công!
+                    {t("forgotPassword.buttons.success")}
                   </span>
                 ) : (
-                  "Đặt lại mật khẩu"
+                  t("forgotPassword.buttons.resetPassword")
                 )}
               </button>
 
@@ -456,7 +470,7 @@ export default function ForgotPassword() {
                   onClick={() => setStep(1)}
                   className="w-full text-gray-600 hover:text-gray-800 py-2 text-sm font-medium transition-colors"
                 >
-                  ← Quay lại
+                  {t("forgotPassword.buttons.back")}
                 </button>
               )}
             </form>
@@ -465,9 +479,9 @@ export default function ForgotPassword() {
           {/* Login Link */}
           <div className="mt-8 text-center">
             <p className="text-gray-600">
-              Nhớ mật khẩu rồi?{" "}
+              {t("forgotPassword.footer.rememberPassword")}{" "}
               <Link to="/login" className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">
-                Đăng nhập ngay
+                {t("forgotPassword.footer.loginLink")}
               </Link>
             </p>
           </div>

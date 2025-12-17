@@ -1,0 +1,9 @@
+{
+    "errorCode": "404",
+    "title": "Page Not Found",
+    "description": "Oops! The page you're looking for seems to have wandered off into the digital void.",
+    "button": {
+      "text": "Go Back Home",
+      "ariaLabel": "Return to home page"
+    }
+}

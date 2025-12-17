@@ -2,25 +2,77 @@
 import { useContext, useEffect, useState, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import socket from "../socket";
+import EmojiPicker from "./EmojiPicker";
 
 export default function ChatWindow({ receiverId, receiverName, receiverAvatar, currentRoom, user }) {
   const { user: currentUser, token } = useContext(AuthContext);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const textareaRef = useRef(null);
+  
+  const markedAsReadRef = useRef(false);
 
   const isPrivateChat = !!receiverId;
   const isGroupChat = !!currentRoom;
   const activeUser = user || currentUser;
 
+  // Function to convert URLs in text to clickable links
+  const linkifyText = (text) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-blue-200 transition-colors break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
+  // Handle emoji selection
+  const handleEmojiClick = (emojiObject) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const emoji = emojiObject.emoji;
+    const newText = text.substring(0, start) + emoji + text.substring(end);
+    
+    setText(newText);
+    
+    // Set cursor position after emoji
+    setTimeout(() => {
+      textarea.focus();
+      const newPosition = start + emoji.length;
+      textarea.setSelectionRange(newPosition, newPosition);
+    }, 0);
+    
+    setShowEmojiPicker(false);
+  };
+
   // Load messages
   useEffect(() => {
     if (!activeUser) return;
 
+    markedAsReadRef.current = false;
+
     if (isPrivateChat && receiverId) {
-      // Load private messages
       fetch(`http://localhost:5000/api/messages/${receiverId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -29,12 +81,20 @@ export default function ChatWindow({ receiverId, receiverName, receiverAvatar, c
         .then(res => res.json())
         .then(data => {
           setMessages(data);
-          // Mark as read
-          markAsRead();
+          
+          const hasUnread = data.some(msg => 
+            msg.sender === receiverId && 
+            msg.receiver === activeUser.uid && 
+            !msg.read
+          );
+          
+          if (hasUnread && !markedAsReadRef.current) {
+            markedAsReadRef.current = true;
+            markAsRead();
+          }
         })
         .catch(err => console.error("Load messages error:", err));
     } else if (isGroupChat && currentRoom) {
-      // Load group messages
       fetch("http://localhost:5000/api/messages", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -43,7 +103,7 @@ export default function ChatWindow({ receiverId, receiverName, receiverAvatar, c
         .then(res => res.json())
         .then(data => setMessages(data));
     }
-  }, [activeUser, token, receiverId, currentRoom, isPrivateChat, isGroupChat]);
+  }, [activeUser, token, receiverId, currentRoom]);
 
   // Socket listeners
   useEffect(() => {
@@ -57,9 +117,13 @@ export default function ChatWindow({ receiverId, receiverName, receiverAvatar, c
         ) {
           setMessages(prev => [...prev, msg]);
           
-          // Auto mark as read if message from other person
-          if (msg.sender === receiverId) {
-            markAsRead();
+          if (msg.sender === receiverId && !markedAsReadRef.current) {
+            markedAsReadRef.current = true;
+            
+            setTimeout(() => {
+              markAsRead();
+              markedAsReadRef.current = false;
+            }, 500);
           }
         }
       };
@@ -72,7 +136,6 @@ export default function ChatWindow({ receiverId, receiverName, receiverAvatar, c
 
       const handleMessagesRead = ({ userId }) => {
         if (userId === receiverId) {
-          // Receiver read our messages - update UI
           setMessages(prev => 
             prev.map(msg => 
               msg.sender === activeUser.uid && msg.receiver === receiverId
@@ -171,8 +234,8 @@ export default function ChatWindow({ receiverId, receiverName, receiverAvatar, c
 
   if (!isPrivateChat && !isGroupChat) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-linear-to-br from-gray-50 to-blue-50">
-        <div className="text-center">
+      <div className="flex flex-col items-center justify-center h-full bg-linear-to-brrom-gray-50 to-blue-50">
+        <div className="text-center px-4">
           <svg className="w-24 h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
@@ -203,20 +266,20 @@ export default function ChatWindow({ receiverId, receiverName, receiverAvatar, c
   }
 
   return (
-    <div className="flex flex-col h-screen bg-linear-to-br from-gray-50 to-blue-50">
+    <div className="flex flex-col h-full w-full bg-linear-to-br from-gray-50 to-blue-50 overflow-hidden">
       {/* Header */}
       {isPrivateChat && (
-        <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden">
+        <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-full bg-linear-to-brrom-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden shrink-0">
               {receiverAvatar ? (
                 <img src={receiverAvatar} alt={receiverName} className="w-full h-full object-cover" />
               ) : (
                 receiverName?.[0]?.toUpperCase() || "?"
               )}
             </div>
-            <div>
-              <h2 className="font-semibold text-gray-800">{receiverName}</h2>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-semibold text-gray-800 truncate">{receiverName}</h2>
               {isTyping ? (
                 <p className="text-xs text-blue-500 italic flex items-center gap-1">
                   <span className="inline-flex gap-0.5">
@@ -245,38 +308,51 @@ export default function ChatWindow({ receiverId, receiverName, receiverAvatar, c
               className={`flex ${isMe ? "justify-end" : "justify-start"} animate-fadeIn`}
             >
               <div
-                className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-md transition-all hover:shadow-lg
+                className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-md transition-all hover:shadow-lg wrap-break-word
                   ${isMe
                     ? "bg-linear-to-br from-blue-500 to-blue-600 text-white rounded-br-md"
                     : "bg-white text-gray-800 rounded-bl-md border border-gray-200"
                   }`}
               >
                 {!isMe && isGroupChat && (
-                  <p className="text-xs font-semibold text-blue-600 mb-1.5">
+                  <p className="text-xs font-semibold text-blue-600 mb-1.5 truncate">
                     {msg.senderName}
                   </p>
                 )}
-                <p className="whitespace-pre-wrap wrap-break-word leading-relaxed">
-                  {msg.text}
+                
+                {/* Message text with clickable links */}
+                <p className="whitespace-pre-wrap wrap-break-word leading-relaxed text-sm">
+                  {linkifyText(msg.text)}
                 </p>
-                <div className={`flex items-center justify-end gap-1.5 mt-1 text-xs ${isMe ? "text-blue-100" : "text-gray-400"}`}>
-                  <span>
+                
+                {/* Timestamp & Status */}
+                <div className={`flex items-center justify-end gap-2 mt-1.5 text-xs ${isMe ? "text-blue-100" : "text-gray-400"}`}>
+                  <span className="whitespace-nowrap">
                     {new Date(msg.createdAt).toLocaleTimeString("vi-VN", {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
                   </span>
+                  
+                  {/* Status Indicator */}
                   {isMe && isPrivateChat && (
-                    msg.read ? (
-                      <svg className="w-4 h-4 text-blue-200" fill="currentColor" viewBox="0 0 20 20" title="Đã xem">
-                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                        <path d="M12.707 5.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L8 8.586l3.293-3.293a1 1 0 011.414 0z" transform="translate(2, 0)"/>
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4 text-blue-300" fill="currentColor" viewBox="0 0 20 20" title="Đã gửi">
-                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                      </svg>
-                    )
+                    <div className="flex items-center gap-1 whitespace-nowrap">
+                      {msg.read ? (
+                        <>
+                          <svg className="w-4 h-4 text-green-300 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M0 11l2-2 5 5L18 3l2 2L7 18z"/>
+                          </svg>
+                          <span className="text-green-300 font-medium">Đã xem</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 text-blue-200 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M0 11l2-2 5 5L18 3l2 2L7 18z"/>
+                          </svg>
+                          <span className="text-blue-200">Đã gửi</span>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -288,10 +364,19 @@ export default function ChatWindow({ receiverId, receiverName, receiverAvatar, c
       </div>
 
       {/* Input Area */}
-      <div className="bg-white border-t border-gray-200 p-4 shadow-lg">
-        <div className="flex items-end gap-3 max-w-5xl mx-auto">
-          <div className="flex-1 relative">
+      <div className="bg-white border-t border-gray-200 p-4 shadow-lg shrink-0">
+        <div className="flex items-end gap-3 w-full">
+          {/* Textarea with Emoji Button Inside */}
+          <div className="flex-1 relative min-w-0">
+            {/* Emoji Picker Component */}
+            <EmojiPicker
+              show={showEmojiPicker}
+              onClose={() => setShowEmojiPicker(false)}
+              onEmojiClick={handleEmojiClick}
+            />
+
             <textarea
+              ref={textareaRef}
               value={text}
               onChange={handleTextChange}
               onKeyDown={handleKeyPress}
@@ -306,8 +391,25 @@ export default function ChatWindow({ receiverId, receiverName, receiverAvatar, c
                 maxHeight: '128px'
               }}
             />
+
+            {/* Emoji Button - Positioned absolutely inside textarea */}
+            <button
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className={`absolute right-2 bottom-2 p-2 rounded-lg transition-all duration-200 ${
+                showEmojiPicker 
+                  ? "text-blue-500 bg-blue-50" 
+                  : "text-gray-400 hover:text-blue-500 hover:bg-blue-50"
+              }`}
+              title="Chọn emoji"
+              type="button"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
           </div>
           
+          {/* Send Button */}
           <button
             onClick={sendMessage}
             disabled={!text.trim()}
@@ -316,10 +418,10 @@ export default function ChatWindow({ receiverId, receiverName, receiverAvatar, c
               hover:from-blue-600 hover:to-blue-700 hover:shadow-lg
               active:scale-95 transition-all duration-200
               disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
-              flex items-center gap-2 whitespace-nowrap"
+              flex items-center gap-2 whitespace-nowrap shrink-0"
           >
             <svg 
-              className="w-5 h-5" 
+              className="w-5 h-5 shrink-0" 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24"

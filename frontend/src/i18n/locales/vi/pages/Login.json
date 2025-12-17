@@ -1,0 +1,32 @@
+{
+  "appTitle": "REAL TIME CHAT",
+  "appSubtitle": "Kết nối tức thì – Trò chuyện không giới hạn",
+  
+  "features": {
+    "realtime": "Tin nhắn realtime cực nhanh",
+    "security": "Bảo mật end-to-end",
+    "ui": "Giao diện hiện đại, dễ dùng"
+  },
+  
+  "login": {
+    "title": "Chào mừng trở lại!",
+    "subtitle": "Đăng nhập để tiếp tục trò chuyện",
+    "email": "Email",
+    "emailPlaceholder": "example@email.com",
+    "password": "Mật khẩu",
+    "passwordPlaceholder": "••••••••",
+    "rememberMe": "Ghi nhớ đăng nhập",
+    "forgotPassword": "Quên mật khẩu?",
+    "loginButton": "Đăng nhập",
+    "loggingIn": "Đang đăng nhập...",
+    "or": "Hoặc",
+    "noAccount": "Chưa có tài khoản?",
+    "createAccount": "Tạo tài khoản mới"
+  },
+  
+  "errors": {
+    "serverError": "Server error",
+    "invalidCredentials": "Email hoặc mật khẩu không đúng",
+    "networkError": "Lỗi kết nối mạng"
+  }
+}

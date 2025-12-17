@@ -1,8 +1,10 @@
 import { useState, useContext, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export default function Login() {
+  const { t } = useTranslation("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -25,7 +27,7 @@ export default function Login() {
     try {
       await login(email, password, rememberMe);
     } catch (err) {
-      setError(err.response?.data?.error || "Server error");
+      setError(err.response?.data?.error || t("errors.serverError"));
     } finally {
       setLoading(false);
     }
@@ -46,10 +48,10 @@ export default function Login() {
               />
             </div>
             <h1 className="text-4xl font-bold mb-4 tracking-tight drop-shadow-lg text-gray-900">
-              REAL TIME CHAT
+              {t("appTitle")}
             </h1>
             <p className="text-xl text-gray-600 max-w-xs mx-auto leading-relaxed font-medium">
-              Kết nối tức thì – Trò chuyện không giới hạn
+              {t("appSubtitle")}
             </p>
 
             {/* Features */}
@@ -69,7 +71,7 @@ export default function Login() {
                   </svg>
                 </div>
                 <span className="text-base font-medium">
-                  Tin nhắn realtime cực nhanh
+                  {t("features.realtime")}
                 </span>
               </div>
               <div className="flex items-center gap-3 text-gray-700">
@@ -87,7 +89,7 @@ export default function Login() {
                   </svg>
                 </div>
                 <span className="text-base font-medium">
-                  Bảo mật end-to-end
+                  {t("features.security")}
                 </span>
               </div>
               <div className="flex items-center gap-3 text-gray-700">
@@ -105,7 +107,7 @@ export default function Login() {
                   </svg>
                 </div>
                 <span className="text-base font-medium">
-                  Giao diện hiện đại, dễ dùng
+                  {t("features.ui")}
                 </span>
               </div>
             </div>
@@ -134,10 +136,10 @@ export default function Login() {
               </div>
 
               <h2 className="text-2xl lg:text-3xl font-bold mb-1.5 text-gray-900">
-                Chào mừng trở lại!
+                {t("login.title")}
               </h2>
               <p className="text-sm text-gray-600">
-                Đăng nhập để tiếp tục trò chuyện
+                {t("login.subtitle")}
               </p>
             </div>
 
@@ -162,11 +164,11 @@ export default function Login() {
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Email
+                  {t("login.email")}
                 </label>
                 <input
                   type="email"
-                  placeholder="example@email.com"
+                  placeholder={t("login.emailPlaceholder")}
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
@@ -180,12 +182,12 @@ export default function Login() {
               {/* Password */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Mật khẩu
+                  {t("login.password")}
                 </label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
+                    placeholder={t("login.passwordPlaceholder")}
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -247,13 +249,13 @@ export default function Login() {
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span className="text-gray-600">Ghi nhớ đăng nhập</span>
+                  <span className="text-gray-600">{t("login.rememberMe")}</span>
                 </label>
                 <a
                   href="/ForgotPassword"
                   className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
                 >
-                  Quên mật khẩu?
+                  {t("login.forgotPassword")}
                 </a>
               </div>
 
@@ -284,10 +286,10 @@ export default function Login() {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    Đang đăng nhập...
+                    {t("login.loggingIn")}
                   </span>
                 ) : (
-                  "Đăng nhập"
+                  t("login.loginButton")
                 )}
               </button>
             </form>
@@ -298,13 +300,13 @@ export default function Login() {
                 <div className="w-full border-t border-gray-200"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500">Hoặc</span>
+                <span className="px-4 bg-white text-gray-500">{t("login.or")}</span>
               </div>
             </div>
 
             {/* Register link */}
             <div className="text-center">
-              <p className="text-gray-600 mb-2.5 text-sm">Chưa có tài khoản?</p>
+              <p className="text-gray-600 mb-2.5 text-sm">{t("login.noAccount")}</p>
               <Link
                 to="/register"
                 className="inline-flex items-center justify-center gap-2 px-6 py-2 border-2 border-indigo-600 text-indigo-600 font-semibold rounded-xl hover:bg-indigo-50 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
@@ -322,7 +324,7 @@ export default function Login() {
                     d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
                   />
                 </svg>
-                Tạo tài khoản mới
+                {t("login.createAccount")}
               </Link>
             </div>
           </div>

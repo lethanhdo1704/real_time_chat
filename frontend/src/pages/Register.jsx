@@ -2,18 +2,19 @@ import { useState, useContext, useEffect, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import ReCAPTCHA from "react-google-recaptcha";
+import { useTranslation } from "react-i18next";
 
 export default function Register() {
+  const { t } = useTranslation("register");
   const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]); // 6 ô OTP
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [otpSent, setOtpSent] = useState(false);
   const [timer, setTimer] = useState(0);
   const [otpMessage, setOtpMessage] = useState("");
 
-  // Toggle password
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -24,7 +25,6 @@ export default function Register() {
   const { register, sendRegisterOTP } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // Refs cho 6 ô OTP
   const otpRefs = useRef([]);
 
   // =====================
@@ -32,18 +32,18 @@ export default function Register() {
   // =====================
   const validateEmail = (email) => {
     const regex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-    if (!regex.test(email.trim())) return "Email phải là Gmail (@gmail.com)";
+    if (!regex.test(email.trim())) return t("validation.emailMustBeGmail");
     return "";
   };
   const validateNickname = (name) => {
     const n = name.trim();
-    if (n.length < 2 || n.length > 20) return "Biệt danh phải từ 2–20 ký tự";
+    if (n.length < 2 || n.length > 20) return t("validation.nicknameLength");
     return "";
   };
   const validatePassword = (pw) => {
-    if (pw.length < 6) return "Mật khẩu phải từ 6 ký tự";
-    if (!/[A-Za-z]/.test(pw)) return "Mật khẩu phải có chữ";
-    if (!/[0-9]/.test(pw)) return "Mật khẩu phải có số";
+    if (pw.length < 6) return t("validation.passwordMinLength");
+    if (!/[A-Za-z]/.test(pw)) return t("validation.passwordMustHaveLetter");
+    if (!/[0-9]/.test(pw)) return t("validation.passwordMustHaveNumber");
     return "";
   };
 
@@ -61,13 +61,12 @@ export default function Register() {
       await sendRegisterOTP(email);
       setOtpSent(true);
       setTimer(300);
-      setOtpMessage("OTP đã gửi đến Gmail của bạn (hợp lệ 5 phút)");
+      setOtpMessage(t("otpSentSuccess"));
       
-      // Focus vào ô OTP đầu tiên
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch (err) {
       console.error("Send OTP error:", err.response?.data || err);
-      setError(err.response?.data?.error || "Không thể gửi OTP");
+      setError(err.response?.data?.error || t("validation.cannotSendOtp"));
     } finally {
       setLoading(false);
     }
@@ -77,25 +76,21 @@ export default function Register() {
   // HANDLE OTP INPUT
   // =====================
   const handleOtpChange = (index, value) => {
-    // Chỉ cho phép số
     if (!/^\d*$/.test(value)) return;
 
     const newOtp = [...otp];
-    newOtp[index] = value.slice(-1); // Chỉ lấy 1 ký tự cuối
+    newOtp[index] = value.slice(-1);
     setOtp(newOtp);
 
-    // Auto focus sang ô tiếp theo
     if (value && index < 5) {
       otpRefs.current[index + 1]?.focus();
     }
   };
 
   const handleOtpKeyDown = (index, e) => {
-    // Backspace: xóa và quay lại ô trước
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       otpRefs.current[index - 1]?.focus();
     }
-    // Arrow keys navigation
     if (e.key === "ArrowLeft" && index > 0) {
       otpRefs.current[index - 1]?.focus();
     }
@@ -113,7 +108,6 @@ export default function Register() {
     while (newOtp.length < 6) newOtp.push("");
     setOtp(newOtp);
 
-    // Focus vào ô cuối cùng có giá trị
     const lastIndex = Math.min(pastedData.length, 5);
     otpRefs.current[lastIndex]?.focus();
   };
@@ -140,7 +134,7 @@ export default function Register() {
     e.preventDefault();
     setError("");
 
-    if (!captcha) return setError("Vui lòng xác thực reCAPTCHA");
+    if (!captcha) return setError(t("validation.pleaseVerifyCaptcha"));
 
     const emailErr = validateEmail(email);
     if (emailErr) return setError(emailErr);
@@ -151,10 +145,10 @@ export default function Register() {
     const pwErr = validatePassword(password);
     if (pwErr) return setError(pwErr);
 
-    if (password !== confirmPassword) return setError("Mật khẩu nhập lại không khớp");
+    if (password !== confirmPassword) return setError(t("validation.passwordNotMatch"));
 
     const otpValue = otp.join("");
-    if (otpValue.length !== 6) return setError("Vui lòng nhập đủ 6 số OTP");
+    if (otpValue.length !== 6) return setError(t("validation.pleaseEnterFullOtp"));
 
     try {
       setLoading(true);
@@ -162,7 +156,7 @@ export default function Register() {
       navigate("/login");
     } catch (err) {
       console.error("Register error:", err.response?.data || err);
-      setError(err.response?.data?.error || "Server error");
+      setError(err.response?.data?.error || t("errors.serverError"));
     } finally {
       setLoading(false);
     }
@@ -179,8 +173,8 @@ export default function Register() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
               </svg>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Tạo tài khoản mới</h2>
-            <p className="text-gray-600">Điền thông tin để bắt đầu trò chuyện</p>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">{t("title")}</h2>
+            <p className="text-gray-600">{t("subtitle")}</p>
           </div>
 
           <form onSubmit={handleSubmit} autoComplete="off" className="space-y-5">
@@ -196,11 +190,13 @@ export default function Register() {
 
             {/* Email + Send OTP */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t("email")}
+              </label>
               <div className="flex gap-2">
                 <input
                   type="email"
-                  placeholder="example@gmail.com"
+                  placeholder={t("emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -212,7 +208,7 @@ export default function Register() {
                   disabled={loading || timer > 0}
                   className="px-5 py-3 bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
-                  {timer > 0 ? formatTimer(timer) : "Gửi OTP"}
+                  {timer > 0 ? formatTimer(timer) : t("sendOtp")}
                 </button>
               </div>
             </div>
@@ -230,7 +226,9 @@ export default function Register() {
             {/* OTP Input Boxes */}
             {otpSent && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mã OTP</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t("otpCode")}
+                </label>
                 <div className="flex gap-2 justify-center">
                   {otp.map((digit, index) => (
                     <input
@@ -253,10 +251,12 @@ export default function Register() {
 
             {/* Nickname */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Biệt danh</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t("nickname")}
+              </label>
               <input
                 type="text"
-                placeholder="Tên hiển thị (2-20 ký tự)"
+                placeholder={t("nicknamePlaceholder")}
                 value={nickname}
                 maxLength={20}
                 onChange={(e) => setNickname(e.target.value)}
@@ -267,11 +267,13 @@ export default function Register() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Mật khẩu</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t("password")}
+              </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
-                  placeholder="Tối thiểu 6 ký tự, có chữ và số"
+                  placeholder={t("passwordPlaceholder")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -298,11 +300,13 @@ export default function Register() {
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Xác nhận mật khẩu</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t("confirmPassword")}
+              </label>
               <div className="relative">
                 <input
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Nhập lại mật khẩu"
+                  placeholder={t("confirmPasswordPlaceholder")}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -347,10 +351,10 @@ export default function Register() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Đang đăng ký...
+                  {t("registering")}
                 </span>
               ) : (
-                "Đăng ký ngay"
+                t("registerButton")
               )}
             </button>
           </form>
@@ -358,9 +362,9 @@ export default function Register() {
           {/* Login Link */}
           <div className="mt-8 text-center">
             <p className="text-gray-600">
-              Đã có tài khoản?{" "}
+              {t("haveAccount")}{" "}
               <Link to="/login" className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">
-                Đăng nhập ngay
+                {t("loginNow")}
               </Link>
             </p>
           </div>
