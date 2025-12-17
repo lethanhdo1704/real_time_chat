@@ -49,10 +49,13 @@ function CopyToast({ show, onClose }) {
 export default function Home() {
   const { user, logout, loading } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [currentRoom, setCurrentRoom] = useState(null);
-  const [activeTab, setActiveTab] = useState("friends"); // friends / requests / add / groups
+  const [activeTab, setActiveTab] = useState("friends");
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
+  
+  // States cho chat
+  const [selectedChat, setSelectedChat] = useState(null); // { receiverId, receiverName, receiverAvatar, type: 'private' | 'group' }
+  const [currentRoom, setCurrentRoom] = useState(null); // For group chat
 
   // Loading
   if (loading) {
@@ -82,18 +85,33 @@ export default function Home() {
   };
 
   const updateRequestCount = (count) => {
-    console.log('Updating request count:', count); // Debug log
+    console.log('Updating request count:', count);
     setRequestCount(count);
   };
 
-  // Fetch request count khi component mount hoặc khi chuyển tab
+  // Handle selecting a friend for private chat
+  const handleSelectFriend = (chatInfo) => {
+    setSelectedChat({
+      ...chatInfo,
+      type: 'private'
+    });
+    setCurrentRoom(null); // Clear group room when selecting private chat
+  };
+
+  // Handle selecting a group
+  const handleSelectRoom = (room) => {
+    setCurrentRoom(room);
+    setSelectedChat(null); // Clear private chat when selecting group
+  };
+
+  // Fetch request count khi component mount
   useEffect(() => {
     if (user) {
       const fetchInitialCount = async () => {
         try {
           const data = await getFriendsAndRequests(user.uid);
           const count = (data.requests || []).length;
-          console.log('Initial request count:', count); // Debug log
+          console.log('Initial request count:', count);
           setRequestCount(count);
         } catch (err) {
           console.error('Error fetching initial request count:', err);
@@ -268,23 +286,78 @@ export default function Home() {
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-            {activeTab === "friends" && <FriendList currentUser={user} onCopyUID={handleCopyUID} />}
-            {activeTab === "groups" && <GroupList currentUser={user} onSelectRoom={setCurrentRoom} />}
-            {activeTab === "requests" && <FriendRequests currentUser={user} onUpdateCount={updateRequestCount} />}
-            {activeTab === "add" && <AddFriend currentUser={user} />}
+            {activeTab === "friends" && (
+              <FriendList 
+                currentUser={user} 
+                onCopyUID={handleCopyUID}
+                onSelectFriend={handleSelectFriend}
+              />
+            )}
+            {activeTab === "groups" && (
+              <GroupList 
+                currentUser={user} 
+                onSelectRoom={handleSelectRoom}
+              />
+            )}
+            {activeTab === "requests" && (
+              <FriendRequests 
+                currentUser={user} 
+                onUpdateCount={updateRequestCount}
+              />
+            )}
+            {activeTab === "add" && (
+              <AddFriend currentUser={user} />
+            )}
           </div>
         </div>
 
         {/* Main Chat */}
         <div className="flex-1 flex flex-col">
-          <ChatWindow
-            currentRoom={currentRoom}
-            user={{
-              uid: user.uid,
-              nickname: user.nickname,
-              avatar: user.avatar,
-            }}
-          />
+          {selectedChat?.type === 'private' ? (
+            <ChatWindow
+              receiverId={selectedChat.receiverId}
+              receiverName={selectedChat.receiverName}
+              receiverAvatar={selectedChat.receiverAvatar}
+            />
+          ) : currentRoom ? (
+            <ChatWindow
+              currentRoom={currentRoom}
+              user={{
+                uid: user.uid,
+                nickname: user.nickname,
+                avatar: user.avatar,
+              }}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full bg-linear-to-br from-gray-50 to-blue-50">
+              <div className="text-center">
+                <svg className="w-24 h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <h2 className="text-2xl font-semibold text-gray-700 mb-2">
+                  Chào mừng đến với Chat
+                </h2>
+                <p className="text-gray-500 mb-1">
+                  Chọn một người bạn hoặc nhóm để bắt đầu trò chuyện
+                </p>
+                <div className="flex items-center justify-center gap-4 mt-4 text-sm text-gray-400">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <span>Chat riêng tư</span>
+                  </div>
+                  <div className="w-px h-4 bg-gray-300"></div>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span>Chat nhóm</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

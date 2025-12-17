@@ -2,16 +2,18 @@ import express from "express";
 import cors from "cors";
 import connectDB from "./config/db.js";
 import { createServer } from "http";
-import { Server } from "socket.io";
 import "dotenv/config";
 
+// Routes
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import messageRoutes from "./routes/messages.js";
 import otpForgotRoutes from "./routes/otp/forgot.js";
 import otpRegisterRoutes from "./routes/otp/register.js";
-import Message from "./models/Message.js";
 import friendsRoutes from "./routes/friend.js";
+
+// Socket
+import initSocket from "./socket/index.js";
 
 const app = express();
 
@@ -19,7 +21,8 @@ const app = express();
 app.use(
   cors({
     origin: "http://localhost:5173",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
   })
 );
 app.use(express.json());
@@ -31,44 +34,20 @@ connectDB();
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/messages", messageRoutes);
-
-// OTP routes tách riêng
 app.use("/api/otp/forgot", otpForgotRoutes);
 app.use("/api/otp/register", otpRegisterRoutes);
-
-// Friend routes
 app.use("/api/friends", friendsRoutes);
 
-// Socket server
-const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST"],
-  },
-});
-
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-
-  socket.join("global-room");
-
-  socket.on("sendMessage", async (data) => {
-    const msg = await Message.create({
-      senderId: data.senderId,
-      senderName: data.senderName,
-      text: data.text,
-    });
-
-    io.to("global-room").emit("receiveMessage", msg);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("User disconnected");
-  });
-});
+console.log("✅ All routes registered");
 
 // Start server
-server.listen(process.env.PORT, () => {
-  console.log("Server running on port", process.env.PORT);
+const PORT = process.env.PORT || 5000;
+const server = createServer(app);
+
+// Initialize Socket.IO
+initSocket(server);
+
+server.listen(PORT, () => {
+  console.log(` Server running on http://localhost:${PORT}`);
+  console.log(` Socket.IO ready`);
 });

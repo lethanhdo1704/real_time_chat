@@ -6,6 +6,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -22,9 +23,7 @@ export default function Login() {
     setError("");
 
     try {
-      const res = await login(email, password);
-      localStorage.setItem("token", res.token);
-      setToken(res.token);
+      await login(email, password, rememberMe);
     } catch (err) {
       setError(err.response?.data?.error || "Server error");
     } finally {
@@ -244,6 +243,8 @@ export default function Login() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                   />
                   <span className="text-gray-600">Ghi nhớ đăng nhập</span>

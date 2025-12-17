@@ -1,8 +1,9 @@
+// frontend/src/services/friendService.js
 const API_URL = "http://localhost:5000/api";
 
-// Lấy header auth
+// Check cả localStorage VÀ sessionStorage
 function getAuthHeaders() {
-  const token = localStorage.getItem("token"); // token lưu sau khi login
+  const token = localStorage.getItem("token") || sessionStorage.getItem("token");
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
