@@ -57,7 +57,6 @@ export default function FriendList({ currentUser, onCopyUID, onSelectFriend, sel
   useEffect(() => {
     if (currentUser?.uid) {
       fetchFriends();
-      socket.emit("joinPrivate", currentUser.uid);
     }
   }, [currentUser?.uid]);
 

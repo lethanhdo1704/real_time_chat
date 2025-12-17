@@ -50,8 +50,6 @@ export default function ChatWindow({ receiverId, receiverName, receiverAvatar, c
     if (!activeUser) return;
 
     if (isPrivateChat) {
-      socket.emit("joinPrivate", activeUser.uid);
-
       const handleReceiveMessage = (msg) => {
         if (
           (msg.sender === activeUser.uid && msg.receiver === receiverId) ||
