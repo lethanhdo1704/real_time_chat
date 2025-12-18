@@ -30,7 +30,7 @@ export const renderMessage = (text) => {
           href={part}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline hover:text-blue-200 break-words"
+          className="underline hover:text-blue-200 wrap-break-word"
           onClick={(e) => e.stopPropagation()}
         >
           {part}
