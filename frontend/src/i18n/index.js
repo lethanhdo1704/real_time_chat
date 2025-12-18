@@ -13,6 +13,8 @@ import viHome from "./locales/vi/pages/Home.json";
 import enHome from "./locales/en/pages/Home.json";
 import viChat from "./locales/vi/pages/Chat.json";
 import enChat from "./locales/en/pages/Chat.json";
+import viFriendFeature from "./locales/vi/pages/friendFeature.json";
+import enFriendFeature from "./locales/en/pages/friendFeature.json";
 
 const resources = {
   vi: {
@@ -22,6 +24,7 @@ const resources = {
     forgotPassword: viForgotPassword,
     home: viHome,
     chat: viChat,
+    friendFeature: viFriendFeature,
   },
   en: {
     login: enLogin,
@@ -30,6 +33,7 @@ const resources = {
     forgotPassword: enForgotPassword,
     home: enHome,
     chat: enChat,
+    friendFeature: enFriendFeature,
   },
 };
 
@@ -37,8 +41,8 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: localStorage.getItem("lang") || "vi",
-    ns: ["login", "register", "notFound", "forgotPassword", "home", "chat"],
+    lng: localStorage.getItem("lang") || "en",
+    ns: ["login", "register", "notFound", "forgotPassword", "home", "chat", "friendFeature"],
     interpolation: {
       escapeValue: false,
     },

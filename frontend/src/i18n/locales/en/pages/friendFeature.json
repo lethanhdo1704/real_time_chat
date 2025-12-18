@@ -1,0 +1,67 @@
+{
+  "addFriend": {
+    "title": "Search Users",
+    "inputPlaceholder": "Enter user UID...",
+    "searchButton": "Search",
+    "searching": "Searching...",
+    "sendRequest": "Add Friend",
+    "resultTitle": "Search Result",
+    "status": {
+      "friends": "Already Friends",
+      "requestSent": "Request Sent",
+      "requestReceived": "Request Received"
+    },
+    "messages": {
+      "emptyUID": "Please enter UID",
+      "cannotAddSelf": "Cannot add yourself as friend",
+      "alreadyFriends": "You are already friends with this person",
+      "requestAlreadySent": "You have already sent a friend request to this person",
+      "requestAlreadyReceived": "This person has sent you a friend request. Please check your friend requests",
+      "userNotFound": "User not found",
+      "requestSentSuccess": "Friend request sent successfully!",
+      "requestFailed": "Failed to send friend request"
+    }
+  },
+
+  "friendList": {
+    "empty": {
+      "title": "No friends yet",
+      "subtitle": "Add friends to start chatting"
+    },
+    "you": "You",
+    "copyUID": "Copy UID"
+  },
+
+  "friendRequests": {
+    "accept": "Accept",
+    "reject": "Reject",
+    "removeRequest": "Remove Request",
+    "alreadyFriend": "Already Friends",
+    "empty": "No friend requests",
+    "errors": {
+      "acceptFailed": "An error occurred while accepting the friend request",
+      "rejectFailed": "An error occurred while rejecting the friend request",
+      "alreadyFriendAlert": "You are already friends with this person!"
+    }
+  },
+
+  "groupList": {
+    "createButton": "Create New Group",
+    "createModal": {
+      "title": "Create New Chat Group",
+      "inputPlaceholder": "Enter group name...",
+      "cancel": "Cancel",
+      "create": "Create Group"
+    },
+    "empty": {
+      "title": "No chat groups yet",
+      "subtitle": "Create a group to chat with multiple people"
+    },
+    "members": "members"
+  },
+
+  "common": {
+    "uid": "UID",
+    "loading": "Loading..."
+  }
+}

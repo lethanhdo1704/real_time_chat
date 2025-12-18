@@ -1,8 +1,10 @@
 // frontend/src/components/FriendFeature/AddFriend.jsx
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { searchUser, sendFriendRequest, getFriendStatus } from "../../services/friendService";
 
 export default function AddFriend({ currentUser }) {
+  const { t } = useTranslation("friendFeature");
   const [uid, setUid] = useState("");
   const [result, setResult] = useState(null);
   const [friendStatus, setFriendStatus] = useState(null);
@@ -11,7 +13,7 @@ export default function AddFriend({ currentUser }) {
 
   const handleSearch = async () => {
     if (!uid.trim()) {
-      setMessage({ text: "Vui lòng nhập UID", type: "error" });
+      setMessage({ text: t("addFriend.messages.emptyUID"), type: "error" });
       return;
     }
     
@@ -25,7 +27,7 @@ export default function AddFriend({ currentUser }) {
       if (user.uid === currentUser.uid) {
         setResult(null);
         setFriendStatus(null);
-        setMessage({ text: "Không thể kết bạn với chính mình", type: "error" });
+        setMessage({ text: t("addFriend.messages.cannotAddSelf"), type: "error" });
         return;
       }
       
@@ -37,11 +39,11 @@ export default function AddFriend({ currentUser }) {
         setFriendStatus(status);
         
         if (status === "friends") {
-          setMessage({ text: "Bạn đã là bạn bè với người này", type: "info" });
+          setMessage({ text: t("addFriend.messages.alreadyFriends"), type: "info" });
         } else if (status === "request_sent") {
-          setMessage({ text: "Bạn đã gửi lời mời kết bạn cho người này", type: "info" });
+          setMessage({ text: t("addFriend.messages.requestAlreadySent"), type: "info" });
         } else if (status === "request_received") {
-          setMessage({ text: "Người này đã gửi lời mời kết bạn cho bạn. Hãy kiểm tra lời mời kết bạn", type: "info" });
+          setMessage({ text: t("addFriend.messages.requestAlreadyReceived"), type: "info" });
         }
       } catch (err) {
         console.error("Error checking friend status:", err);
@@ -50,7 +52,7 @@ export default function AddFriend({ currentUser }) {
     } catch (err) {
       setResult(null);
       setFriendStatus(null);
-      setMessage({ text: err.message || "Không tìm thấy người dùng", type: "error" });
+      setMessage({ text: err.message || t("addFriend.messages.userNotFound"), type: "error" });
     } finally {
       setSearching(false);
     }
@@ -61,21 +63,21 @@ export default function AddFriend({ currentUser }) {
     
     try {
       const res = await sendFriendRequest(currentUser.uid, result.uid);
-      setMessage({ text: "Đã gửi lời mời kết bạn thành công!", type: "success" });
+      setMessage({ text: t("addFriend.messages.requestSentSuccess"), type: "success" });
       setResult(null);
       setFriendStatus(null);
       setUid("");
     } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message || "Gửi lời mời thất bại";
+      const errorMessage = err.response?.data?.message || err.message || t("addFriend.messages.requestFailed");
       const errorCode = err.response?.data?.code;
       
       let displayMessage = errorMessage;
       if (errorCode === "ALREADY_FRIENDS") {
-        displayMessage = "Bạn đã là bạn bè với người này rồi";
+        displayMessage = t("addFriend.messages.alreadyFriends");
       } else if (errorCode === "REQUEST_ALREADY_SENT") {
-        displayMessage = "Bạn đã gửi lời mời kết bạn cho người này rồi";
+        displayMessage = t("addFriend.messages.requestAlreadySent");
       } else if (errorCode === "REQUEST_ALREADY_RECEIVED") {
-        displayMessage = "Người này đã gửi lời mời kết bạn cho bạn. Hãy kiểm tra lời mời kết bạn";
+        displayMessage = t("addFriend.messages.requestAlreadyReceived");
       }
       
       setMessage({ text: displayMessage, type: "error" });
@@ -86,9 +88,9 @@ export default function AddFriend({ currentUser }) {
     if (!friendStatus) return null;
     
     const badges = {
-      friends: { text: "Đã là bạn bè", color: "bg-green-100 text-green-700" },
-      request_sent: { text: "Đã gửi lời mời", color: "bg-yellow-100 text-yellow-700" },
-      request_received: { text: "Đã nhận lời mời", color: "bg-blue-100 text-blue-700" }
+      friends: { text: t("addFriend.status.friends"), color: "bg-green-100 text-green-700" },
+      request_sent: { text: t("addFriend.status.requestSent"), color: "bg-yellow-100 text-yellow-700" },
+      request_received: { text: t("addFriend.status.requestReceived"), color: "bg-blue-100 text-blue-700" }
     };
     
     const badge = badges[friendStatus];
@@ -115,7 +117,7 @@ export default function AddFriend({ currentUser }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-gray-800">Tìm kiếm người dùng</h3>
+          <h3 className="text-lg font-semibold text-gray-800">{t("addFriend.title")}</h3>
         </div>
         
         <div className="relative">
@@ -126,7 +128,7 @@ export default function AddFriend({ currentUser }) {
           </div>
           <input
             type="text"
-            placeholder="Nhập UID người dùng..."
+            placeholder={t("addFriend.inputPlaceholder")}
             value={uid}
             onChange={(e) => setUid(e.target.value)}
             className="w-full pl-12 pr-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-gray-400 text-gray-900 font-medium shadow-sm"
@@ -142,14 +144,14 @@ export default function AddFriend({ currentUser }) {
           {searching ? (
             <>
               <div className="inline-block animate-spin rounded-full h-5 w-5 border-3 border-white border-t-transparent"></div>
-              <span>Đang tìm kiếm...</span>
+              <span>{t("addFriend.searching")}</span>
             </>
           ) : (
             <>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <span>Tìm kiếm</span>
+              <span>{t("addFriend.searchButton")}</span>
             </>
           )}
         </button>
@@ -160,7 +162,7 @@ export default function AddFriend({ currentUser }) {
         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-lg hover:shadow-xl transition-shadow">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-6 bg-linear-to-b from-blue-500 to-indigo-600 rounded-full"></div>
-            <p className="text-sm font-semibold text-gray-700">Kết quả tìm kiếm</p>
+            <p className="text-sm font-semibold text-gray-700">{t("addFriend.resultTitle")}</p>
           </div>
           
           <div className="flex items-center p-4 bg-linear-to-br from-gray-50 to-blue-50/30 rounded-xl border border-gray-100">
@@ -189,7 +191,7 @@ export default function AddFriend({ currentUser }) {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                 </svg>
-                Kết bạn
+                {t("addFriend.sendRequest")}
               </button>
             ) : (
               <button 
@@ -199,7 +201,7 @@ export default function AddFriend({ currentUser }) {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                {friendStatus === "friends" ? "Đã là bạn bè" : "Đã gửi"}
+                {friendStatus === "friends" ? t("addFriend.status.friends") : t("addFriend.status.requestSent")}
               </button>
             )}
           </div>

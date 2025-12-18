@@ -1,7 +1,9 @@
 // frontend/src/components/FriendFeature/GroupList.jsx
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function GroupList({ currentUser, setCurrentRoom }) {
+  const { t } = useTranslation("friendFeature");
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -68,17 +70,19 @@ export default function GroupList({ currentUser, setCurrentRoom }) {
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
-        Tạo nhóm mới
+        {t("groupList.createButton")}
       </button>
 
       {/* Create Group Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h3 className="text-lg font-semibold mb-4">Tạo nhóm chat mới</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              {t("groupList.createModal.title")}
+            </h3>
             <input
               type="text"
-              placeholder="Nhập tên nhóm..."
+              placeholder={t("groupList.createModal.inputPlaceholder")}
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
@@ -93,14 +97,14 @@ export default function GroupList({ currentUser, setCurrentRoom }) {
                 }}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
               >
-                Hủy
+                {t("groupList.createModal.cancel")}
               </button>
               <button
                 onClick={handleCreateGroup}
                 disabled={!newGroupName.trim()}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 transition-colors"
               >
-                Tạo nhóm
+                {t("groupList.createModal.create")}
               </button>
             </div>
           </div>
@@ -113,8 +117,8 @@ export default function GroupList({ currentUser, setCurrentRoom }) {
           <svg className="w-16 h-16 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
-          <p className="text-gray-500 text-sm">Chưa có nhóm chat</p>
-          <p className="text-gray-400 text-xs mt-1">Tạo nhóm để trò chuyện cùng nhiều người</p>
+          <p className="text-gray-500 text-sm">{t("groupList.empty.title")}</p>
+          <p className="text-gray-400 text-xs mt-1">{t("groupList.empty.subtitle")}</p>
         </div>
       ) : (
         <div className="space-y-2">
