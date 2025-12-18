@@ -13,35 +13,6 @@ export default function GroupList({ currentUser, setCurrentRoom }) {
     try {
       // TODO: Replace with actual API call
       // const data = await getGroups(currentUser.uid);
-      const mockGroups = [
-        {
-          _id: "group1",
-          name: "Nhóm Học Tập",
-          avatar: "https://i.pravatar.cc/60?img=10",
-          lastMessage: "Ai làm bài tập chưa?",
-          lastMessageTime: "10:30",
-          unreadCount: 3,
-          memberCount: 5
-        },
-        {
-          _id: "group2",
-          name: "Gia Đình",
-          avatar: "https://i.pravatar.cc/60?img=20",
-          lastMessage: "Tối nay ăn gì?",
-          lastMessageTime: "Hôm qua",
-          unreadCount: 0,
-          memberCount: 4
-        },
-        {
-          _id: "group3",
-          name: "Dự Án ABC",
-          avatar: "https://i.pravatar.cc/60?img=30",
-          lastMessage: "Meeting lúc 2h chiều",
-          lastMessageTime: "14:00",
-          unreadCount: 7,
-          memberCount: 8
-        }
-      ];
       setGroups(mockGroups);
     } catch (err) {
       console.error("Error fetching groups:", err);
