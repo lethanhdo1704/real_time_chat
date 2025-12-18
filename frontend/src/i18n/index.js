@@ -11,6 +11,8 @@ import viForgotPassword from "./locales/vi/pages/ForgotPassword.json";
 import enForgotPassword from "./locales/en/pages/ForgotPassword.json";
 import viHome from "./locales/vi/pages/Home.json";
 import enHome from "./locales/en/pages/Home.json";
+import viChat from "./locales/vi/pages/Chat.json";
+import enChat from "./locales/en/pages/Chat.json";
 
 const resources = {
   vi: {
@@ -19,6 +21,7 @@ const resources = {
     notFound: viNotFound,
     forgotPassword: viForgotPassword,
     home: viHome,
+    chat: viChat,
   },
   en: {
     login: enLogin,
@@ -26,6 +29,7 @@ const resources = {
     notFound: enNotFound,
     forgotPassword: enForgotPassword,
     home: enHome,
+    chat: enChat,
   },
 };
 
@@ -34,7 +38,7 @@ i18n
   .init({
     resources,
     lng: localStorage.getItem("lang") || "vi",
-    ns: ["login", "register", "notFound", "forgotPassword", "home"],
+    ns: ["login", "register", "notFound", "forgotPassword", "home", "chat"],
     interpolation: {
       escapeValue: false,
     },

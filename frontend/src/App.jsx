@@ -13,26 +13,25 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <SocketProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgotpassword" element={<ForgotPassword />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Home />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* ❗ Khi nhập URL sai  */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <div className="h-screen w-screen">
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgotpassword" element={<ForgotPassword />} />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Home />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </div>
         </SocketProvider>
       </BrowserRouter>
     </AuthProvider>
   );
 }
-
 export default App;

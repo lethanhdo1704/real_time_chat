@@ -1,0 +1,15 @@
+{
+  "header": {
+    "typing": "Typing...",
+    "online": "Online"
+  },
+  "message": {
+    "read": "Seen",
+    "sent": "Sent"
+  },
+  "input": {
+    "placeholder": "Type a message...",
+    "selectEmoji": "Select emoji",
+    "send": "Send"
+  }
+}

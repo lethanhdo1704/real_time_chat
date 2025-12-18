@@ -1,0 +1,15 @@
+{
+  "header": {
+    "typing": "Đang nhập...",
+    "online": "Online"
+  },
+  "message": {
+    "read": "Đã xem",
+    "sent": "Đã gửi"
+  },
+  "input": {
+    "placeholder": "Nhập tin nhắn...",
+    "selectEmoji": "Chọn emoji",
+    "send": "Gửi"
+  }
+}
