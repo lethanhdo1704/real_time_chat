@@ -122,7 +122,7 @@ export default function FriendRequests({ currentUser, onUpdateCount }) {
                     onClick={() => handleAccept(r.uid)} 
                     className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors shadow-sm"
                   >
-                    {t("accept")}
+                    {t("friendRequests.accept")}
                   </button>
                   <button 
                     onClick={() => handleReject(r.uid)} 
