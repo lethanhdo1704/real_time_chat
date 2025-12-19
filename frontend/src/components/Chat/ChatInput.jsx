@@ -1,7 +1,7 @@
 // components/chat/ChatInput.jsx
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import EmojiPicker from "../EmojiPicker";
+import EmojiPicker from "./EmojiPicker";
 
 export default function ChatInput({ onSendMessage, onTypingChange }) {
   const { t } = useTranslation("chat");

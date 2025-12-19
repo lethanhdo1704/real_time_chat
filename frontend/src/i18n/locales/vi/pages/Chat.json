@@ -11,5 +11,17 @@
     "placeholder": "Nhập tin nhắn...",
     "selectEmoji": "Chọn emoji",
     "send": "Gửi"
+  },
+  "emoji": {
+    "search": "Tìm emoji...",
+    "suggested": "Gợi ý",
+    "smileys_people": "Cảm xúc & Con người",
+    "animals_nature": "Động vật & Thiên nhiên",
+    "food_drink": "Đồ ăn & Thức uống",
+    "travel_places": "Du lịch & Địa điểm",
+    "activities": "Hoạt động",
+    "objects": "Đồ vật",
+    "symbols": "Ký hiệu",
+    "flags": "Cờ"
   }
 }

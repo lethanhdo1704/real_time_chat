@@ -13,23 +13,25 @@ export default function MessageItem({
   const isBig = isBigEmoji(message.text);
 
   return (
-    // ✅ OUTER CONTAINER: MUST be w-full
+    // OUTER ROW – full width
     <div
       className={`flex w-full ${
         isMe ? "justify-end" : "justify-start"
       } animate-fadeIn`}
     >
-      {/* ✅ ALIGN WRAPPER */}
+      {/* ALIGN WRAPPER */}
       <div
-        className={`flex flex-col max-w-full ${
+        className={`flex w-full flex-col ${
           isMe ? "items-end" : "items-start"
         }`}
       >
-        {/* ✅ MESSAGE BUBBLE */}
+        {/* MESSAGE BUBBLE */}
         <div
           className={`
-            inline-block
-            max-w-[75%]
+            inline-flex
+            w-fit
+            max-w-[65%]
+            flex-col
             rounded-2xl
             px-4 py-2.5
             ${
@@ -51,15 +53,7 @@ export default function MessageItem({
             className={
               isBig
                 ? "text-4xl leading-none"
-                : "text-sm leading-[1.35] whitespace-pre-wrap"
-            }
-            style={
-              isBig
-                ? {}
-                : {
-                    overflowWrap: "break-word",
-                    wordBreak: "normal",
-                  }
+                : "text-sm leading-[1.4] whitespace-pre-wrap wrap-break-word"
             }
           >
             {renderMessage(message.text)}

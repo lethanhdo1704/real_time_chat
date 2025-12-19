@@ -11,5 +11,17 @@
     "placeholder": "Type a message...",
     "selectEmoji": "Select emoji",
     "send": "Send"
+  },
+  "emoji": {
+    "search": "Search emoji...",
+    "suggested": "Suggested",
+    "smileys_people": "Smileys & People",
+    "animals_nature": "Animals & Nature",
+    "food_drink": "Food & Drink",
+    "travel_places": "Travel & Places",
+    "activities": "Activities",
+    "objects": "Objects",
+    "symbols": "Symbols",
+    "flags": "Flags"
   }
 }
