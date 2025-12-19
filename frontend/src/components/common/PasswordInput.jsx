@@ -1,12 +1,11 @@
-// frontend/src/components/Register/PasswordInput.jsx
 import { useState } from "react";
 
 export default function PasswordInput({ 
   label, 
   placeholder, 
   value, 
-  onChange, 
-  required = true 
+  onChange,
+  disabled = false // ← thêm prop này
 }) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -21,13 +20,15 @@ export default function PasswordInput({
           placeholder={placeholder}
           value={value}
           onChange={onChange}
-          required={required}
-          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white pr-12"
+          disabled={disabled} // ← sử dụng prop
+          required
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white pr-12 disabled:opacity-50"
         />
         <button
           type="button"
-          onClick={() => setShowPassword(prev => !prev)}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+          onClick={() => setShowPassword(!showPassword)}
+          disabled={disabled} // ← sử dụng prop
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
         >
           {showPassword ? (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

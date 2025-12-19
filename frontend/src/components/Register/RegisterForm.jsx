@@ -2,47 +2,51 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import ReCAPTCHA from "react-google-recaptcha";
-import ErrorMessage from "./ErrorMessage";
-import EmailWithOTP from "./EmailWithOTP";
-import OTPInput from "./OTPInput";
-import PasswordInput from "./PasswordInput";
+import ErrorMessage from "../common/ErrorMessage";
+import EmailWithOTP from "../common/EmailWithOTP";
+import OTPInput from "../common/OTPInput";
+import PasswordInput from "../common/PasswordInput";
+import useRegister from "../../hooks/useRegister"; // ← Import hook
 
-export default function RegisterForm({
-  // Form values
-  nickname,
-  setNickname,
-  email,
-  setEmail,
-  password,
-  setPassword,
-  confirmPassword,
-  setConfirmPassword,
-  captcha,
-  setCaptcha,
-  
-  // OTP
-  otp,
-  otpRefs,
-  otpSent,
-  otpMessage,
-  handleOtpChange,
-  handleOtpKeyDown,
-  handleOtpPaste,
-  handleSendOTP,
-  
-  // Timer
-  timer,
-  formatTimer,
-  
-  // States
-  error,
-  sendingOTP,
-  submitting,
-  
-  // Submit
-  onSubmit,
-}) {
+export default function RegisterForm() {
   const { t } = useTranslation("register");
+  
+  // ✅ Tất cả logic từ hook
+  const {
+    // Form values
+    nickname,
+    setNickname,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    confirmPassword,
+    setConfirmPassword,
+    captcha,
+    setCaptcha,
+    
+    // OTP
+    otp,
+    otpRefs,
+    otpSent,
+    otpMessage,
+    handleOtpChange,
+    handleOtpKeyDown,
+    handleOtpPaste,
+    handleSendOTP,
+    
+    // Timer
+    timer,
+    formatTimer,
+    
+    // States
+    error,
+    sendingOTP,
+    submitting,
+    
+    // Submit
+    onSubmit,
+  } = useRegister();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
