@@ -1,7 +1,7 @@
 // frontend/src/components/common/CountdownTimer.jsx
 export default function CountdownTimer({
   seconds,
-  format,
+  format = (s) => `${s}s`, // ✅ Default format function
   idleLabel,
   loading,
 }) {

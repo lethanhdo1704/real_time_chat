@@ -34,10 +34,10 @@ export default function EmailStep({
       {/* Submit Button */}
       <SubmitButton
         isLoading={loading}
-        loadingText="buttons.sending"
-        buttonText="buttons.sendOTP"
-        translationNamespace="forgotPassword"
-      />
+        loadingText={t("buttons.sending")}
+      >
+        {t("buttons.sendOTP")}
+      </SubmitButton>
     </form>
   );
 }

@@ -44,7 +44,7 @@ export default function ResetPasswordStep({
       )}
 
       {/* Error Message */}
-      <ErrorMessage message={error} type="error" />
+      {error && <ErrorMessage message={error} type="error" />}
 
       {/* OTP Success Message */}
       {otpMessage && !successMessage && (
@@ -64,7 +64,11 @@ export default function ResetPasswordStep({
           <label className="block text-sm font-medium text-gray-700">
             {t("form.otp.label")}
           </label>
-          <CountdownTimer seconds={timer} />
+          {timer > 0 && (
+            <span className="text-sm text-gray-500">
+              {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}
+            </span>
+          )}
         </div>
         
         <OTPInput
@@ -83,7 +87,7 @@ export default function ResetPasswordStep({
               type="button"
               onClick={onResendOTP}
               disabled={loading}
-              className="text-sm text-indigo-600 hover:text-indigo-700 font-medium disabled:opacity-50"
+              className="text-sm text-indigo-600 hover:text-indigo-700 font-medium disabled:opacity-50 transition-colors"
             >
               {t("form.otp.resendButton")}
             </button>
@@ -113,17 +117,17 @@ export default function ResetPasswordStep({
       <SubmitButton
         isLoading={loading}
         disabled={!!successMessage}
-        loadingText="buttons.processing"
-        buttonText={successMessage ? "buttons.success" : "buttons.resetPassword"}
-        translationNamespace="forgotPassword"
-      />
+        loadingText={t("buttons.processing")}
+      >
+        {successMessage ? t("buttons.success") : t("buttons.resetPassword")}
+      </SubmitButton>
 
       {/* Back Button */}
       {!successMessage && (
         <button
           type="button"
           onClick={onBack}
-          className="w-full text-gray-600 hover:text-gray-800 py-2 text-sm font-medium transition-colors"
+          className="w-full text-gray-600 hover:text-gray-800 py-2 text-sm font-medium transition-colors hover:underline"
         >
           {t("buttons.back")}
         </button>

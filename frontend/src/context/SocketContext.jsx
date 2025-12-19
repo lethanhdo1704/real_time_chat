@@ -12,7 +12,6 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     // Chỉ join khi có user và chưa join trước đó
     if (user?.uid && !hasJoinedRef.current) {
-      console.log("🔌 Joining private room for user:", user.uid);
       socket.emit("joinPrivate", user.uid);
       hasJoinedRef.current = true;
     }

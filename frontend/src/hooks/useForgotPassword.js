@@ -64,7 +64,7 @@ export function useForgotPassword() {
       await sendForgotOTP(email);
       
       setStep(2);
-      setTimer(300);
+      setTimer(300); // 5 minutes
       setOtpMessage(t("form.otp.sent"));
       
       if (onSuccess) {
@@ -136,7 +136,7 @@ export function useForgotPassword() {
       setLoading(true);
       await sendForgotOTP(email);
       
-      setTimer(300);
+      setTimer(300); // 5 minutes
       setOtpMessage(t("form.otp.resent"));
       
       if (onSuccess) {

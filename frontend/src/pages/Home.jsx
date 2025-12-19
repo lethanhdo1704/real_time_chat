@@ -6,19 +6,25 @@ import ChatWindow from "../components/Chat/ChatWindow";
 import { AuthContext } from "../context/AuthContext";
 import { Sidebar, HomeEmptyChat, CopyToast } from "../components/Home";
 import { useFriendRequestCount } from "../hooks/useFriendRequestCount";
+import { useHomeChat } from "../hooks/useHomeChat";
+import { useCopyToast } from "../hooks/useCopyToast";
+import "../styles/animations.css"; // Import animations
 
 export default function Home() {
   const { t } = useTranslation("home");
   const { user, logout, loading } = useContext(AuthContext);
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState("friends");
-  const [showCopyToast, setShowCopyToast] = useState(false);
+  // Custom hooks
   const [requestCount, setRequestCount] = useFriendRequestCount(user);
-  
-  // States cho chat
-  const [selectedChat, setSelectedChat] = useState(null);
-  const [currentRoom, setCurrentRoom] = useState(null);
+  const [activeTab, setActiveTab] = useState("friends");
+  const { showToast, triggerToast, hideToast } = useCopyToast(2000);
+  const {
+    selectedChat,
+    currentRoom,
+    handleSelectFriend,
+    handleSelectRoom,
+  } = useHomeChat();
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -50,7 +56,7 @@ export default function Home() {
   };
 
   const handleCopyUID = () => {
-    setShowCopyToast(true);
+    triggerToast();
   };
 
   const updateRequestCount = (count) => {
@@ -58,82 +64,49 @@ export default function Home() {
     setRequestCount(count);
   };
 
-  // Handle selecting a friend for private chat
-  const handleSelectFriend = (chatInfo) => {
-    setSelectedChat({
-      ...chatInfo,
-      type: 'private'
-    });
-    setCurrentRoom(null);
-  };
-
-  // Handle selecting a group
-  const handleSelectRoom = (room) => {
-    setCurrentRoom(room);
-    setSelectedChat(null);
-  };
-
   return (
-    <>
-      <style>{`
-        @keyframes slide-in {
-          from {
-            transform: translateX(-100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-        .animate-slide-in {
-          animation: slide-in 0.3s ease-out;
-        }
-      `}</style>
+    <div className="flex h-screen bg-gray-100 overflow-hidden min-h-0">
+      {/* Copy Toast */}
+      <CopyToast 
+        show={showToast} 
+        onClose={hideToast}
+        message={t("home.toast.copiedUID")}
+      />
 
-      <div className="flex h-screen bg-gray-100 overflow-hidden min-h-0">
-        {/* Copy Toast */}
-        <CopyToast 
-          show={showCopyToast} 
-          onClose={() => setShowCopyToast(false)}
-          message={t("home.toast.copiedUID")}
-        />
+      {/* Sidebar */}
+      <Sidebar
+        user={user}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        requestCount={requestCount}
+        handleLogout={handleLogout}
+        handleCopyUID={handleCopyUID}
+        handleSelectFriend={handleSelectFriend}
+        handleSelectRoom={handleSelectRoom}
+        updateRequestCount={updateRequestCount}
+      />
 
-        {/* Sidebar */}
-        <Sidebar
-          user={user}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          requestCount={requestCount}
-          handleLogout={handleLogout}
-          handleCopyUID={handleCopyUID}
-          handleSelectFriend={handleSelectFriend}
-          handleSelectRoom={handleSelectRoom}
-          updateRequestCount={updateRequestCount}
-        />
-
-        {/* Chat Window - Full width on mobile, fills remaining space on desktop */}
-        <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-          {selectedChat?.type === 'private' ? (
-            <ChatWindow
-              receiverId={selectedChat.receiverId}
-              receiverName={selectedChat.receiverName}
-              receiverAvatar={selectedChat.receiverAvatar}
-            />
-          ) : currentRoom ? (
-            <ChatWindow
-              currentRoom={currentRoom}
-              user={{
-                uid: user.uid,
-                nickname: user.nickname,
-                avatar: user.avatar,
-              }}
-            />
-          ) : (
-            <HomeEmptyChat />
-          )}
-        </div>
+      {/* Chat Window */}
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+        {selectedChat?.type === 'private' ? (
+          <ChatWindow
+            receiverId={selectedChat.receiverId}
+            receiverName={selectedChat.receiverName}
+            receiverAvatar={selectedChat.receiverAvatar}
+          />
+        ) : currentRoom ? (
+          <ChatWindow
+            currentRoom={currentRoom}
+            user={{
+              uid: user.uid,
+              nickname: user.nickname,
+              avatar: user.avatar,
+            }}
+          />
+        ) : (
+          <HomeEmptyChat />
+        )}
       </div>
-    </>
+    </div>
   );
 }
