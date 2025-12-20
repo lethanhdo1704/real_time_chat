@@ -1,5 +1,4 @@
 // utils/renderMessage.jsx
-
 import { EMOJI_REGEX } from "./emoji";
 
 // Regex KHÔNG có flag g cho test

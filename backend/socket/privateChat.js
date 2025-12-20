@@ -5,8 +5,6 @@ export default (io) => {
   const onlineUsers = new Map();
 
   io.on("connection", (socket) => {
-    // ❌ KHÔNG LOG Ở ĐÂY NỮA
-    // console.log("✅ User connected:", socket.id);
 
     // Join private room
     socket.on("joinPrivate", (uid) => {
@@ -18,7 +16,7 @@ export default (io) => {
       onlineUsers.set(uid, socket.id);
       socket.join(uid);
       
-      // ✅ CHỈ LOG KHI USER LOGIN
+      // CHỈ LOG KHI USER LOGIN
       console.log(`✅ User ${uid} logged in and joined room (${socket.id})`);
       console.log(`📊 Total online: ${onlineUsers.size} users`);
     });

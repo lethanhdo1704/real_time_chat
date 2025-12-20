@@ -27,15 +27,6 @@ export default function auth(req, res, next) {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    /**
-     * JWT payload:
-     * {
-     *   uid: string,
-     *   role: "user" | "admin"
-     * }
-     */
-
-    // Gắn thông tin user vào request
     req.user = {
       uid: decoded.uid,
       role: decoded.role,
