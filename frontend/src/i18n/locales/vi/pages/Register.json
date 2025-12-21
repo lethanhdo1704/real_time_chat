@@ -16,6 +16,7 @@
   "registering": "Đang đăng ký...",
   "haveAccount": "Đã có tài khoản?",
   "loginNow": "Đăng nhập ngay",
+  "sending": "Đang gửi...",
   
   "validation": {
     "emailMustBeGmail": "Email phải là Gmail (@gmail.com)",

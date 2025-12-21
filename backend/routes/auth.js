@@ -53,7 +53,9 @@ router.post("/register", async (req, res) => {
     // 6️⃣ Lấy OTP theo email
     const otpEntry = await OTP.findOne({ email: emailLower });
     if (!otpEntry) {
-      return res.status(400).json({ error: "OTP không hợp lệ hoặc chưa gửi OTP" });
+      return res
+        .status(400)
+        .json({ error: "OTP không hợp lệ hoặc chưa gửi OTP" });
     }
 
     // 7️⃣ Check OTP hết hạn
@@ -82,7 +84,11 @@ router.post("/register", async (req, res) => {
 
     // 🔑 JWT
     const token = jwt.sign(
-      { uid: user.uid, role: user.role },
+      {
+        id: user._id, // ✅ Mongo _id cho DB, chat, socket
+        uid: user.uid, // ✅ Public uid cho friend, invite
+        role: user.role,
+      },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -135,7 +141,11 @@ router.post("/login", async (req, res) => {
     await user.save();
 
     const token = jwt.sign(
-      { uid: user.uid, role: user.role },
+      {
+        id: user._id,
+        uid: user.uid,
+        role: user.role,
+      },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );

@@ -12,7 +12,8 @@ export default function FriendRequests({ currentUser, onUpdateCount }) {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const data = await getFriendsAndRequests(currentUser.uid);
+      // ✅ Không cần truyền currentUser.uid, backend lấy từ JWT
+      const data = await getFriendsAndRequests();
       setRequests(data.requests || []);
       setFriends(data.friends || []);
       
@@ -49,7 +50,8 @@ export default function FriendRequests({ currentUser, onUpdateCount }) {
     }
 
     try {
-      await acceptFriendRequest(currentUser.uid, friendUid);
+      // ✅ Chỉ truyền friendUid, backend lấy userUid từ JWT
+      await acceptFriendRequest(friendUid);
       fetchRequests();
     } catch (err) {
       console.error("Error accepting request:", err);
@@ -59,7 +61,8 @@ export default function FriendRequests({ currentUser, onUpdateCount }) {
 
   const handleReject = async (friendUid) => {
     try {
-      await rejectFriendRequest(currentUser.uid, friendUid);
+      // ✅ Chỉ truyền friendUid
+      await rejectFriendRequest(friendUid);
       fetchRequests();
     } catch (err) {
       console.error("Error rejecting request:", err);

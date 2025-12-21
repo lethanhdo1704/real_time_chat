@@ -1,4 +1,3 @@
-import privateChat from "./privateChat.js";
 import { Server } from "socket.io";
 
 export default function initSocket(server) {
@@ -7,14 +6,14 @@ export default function initSocket(server) {
       origin: "http://localhost:5173",
       methods: ["GET", "POST"],
       credentials: true
-    },
-    transports: ["websocket", "polling"]
+    }
   });
 
-  console.log(" Socket.IO server initialized");
+  console.log("Socket.IO initialized");
 
-  // Initialize private chat handler
-  privateChat(io);
+  // ⚠️ Giữ logic socket cũ của bạn ở đây (nếu có)
+  // io.on('connection', (socket) => { ... });
 
+  // ✨ Return io instance để chat socket dùng
   return io;
 }

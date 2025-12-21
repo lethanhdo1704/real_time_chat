@@ -11,6 +11,20 @@ export default function AddFriend({ currentUser }) {
   const [message, setMessage] = useState({ text: "", type: "" });
   const [searching, setSearching] = useState(false);
 
+  // ✅ Helper: Refetch status
+  const checkStatus = async (friendUid) => {
+    try {
+      const status = await getFriendStatus(friendUid); // ← Chỉ truyền friendUid
+      setFriendStatus(status);
+      console.log("Friend status:", status); // Debug
+      return status;
+    } catch (err) {
+      console.error("Error checking friend status:", err);
+      setFriendStatus(null);
+      return null;
+    }
+  };
+
   const handleSearch = async () => {
     if (!uid.trim()) {
       setMessage({ text: t("addFriend.messages.emptyUID"), type: "error" });
@@ -33,20 +47,15 @@ export default function AddFriend({ currentUser }) {
       
       setResult(user);
       
-      // Kiểm tra trạng thái quan hệ
-      try {
-        const status = await getFriendStatus(currentUser.uid, user.uid);
-        setFriendStatus(status);
-        
-        if (status === "friends") {
-          setMessage({ text: t("addFriend.messages.alreadyFriends"), type: "info" });
-        } else if (status === "request_sent") {
-          setMessage({ text: t("addFriend.messages.requestAlreadySent"), type: "info" });
-        } else if (status === "request_received") {
-          setMessage({ text: t("addFriend.messages.requestAlreadyReceived"), type: "info" });
-        }
-      } catch (err) {
-        console.error("Error checking friend status:", err);
+      // ✅ Kiểm tra trạng thái quan hệ (KHÔNG truyền currentUser.uid)
+      const status = await checkStatus(user.uid);
+      
+      if (status === "friends") {
+        setMessage({ text: t("addFriend.messages.alreadyFriends"), type: "info" });
+      } else if (status === "request_sent") {
+        setMessage({ text: t("addFriend.messages.requestAlreadySent"), type: "info" });
+      } else if (status === "request_received") {
+        setMessage({ text: t("addFriend.messages.requestAlreadyReceived"), type: "info" });
       }
       
     } catch (err) {
@@ -62,11 +71,21 @@ export default function AddFriend({ currentUser }) {
     if (!result) return;
     
     try {
-      const res = await sendFriendRequest(currentUser.uid, result.uid);
+      // ✅ Chỉ truyền friendUid, backend lấy userUid từ JWT
+      await sendFriendRequest(result.uid);
+      
+      // ✅ REFETCH status sau khi gửi request
+      const newStatus = await checkStatus(result.uid);
+      
       setMessage({ text: t("addFriend.messages.requestSentSuccess"), type: "success" });
-      setResult(null);
-      setFriendStatus(null);
-      setUid("");
+      
+      // Chỉ clear nếu thành công và không phải đã kết bạn
+      if (newStatus !== "friends") {
+        // Giữ result để user thấy status cập nhật
+        // setResult(null);
+        // setFriendStatus(null);
+        // setUid("");
+      }
     } catch (err) {
       const errorMessage = err.response?.data?.message || err.message || t("addFriend.messages.requestFailed");
       const errorCode = err.response?.data?.code;
@@ -74,10 +93,14 @@ export default function AddFriend({ currentUser }) {
       let displayMessage = errorMessage;
       if (errorCode === "ALREADY_FRIENDS") {
         displayMessage = t("addFriend.messages.alreadyFriends");
+        // ✅ Refetch để đồng bộ UI
+        await checkStatus(result.uid);
       } else if (errorCode === "REQUEST_ALREADY_SENT") {
         displayMessage = t("addFriend.messages.requestAlreadySent");
+        await checkStatus(result.uid);
       } else if (errorCode === "REQUEST_ALREADY_RECEIVED") {
         displayMessage = t("addFriend.messages.requestAlreadyReceived");
+        await checkStatus(result.uid);
       }
       
       setMessage({ text: displayMessage, type: "error" });

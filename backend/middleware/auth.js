@@ -8,8 +8,8 @@ export default function auth(req, res, next) {
     if (!authHeader) {
       return res.status(401).json({ error: "Missing Authorization header" });
     }
-
-    // Authorization: Bearer xxx
+    
+    // Authorization: Bearer <token>
     const token = authHeader.startsWith("Bearer ")
       ? authHeader.slice(7)
       : authHeader;
@@ -19,18 +19,22 @@ export default function auth(req, res, next) {
     }
 
     if (!process.env.JWT_SECRET) {
-      return res
-        .status(500)
-        .json({ error: "JWT_SECRET not configured" });
+      return res.status(500).json({
+        error: "JWT_SECRET not configured",
+      });
     }
 
-    // Verify token
+    // 🔐 Verify JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    // ✅ CHUẨN HOÁ USER CONTEXT
     req.user = {
-      uid: decoded.uid,
+      id: decoded.id,     // Mongo _id (DB, chat, socket)
+      uid: decoded.uid,   // Public uid (friend, invite)
       role: decoded.role,
     };
+    console.log("AUTH HIT:", req.method, req.originalUrl);
+    console.log("HEADERS:", req.headers);
 
     next();
   } catch (err) {
@@ -38,3 +42,4 @@ export default function auth(req, res, next) {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 }
+

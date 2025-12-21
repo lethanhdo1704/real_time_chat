@@ -20,7 +20,8 @@ export default function FriendList({
   const fetchFriends = async () => {
     setLoading(true);
     try {
-      const data = await getFriendsAndRequests(currentUser.uid);
+      // ✅ Không cần truyền currentUser.uid, backend lấy từ JWT
+      const data = await getFriendsAndRequests();
       setFriends(data.friends || []);
 
       if (data.friends && data.friends.length > 0) {
@@ -36,7 +37,7 @@ export default function FriendList({
 
   const fetchLastMessages = async (friendsList) => {
     try {
-      // FIX: Check both localStorage and sessionStorage
+      // Check both localStorage and sessionStorage
       const token =
         localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -49,6 +50,8 @@ export default function FriendList({
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
+            // ✅ Nếu backend messages API cũng dùng JWT, bỏ userId
+            // Nếu chưa refactor messages API, giữ nguyên userId
             userId: currentUser.uid,
             friendIds: friendsList.map((f) => f.uid),
           }),

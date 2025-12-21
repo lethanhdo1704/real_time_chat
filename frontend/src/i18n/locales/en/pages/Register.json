@@ -16,6 +16,7 @@
   "registering": "Registering...",
   "haveAccount": "Already have an account?",
   "loginNow": "Login now",
+  "sending": "Sending...",
   
   "validation": {
     "emailMustBeGmail": "Email must be Gmail (@gmail.com)",
