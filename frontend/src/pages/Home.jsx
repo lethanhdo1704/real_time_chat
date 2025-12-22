@@ -8,22 +8,28 @@ import { Sidebar, HomeEmptyChat, CopyToast } from "../components/Home";
 import { useFriendRequestCount } from "../hooks/useFriendRequestCount";
 import { useHomeChat } from "../hooks/useHomeChat";
 import { useCopyToast } from "../hooks/useCopyToast";
-import "../styles/animations.css"; // Import animations
+import { conversationService } from "../services/api";
+import "../styles/animations.css";
 
 export default function Home() {
   const { t } = useTranslation("home");
-  const { user, logout, loading } = useContext(AuthContext);
+  const { user, logout, loading, token } = useContext(AuthContext);
   const navigate = useNavigate();
   
   // Custom hooks
   const [requestCount, setRequestCount] = useFriendRequestCount(user);
-  const [activeTab, setActiveTab] = useState("friends");
+  const [activeTab, setActiveTab] = useState("chats");
   const { showToast, triggerToast, hideToast } = useCopyToast(2000);
+  
   const {
-    selectedChat,
-    currentRoom,
-    handleSelectFriend,
-    handleSelectRoom,
+    conversations,
+    lastMessages,
+    unreadCounts,
+    loading: loadingConversations,
+    selectedConversation,
+    handleSelectConversation,
+    updateConversationLastMessage,
+    reloadConversations,
   } = useHomeChat();
 
   // Redirect to login if not authenticated
@@ -60,9 +66,56 @@ export default function Home() {
   };
 
   const updateRequestCount = (count) => {
-    console.log('Updating request count:', count);
     setRequestCount(count);
   };
+
+  /**
+   * Handle when user clicks on a friend in FriendList
+   * Create or get conversation with that friend
+   */
+  const handleSelectFriend = async (friendInfo) => {
+    
+    try {
+      // friendInfo has: uid, nickname, avatar (from Friend object)
+      const friendUid = friendInfo.uid || friendInfo._id;
+      
+      const response = await conversationService.createPrivateConversation(
+        friendUid,
+        token
+      );
+
+
+      // Transform conversation structure to match expected format
+      const normalizedConversation = {
+        ...response,
+        _id: response.conversationId,
+      };
+
+ 
+
+      // Switch to chats tab
+      setActiveTab("chats");
+
+      // Select the conversation with normalized structure
+      handleSelectConversation(normalizedConversation);
+      
+
+      // Reload conversations to update sidebar
+      await reloadConversations();
+      
+    } catch (error) {
+      console.error("❌ Error creating conversation:", error);
+      console.error("❌ Error stack:", error.stack);
+    }
+  };
+
+  // Debug: Log when selectedConversation changes
+  useEffect(() => {
+  }, [selectedConversation]);
+
+  // Debug: Log conversations list
+  useEffect(() => {
+  }, [conversations]);
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden min-h-0">
@@ -81,30 +134,31 @@ export default function Home() {
         requestCount={requestCount}
         handleLogout={handleLogout}
         handleCopyUID={handleCopyUID}
-        handleSelectFriend={handleSelectFriend}
-        handleSelectRoom={handleSelectRoom}
         updateRequestCount={updateRequestCount}
+        // New conversation props
+        conversations={conversations}
+        lastMessages={lastMessages}
+        unreadCounts={unreadCounts}
+        selectedConversation={selectedConversation}
+        onSelectConversation={handleSelectConversation}
+        loadingConversations={loadingConversations}
+        // For FriendList
+        onSelectFriend={handleSelectFriend}
       />
 
       {/* Chat Window */}
       <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-        {selectedChat?.type === 'private' ? (
-          <ChatWindow
-            receiverId={selectedChat.receiverId}
-            receiverName={selectedChat.receiverName}
-            receiverAvatar={selectedChat.receiverAvatar}
-          />
-        ) : currentRoom ? (
-          <ChatWindow
-            currentRoom={currentRoom}
-            user={{
-              uid: user.uid,
-              nickname: user.nickname,
-              avatar: user.avatar,
-            }}
-          />
+        {selectedConversation ? (
+          <>
+            <ChatWindow
+              conversation={selectedConversation}
+              onUpdateSidebar={updateConversationLastMessage}
+            />
+          </>
         ) : (
-          <HomeEmptyChat />
+          <>
+            <HomeEmptyChat />
+          </>
         )}
       </div>
     </div>

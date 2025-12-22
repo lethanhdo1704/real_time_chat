@@ -1,4 +1,4 @@
-// frontend/src/hooks/useOTPInput.jsx
+// frontend/src/hooks/useOTPInput.js
 import { useState, useRef } from "react";
 
 export function useOTPInput() {

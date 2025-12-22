@@ -12,7 +12,6 @@ export function useFriendRequestCount(user) {
       try {
         const data = await getFriendsAndRequests(user.uid);
         const requestCount = (data.requests || []).length;
-        console.log('Initial request count:', requestCount);
         setCount(requestCount);
       } catch (err) {
         console.error('Error fetching initial request count:', err);

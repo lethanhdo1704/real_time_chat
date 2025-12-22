@@ -10,7 +10,10 @@ export default function MessageItem({
   isPrivateChat,
 }) {
   const { t } = useTranslation("chat");
-  const isBig = isBigEmoji(message.text);
+  
+  // ✅ Đổi từ message.text → message.content
+  const messageText = message.content || '';
+  const isBig = isBigEmoji(messageText);
 
   return (
     // OUTER ROW – full width
@@ -48,7 +51,7 @@ export default function MessageItem({
             </p>
           )}
 
-          {/* Message text */}
+          {/* Message content */}
           <p
             className={
               isBig
@@ -56,7 +59,7 @@ export default function MessageItem({
                 : "text-sm leading-[1.4] whitespace-pre-wrap wrap-break-word"
             }
           >
-            {renderMessage(message.text)}
+            {renderMessage(messageText)}
           </p>
         </div>
 

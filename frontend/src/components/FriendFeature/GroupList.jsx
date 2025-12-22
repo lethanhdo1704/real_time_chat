@@ -34,7 +34,6 @@ export default function GroupList({ currentUser, setCurrentRoom }) {
     try {
       // TODO: Replace with actual API call
       // await createGroup(currentUser.uid, newGroupName);
-      console.log("Creating group:", newGroupName);
       setNewGroupName("");
       setShowCreateModal(false);
       fetchGroups();

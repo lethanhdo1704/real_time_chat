@@ -33,8 +33,6 @@ export default function auth(req, res, next) {
       uid: decoded.uid,   // Public uid (friend, invite)
       role: decoded.role,
     };
-    console.log("AUTH HIT:", req.method, req.originalUrl);
-    console.log("HEADERS:", req.headers);
 
     next();
   } catch (err) {

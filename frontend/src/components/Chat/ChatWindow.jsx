@@ -1,6 +1,7 @@
-import { useContext, useState } from "react";
+// frontend/src/components/Chat/ChatWindow.jsx
+import { useContext, useState, useEffect, useRef } from "react";
 import { AuthContext } from "../../context/AuthContext";
-import socket from "../../socket";
+import { messageService } from "../../services/messageService";
 
 import { useChatSocket } from "../../hooks/useChatSocket";
 import { useChatMessages } from "../../hooks/useChatMessages";
@@ -14,101 +15,164 @@ import {
 } from ".";
 
 export default function ChatWindow({
-  receiverId,
-  receiverName,
-  receiverAvatar,
-  currentRoom,
-  user,
+  conversation,
+  onUpdateSidebar,
 }) {
-  const { user: currentUser, token } = useContext(AuthContext);
-  const [isTyping, setIsTyping] = useState(false);
-
-  const isPrivateChat = !!receiverId;
-  const isGroupChat = !!currentRoom;
-  const activeUser = user || currentUser;
+  const { user, token } = useContext(AuthContext);
+  const [typingUser, setTypingUser] = useState(null);
+  const messagesEndRef = useRef(null);
 
   useEmojiStyle();
 
-  const { messages, setMessages, markAsRead } = useChatMessages({
-    activeUser,
-    receiverId,
-    currentRoom,
-    isPrivateChat,
-    isGroupChat,
-    token,
+  const conversationId = conversation?.conversationId;
+  const friend = conversation?.friend;
+
+  // Load and manage messages
+  const {
+    messages,
+    loading,
+    hasMore,
+    addMessage,
+    updateMessageReadStatus,
+  } = useChatMessages(conversationId);
+
+  // Handle socket events
+  const { emitTyping, emitMessageRead } = useChatSocket({
+    activeConversationId: conversationId,
+    onMessageReceived: (message) => {
+      console.log("🔔 Socket received message:", message);
+      addMessage(message);
+      scrollToBottom();
+      
+      // Auto mark as read if message is from other user
+      if (message.sender?.uid !== user.uid) {
+        setTimeout(() => {
+          emitMessageRead(conversationId, message._id);
+        }, 500);
+      }
+    },
+    onTyping: (typingUserData, isTyping) => {
+      if (isTyping) {
+        setTypingUser(typingUserData);
+        setTimeout(() => setTypingUser(null), 3000);
+      } else {
+        setTypingUser(null);
+      }
+    },
+    onMessageRead: (readByUser, lastSeenMessage) => {
+      updateMessageReadStatus(readByUser.uid, lastSeenMessage);
+    },
+    onUpdateSidebar: (convId, lastMessage) => {
+      if (onUpdateSidebar) {
+        onUpdateSidebar(convId, lastMessage);
+      }
+    },
   });
 
-  useChatSocket({
-    activeUser,
-    receiverId,
-    currentRoom,
-    isPrivateChat,
-    isGroupChat,
-    onReceiveMessage: (msg) => {
-      setMessages((prev) => [...prev, msg]);
-    },
-    onTypingChange: setIsTyping,
-    onMessagesRead: (userId) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.sender === activeUser.uid && msg.receiver === userId
-            ? { ...msg, read: true }
-            : msg
-        )
+  // Scroll to bottom helper
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Scroll to bottom when messages load or new message arrives
+  useEffect(() => {
+    if (messages.length > 0 && !loading) {
+      scrollToBottom();
+    }
+  }, [messages.length, conversationId]);
+
+  // Handle send message
+  const handleSendMessage = async (text) => {
+    if (!conversationId || !text.trim()) return;
+
+    try {
+      const response = await messageService.sendMessage(
+        conversationId,
+        text.trim(),
+        token
       );
-    },
-    onMarkAsRead: markAsRead,
-  });
 
-  const handleSendMessage = (text) => {
-    if (isPrivateChat) {
-      socket.emit("sendPrivateMessage", {
-        senderId: activeUser.uid,
-        receiverId,
-        text,
-      });
-    } else if (isGroupChat) {
-      socket.emit("sendMessage", {
-        senderId: activeUser.uid,
-        senderName: activeUser.nickname,
-        text,
-      });
+      console.log("✅ Message sent, response:", response);
+
+      // ✅ FIX: Thêm tin nhắn ngay lập tức (optimistic update)
+      // Socket sẽ emit cho tất cả users trong room, bao gồm cả người gửi
+      addMessage(response);
+      scrollToBottom();
+
+    } catch (error) {
+      console.error("❌ Send message error:", error);
     }
   };
-
-  const handleTypingChange = (typing) => {
-    if (!isPrivateChat) return;
-
-    socket.emit("typing", {
-      senderId: activeUser.uid,
-      receiverId,
-      isTyping: typing,
-    });
+  
+  // Handle typing indicator
+  const handleTypingChange = (isTyping) => {
+    if (!conversationId) return;
+    emitTyping(conversationId, isTyping);
   };
 
-  if (!activeUser) return null;
-  if (!isPrivateChat && !isGroupChat) return <ChatEmptyState />;
-
+  // Show empty state if no conversation selected
+  if (!conversation) {
+    return <ChatEmptyState />;
+  }
+  
   return (
     <div className="flex flex-col h-full w-full min-h-0 bg-linear-to-br from-gray-50 to-blue-50">
-      {isPrivateChat && (
-        <ChatHeader
-          receiverName={receiverName}
-          receiverAvatar={receiverAvatar}
-          isTyping={isTyping}
-        />
-      )}
-
-      <MessageList
-        messages={messages}
-        activeUser={activeUser}
-        isGroupChat={isGroupChat}
-        isPrivateChat={isPrivateChat}
+      {/* Header */}
+      <ChatHeader
+        receiverName={friend?.nickname}
+        receiverAvatar={friend?.avatar}
+        isTyping={!!typingUser}
       />
 
+      {/* Messages List */}
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        {loading && messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+          </div>
+        ) : (
+          <>
+            {/* Load more button */}
+            {hasMore && (
+              <div className="text-center py-2">
+                <button
+                  onClick={() => {/* loadMoreMessages will be added */}}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  disabled={loading}
+                >
+                  {loading ? "Loading..." : "Load older messages"}
+                </button>
+              </div>
+            )}
+
+            <MessageList
+              messages={messages}
+              activeUser={user}
+              isPrivateChat={true}
+            />
+
+            {/* Typing indicator */}
+            {typingUser && (
+              <div className="flex items-center gap-2 px-4 py-2 text-sm text-gray-500">
+                <div className="flex gap-1">
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></span>
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></span>
+                </div>
+                <span>{friend?.nickname} is typing...</span>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </>
+        )}
+      </div>
+      
+      {/* Input */}
       <ChatInput
         onSendMessage={handleSendMessage}
         onTypingChange={handleTypingChange}
+        disabled={!conversationId}
       />
     </div>
   );

@@ -16,7 +16,6 @@ export default function AddFriend({ currentUser }) {
     try {
       const status = await getFriendStatus(friendUid); // ← Chỉ truyền friendUid
       setFriendStatus(status);
-      console.log("Friend status:", status); // Debug
       return status;
     } catch (err) {
       console.error("Error checking friend status:", err);

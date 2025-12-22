@@ -18,7 +18,6 @@ export const SocketProvider = ({ children }) => {
 
     // Reset khi user logout
     if (!user && hasJoinedRef.current) {
-      console.log("🔌 User logged out, resetting socket state");
       hasJoinedRef.current = false;
       socket.disconnect();
     }

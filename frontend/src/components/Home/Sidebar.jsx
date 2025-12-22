@@ -13,11 +13,13 @@ export default function Sidebar({
   requestCount,
   handleLogout,
   handleCopyUID,
-  handleSelectFriend,
+  updateRequestCount,
+  // 🔧 FIX: Add missing props
+  onSelectFriend,  // ← Thêm prop này
   handleSelectRoom,
-  updateRequestCount
 }) {
   const { t } = useTranslation("home");
+
 
   return (
     <div className="w-[320px] shrink-0 hidden lg:flex flex-col bg-white border-r border-gray-200 shadow-lg min-h-0">
@@ -128,7 +130,7 @@ export default function Sidebar({
           <FriendList 
             currentUser={user} 
             onCopyUID={handleCopyUID}
-            onSelectFriend={handleSelectFriend}
+            onSelectFriend={onSelectFriend}
           />
         )}
         {activeTab === "groups" && (

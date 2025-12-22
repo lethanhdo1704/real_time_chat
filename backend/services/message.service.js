@@ -1,8 +1,10 @@
 // ===== services/message.service.js =====
+import mongoose from "mongoose";
 import Conversation from "../models/Conversation.js";
 import ConversationMember from "../models/ConversationMember.js";
 import Message from "../models/Message.js";
 import Friend from "../models/Friend.js";
+
 class MessageService {
   async sendMessage({ conversationId, senderId, content, type = 'text', replyTo = null, attachments = [] }) {
     const conversation = await Conversation.findById(conversationId);
@@ -145,6 +147,87 @@ class MessageService {
       lastSeenMessage: lastMessage._id,
       lastSeenAt: member.lastSeenAt
     };
+  }
+
+  // =========================
+  // GET LAST MESSAGES (SIDEBAR)
+  // =========================
+  async getLastMessages(conversationIds, userId) {
+    // Validate input
+    if (!Array.isArray(conversationIds) || conversationIds.length === 0) {
+      throw new Error("conversationIds must be a non-empty array");
+    }
+
+    // Convert to ObjectIds and validate format
+    const validConversationIds = conversationIds
+      .filter(id => mongoose.Types.ObjectId.isValid(id))
+      .map(id => new mongoose.Types.ObjectId(id));
+
+    if (validConversationIds.length === 0) {
+      return {};
+    }
+
+    // Check which conversations the user is a member of
+    const members = await ConversationMember.find({
+      conversation: { $in: validConversationIds },
+      user: userId,
+      leftAt: null
+    }).select("conversation");
+
+    const allowedConversationIds = members.map(m => 
+      new mongoose.Types.ObjectId(m.conversation)
+    );
+
+    if (allowedConversationIds.length === 0) {
+      return {};
+    }
+
+    // Get last message for each conversation using aggregation
+    const lastMessages = await Message.aggregate([
+      {
+        $match: {
+          conversation: { $in: allowedConversationIds },
+          deletedAt: null
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: "$conversation",
+          messageId: { $first: "$_id" },
+          content: { $first: "$content" },
+          type: { $first: "$type" },
+          sender: { $first: "$sender" },
+          createdAt: { $first: "$createdAt" },
+          editedAt: { $first: "$editedAt" }
+        }
+      }
+    ]);
+
+    // Populate sender information
+    const populated = await Message.populate(lastMessages, {
+      path: "sender",
+      select: "uid nickname avatar"
+    });
+
+    // Convert to object format for easy lookup by conversationId
+    const result = {};
+    populated.forEach(msg => {
+      result[msg._id.toString()] = {
+        messageId: msg.messageId,
+        content: msg.content,
+        type: msg.type,
+        sender: msg.sender ? {
+          uid: msg.sender.uid,
+          nickname: msg.sender.nickname,
+          avatar: msg.sender.avatar
+        } : null,
+        createdAt: msg.createdAt,
+        editedAt: msg.editedAt || null
+      };
+    });
+
+    return result;
   }
 }
 
