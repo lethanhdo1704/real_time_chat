@@ -69,7 +69,7 @@ export default function SidebarItem({
         </span>
 
         {badge > 0 && (
-          <span className="min-w-[18px] h-[18px] px-1 text-[11px] font-bold
+          <span className="min-w-4.5 h-4.5 px-1 text-[11px] font-bold
                            flex items-center justify-center
                            bg-red-500 text-white rounded-full">
             {badge > 99 ? "99+" : badge}
@@ -99,7 +99,7 @@ export default function SidebarItem({
           className="w-12 h-12 rounded-full object-cover"
         />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 
+          <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 
                            text-[10px] font-bold flex items-center justify-center
                            bg-red-500 text-white rounded-full border-2 border-white">
             {unreadCount > 99 ? "99+" : unreadCount}
