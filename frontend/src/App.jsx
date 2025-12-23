@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
 import Login from "./pages/Login";
@@ -18,6 +18,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgotpassword" element={<ForgotPassword />} />
+              
               <Route
                 path="/"
                 element={
@@ -25,7 +26,16 @@ function App() {
                     <Home />
                   </ProtectedRoute>
                 }
-              />
+              >
+                <Route index element={<Navigate to="/friends" replace />} />
+                <Route path="friends" element={null} />
+                <Route path="friends/:conversationId" element={null} />
+                <Route path="groups" element={null} />
+                <Route path="groups/:conversationId" element={null} />
+                <Route path="requests" element={null} />
+                <Route path="add" element={null} />
+              </Route>
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

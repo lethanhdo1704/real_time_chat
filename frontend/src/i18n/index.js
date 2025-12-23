@@ -41,7 +41,7 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: localStorage.getItem("lang") || "vi",
+    lng: localStorage.getItem("lang") || "en",
     ns: ["login", "register", "notFound", "forgotPassword", "home", "chat", "friendFeature"],
     interpolation: {
       escapeValue: false,

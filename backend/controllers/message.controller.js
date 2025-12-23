@@ -15,6 +15,12 @@ class MessageController {
           .json({ message: "conversationId and content are required" });
       }
 
+      console.log('📤 [MessageController] Sending message:', {
+        conversationId,
+        senderId: req.user.id,
+        content: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+      });
+
       const result = await messageService.sendMessage({
         conversationId,
         senderId: req.user.id, // Mongo _id
@@ -24,15 +30,28 @@ class MessageController {
         attachments,
       });
 
-      // Emit socket event
+      console.log('✅ [MessageController] Message saved:', result.message.messageId);
+
+      // ✅ FIX: Emit socket event to ALL users in room (including sender)
       const io = req.app.get("io");
       if (io) {
-        io.to(conversationId).emit("message_received", result.message);
+        console.log('📡 [MessageController] Emitting to room:', conversationId);
+        
+        // Emit to the room (all connected users)
+        io.to(conversationId).emit("message_received", {
+          message: result.message
+        });
+        
+        console.log('✅ [MessageController] Socket event emitted');
+      } else {
+        console.warn('⚠️ [MessageController] Socket.io not available');
       }
 
+      // Return message to sender
       res.status(201).json(result.message);
+      
     } catch (error) {
-      console.error("sendMessage error:", error);
+      console.error("❌ [MessageController] sendMessage error:", error);
       res.status(400).json({ message: error.message });
     }
   }
@@ -45,6 +64,12 @@ class MessageController {
       const { conversationId } = req.params;
       const { before, limit = 50 } = req.query;
 
+      console.log('📥 [MessageController] Getting messages:', {
+        conversationId,
+        before,
+        limit,
+      });
+
       const result = await messageService.getMessages(
         conversationId,
         req.user.id,
@@ -52,9 +77,11 @@ class MessageController {
         parseInt(limit, 10)
       );
 
+      console.log('✅ [MessageController] Retrieved messages:', result.messages.length);
+
       res.json(result);
     } catch (error) {
-      console.error("getMessages error:", error);
+      console.error("❌ [MessageController] getMessages error:", error);
       res.status(400).json({ message: error.message });
     }
   }
@@ -72,23 +99,32 @@ class MessageController {
           .json({ message: "conversationId is required" });
       }
 
+      console.log('👁️ [MessageController] Marking as read:', {
+        conversationId,
+        userId: req.user.id,
+      });
+
       const result = await messageService.markAsRead(
         conversationId,
         req.user.id
       );
 
-      // Emit socket event
+      // Emit socket event to other users
       const io = req.app.get("io");
       if (io) {
+        console.log('📡 [MessageController] Emitting read receipt to room:', conversationId);
+        
         io.to(conversationId).emit("message_read", {
-          userId: req.user.uid, // public uid
-          ...result,
+          conversationId,
+          user: { uid: req.user.uid }, // public uid
+          lastSeenMessage: result.lastSeenMessage,
+          readAt: result.lastSeenAt,
         });
       }
 
       res.json(result);
     } catch (error) {
-      console.error("markAsRead error:", error);
+      console.error("❌ [MessageController] markAsRead error:", error);
       res.status(400).json({ message: error.message });
     }
   }
@@ -106,6 +142,8 @@ class MessageController {
           .json({ message: "conversationIds must be a non-empty array" });
       }
 
+      console.log('📥 [MessageController] Getting last messages for:', conversationIds.length, 'conversations');
+
       const result = await messageService.getLastMessages(
         conversationIds,
         req.user.id
@@ -113,7 +151,7 @@ class MessageController {
 
       res.json(result);
     } catch (error) {
-      console.error("getLastMessages error:", error);
+      console.error("❌ [MessageController] getLastMessages error:", error);
       res.status(400).json({ message: error.message });
     }
   }

@@ -14,12 +14,14 @@ export default function Sidebar({
   handleLogout,
   handleCopyUID,
   updateRequestCount,
-  // 🔧 FIX: Add missing props
-  onSelectFriend,  // ← Thêm prop này
-  handleSelectRoom,
+  // Conversation props - NEEDED for chat preview
+  conversations = [],
+  selectedConversation,
+  onSelectConversation,
+  // Friend selection
+  onSelectFriend,
 }) {
   const { t } = useTranslation("home");
-
 
   return (
     <div className="w-[320px] shrink-0 hidden lg:flex flex-col bg-white border-r border-gray-200 shadow-lg min-h-0">
@@ -77,7 +79,7 @@ export default function Sidebar({
       </div>
 
       {/* Vertical Menu Navigation */}
-      <div className="px-2 py-3 space-y-1 bg-gray-50 border-b border-gray-200 shrink-0">
+      <div className="py-3 space-y-1 bg-gray-50 border-b border-gray-200 shrink-0">
         <SidebarItem
           active={activeTab === "friends"}
           onClick={() => setActiveTab("friends")}
@@ -125,28 +127,42 @@ export default function Sidebar({
       </div>
 
       {/* Content - Full Height */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 bg-gray-50">
+      <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
+        {/* FRIENDS TAB - Pass conversations and selectedConversation for chat preview */}
         {activeTab === "friends" && (
           <FriendList 
             currentUser={user} 
-            onCopyUID={handleCopyUID}
             onSelectFriend={onSelectFriend}
+            conversations={conversations}
+            selectedConversation={selectedConversation}
           />
         )}
+
+        {/* GROUPS TAB */}
         {activeTab === "groups" && (
-          <GroupList 
-            currentUser={user} 
-            onSelectRoom={handleSelectRoom}
-          />
+          <div className="p-4">
+            <GroupList 
+              currentUser={user} 
+              onSelectRoom={onSelectConversation}
+            />
+          </div>
         )}
+
+        {/* REQUESTS TAB */}
         {activeTab === "requests" && (
-          <FriendRequests 
-            currentUser={user} 
-            onUpdateCount={updateRequestCount}
-          />
+          <div className="p-4">
+            <FriendRequests 
+              currentUser={user} 
+              onUpdateCount={updateRequestCount}
+            />
+          </div>
         )}
+
+        {/* ADD FRIEND TAB */}
         {activeTab === "add" && (
-          <AddFriend currentUser={user} />
+          <div className="p-4">
+            <AddFriend currentUser={user} />
+          </div>
         )}
       </div>
     </div>

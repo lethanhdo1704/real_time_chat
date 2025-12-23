@@ -1,4 +1,4 @@
-// ===== services/message.service.js =====
+// backend/services/message.service.js
 import mongoose from "mongoose";
 import Conversation from "../models/Conversation.js";
 import ConversationMember from "../models/ConversationMember.js";

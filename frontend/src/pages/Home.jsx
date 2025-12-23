@@ -1,6 +1,5 @@
-// frontend/src/pages/Home.jsx
-import { useContext, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useContext, useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import ChatWindow from "../components/Chat/ChatWindow";
 import { AuthContext } from "../context/AuthContext";
@@ -8,38 +7,97 @@ import { Sidebar, HomeEmptyChat, CopyToast } from "../components/Home";
 import { useFriendRequestCount } from "../hooks/useFriendRequestCount";
 import { useHomeChat } from "../hooks/useHomeChat";
 import { useCopyToast } from "../hooks/useCopyToast";
+import { useChatSocket } from "../hooks/useChatSocket";
 import { conversationService } from "../services/api";
+import { connectSocket } from "../socket";
 import "../styles/animations.css";
 
 export default function Home() {
   const { t } = useTranslation("home");
   const { user, logout, loading, token } = useContext(AuthContext);
   const navigate = useNavigate();
+  const { conversationId } = useParams();
+  const location = useLocation();
   
-  // Custom hooks
   const [requestCount, setRequestCount] = useFriendRequestCount(user);
-  const [activeTab, setActiveTab] = useState("chats");
   const { showToast, triggerToast, hideToast } = useCopyToast(2000);
   
   const {
-    conversations,
+    conversations: rawConversations,
     lastMessages,
     unreadCounts,
-    loading: loadingConversations,
     selectedConversation,
+    loading: loadingConversations,
     handleSelectConversation,
     updateConversationLastMessage,
     reloadConversations,
   } = useHomeChat();
 
-  // Redirect to login if not authenticated
+  const activeTab = location.pathname.split('/')[1] || 'friends';
+
+  useChatSocket({
+    activeConversationId: selectedConversation?.conversationId,
+    onMessageReceived: null,
+    onTyping: null,
+    onMessageRead: null,
+    onUpdateSidebar: (conversationId, message) => {
+      updateConversationLastMessage(conversationId, message);
+      setTimeout(() => {
+        reloadConversations();
+      }, 300);
+    },
+  });
+
+  const enrichedConversations = useMemo(() => {
+    if (!Array.isArray(rawConversations)) return [];
+    
+    return rawConversations.map(conv => {
+      const convId = conv.conversationId || conv._id;
+      const lastMessage = lastMessages?.[convId];
+      const unreadCount = unreadCounts?.[convId] || 0;
+      
+      return {
+        ...conv,
+        lastMessage: lastMessage || null,
+        lastMessageAt: lastMessage?.createdAt || conv.lastMessageAt,
+        unreadCount: unreadCount,
+      };
+    });
+  }, [rawConversations, lastMessages, unreadCounts]);
+
   useEffect(() => {
     if (!loading && !user) {
       navigate("/login");
     }
   }, [user, loading, navigate]);
 
-  // Loading state
+  useEffect(() => {
+    if (user && token) {
+      connectSocket();
+    }
+  }, [user, token]);
+
+  // Load conversation from URL - FIXED: Only update if conversationId actually changed
+  useEffect(() => {
+    if (conversationId && enrichedConversations.length > 0) {
+      const currentConvId = selectedConversation?.conversationId || selectedConversation?._id;
+      
+      // Only update if the URL conversationId is different from current selection
+      if (currentConvId !== conversationId) {
+        const conversation = enrichedConversations.find(
+          c => c.conversationId === conversationId || c._id === conversationId
+        );
+        
+        if (conversation) {
+          handleSelectConversation(conversation);
+        }
+      }
+    } else if (!conversationId && selectedConversation) {
+      // Clear selection when navigating away from conversation
+      handleSelectConversation(null);
+    }
+  }, [conversationId, enrichedConversations.length]); // Don't include handleSelectConversation or selectedConversation
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-linear-to-br from-blue-50 to-indigo-100">
@@ -51,7 +109,6 @@ export default function Home() {
     );
   }
 
-  // Not authenticated
   if (!user) {
     return null;
   }
@@ -69,64 +126,43 @@ export default function Home() {
     setRequestCount(count);
   };
 
-  /**
-   * Handle when user clicks on a friend in FriendList
-   * Create or get conversation with that friend
-   */
+  const setActiveTab = (tab) => {
+    navigate(`/${tab}`);
+  };
+
   const handleSelectFriend = async (friendInfo) => {
-    
     try {
-      // friendInfo has: uid, nickname, avatar (from Friend object)
       const friendUid = friendInfo.uid || friendInfo._id;
       
-      const response = await conversationService.createPrivateConversation(
+      const conversation = await conversationService.createPrivateConversation(
         friendUid,
         token
       );
 
-
-      // Transform conversation structure to match expected format
-      const normalizedConversation = {
-        ...response,
-        _id: response.conversationId,
-      };
-
- 
-
-      // Switch to chats tab
-      setActiveTab("chats");
-
-      // Select the conversation with normalized structure
-      handleSelectConversation(normalizedConversation);
-      
-
-      // Reload conversations to update sidebar
-      await reloadConversations();
+      navigate(`/friends/${conversation.conversationId}`);
       
     } catch (error) {
-      console.error("❌ Error creating conversation:", error);
-      console.error("❌ Error stack:", error.stack);
+      console.error("Error creating conversation:", error);
+      alert(`Error: ${error.message || 'Failed to create conversation'}`);
     }
   };
 
-  // Debug: Log when selectedConversation changes
-  useEffect(() => {
-  }, [selectedConversation]);
-
-  // Debug: Log conversations list
-  useEffect(() => {
-  }, [conversations]);
+  const handleSelectConversationWithRoute = useCallback((conversation) => {
+    if (!conversation) return;
+    
+    const tab = conversation.type === 'group' ? 'groups' : 'friends';
+    const convId = conversation.conversationId || conversation._id;
+    navigate(`/${tab}/${convId}`);
+  }, [navigate]);
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden min-h-0">
-      {/* Copy Toast */}
       <CopyToast 
         show={showToast} 
         onClose={hideToast}
         message={t("home.toast.copiedUID")}
       />
 
-      {/* Sidebar */}
       <Sidebar
         user={user}
         activeTab={activeTab}
@@ -135,30 +171,20 @@ export default function Home() {
         handleLogout={handleLogout}
         handleCopyUID={handleCopyUID}
         updateRequestCount={updateRequestCount}
-        // New conversation props
-        conversations={conversations}
-        lastMessages={lastMessages}
-        unreadCounts={unreadCounts}
+        conversations={enrichedConversations}
         selectedConversation={selectedConversation}
-        onSelectConversation={handleSelectConversation}
-        loadingConversations={loadingConversations}
-        // For FriendList
+        onSelectConversation={handleSelectConversationWithRoute}
         onSelectFriend={handleSelectFriend}
       />
 
-      {/* Chat Window */}
       <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
         {selectedConversation ? (
-          <>
-            <ChatWindow
-              conversation={selectedConversation}
-              onUpdateSidebar={updateConversationLastMessage}
-            />
-          </>
+          <ChatWindow
+            conversation={selectedConversation}
+            onUpdateSidebar={updateConversationLastMessage}
+          />
         ) : (
-          <>
-            <HomeEmptyChat />
-          </>
+          <HomeEmptyChat />
         )}
       </div>
     </div>

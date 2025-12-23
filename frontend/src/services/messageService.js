@@ -9,9 +9,6 @@ const authHeaders = (token) => ({
 });
 
 export const messageService = {
-  /**
-   * Get messages for a conversation (pagination)
-   */
   async getMessages(conversationId, token, before = null, limit = 50) {
     const params = new URLSearchParams({ limit });
 
@@ -28,13 +25,9 @@ export const messageService = {
       throw new Error("Failed to load messages");
     }
 
-    return res.json(); 
-    // expected: { messages, hasMore }
+    return res.json();
   },
 
-  /**
-   * Get last messages for sidebar
-   */
   async getLastMessages(conversationIds, token) {
     const res = await fetch(
       `${API_BASE_URL}/messages/last-messages`,
@@ -49,13 +42,9 @@ export const messageService = {
       throw new Error("Failed to load last messages");
     }
 
-    return res.json(); 
-    // expected: { [conversationId]: message }
+    return res.json();
   },
 
-  /**
-   * Send message
-   */
   async sendMessage(
     conversationId,
     content,
@@ -83,13 +72,7 @@ export const messageService = {
     return res.json();
   },
 
-  /**
-   * Mark messages as read
-   * ✅ FIXED: conversationId, token, lastSeenMessage (optional)
-   */
   async markAsRead(conversationId, token, lastSeenMessage = null) {
-    console.log('🔒 markAsRead called:', { conversationId, token: token ? 'EXISTS' : 'MISSING', lastSeenMessage });
-    
     const body = { conversationId };
     if (lastSeenMessage) {
       body.lastSeenMessage = lastSeenMessage;
@@ -101,11 +84,9 @@ export const messageService = {
       body: JSON.stringify(body),
     });
 
-    console.log('🔒 markAsRead response status:', res.status);
-
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      console.error('❌ markAsRead failed:', errorData);
+      console.error("Failed to mark messages as read:", errorData);
       throw new Error("Failed to mark messages as read");
     }
 

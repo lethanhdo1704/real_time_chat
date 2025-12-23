@@ -1,4 +1,4 @@
-// ===== routes/conversation.routes.js =====
+// backend/routes/conversation.routes.js
 import express from "express";
 import conversationController from "../controllers/conversation.controller.js";
 import auth from "../middleware/auth.js";

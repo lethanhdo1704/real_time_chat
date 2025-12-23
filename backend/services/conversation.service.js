@@ -1,4 +1,4 @@
-// ===== services/conversation.service.js =====
+// backend/services/conversation.service.js
 import Conversation from "../models/Conversation.js";
 import ConversationMember from "../models/ConversationMember.js";
 import Message from "../models/Message.js";
@@ -134,17 +134,20 @@ class ConversationService {
           }
         }
 
+        // ✅ FIX: Only count messages from OTHER users (not from current user)
         let unreadCount;
 
         if (membership.lastSeenMessage) {
           unreadCount = await Message.countDocuments({
             conversation: conv._id,
             _id: { $gt: membership.lastSeenMessage },
+            sender: { $ne: userId }, // ✅ ADDED: Exclude current user's messages
             deletedAt: null,
           });
         } else {
           unreadCount = await Message.countDocuments({
             conversation: conv._id,
+            sender: { $ne: userId }, // ✅ ADDED: Exclude current user's messages
             deletedAt: null,
           });
         }
@@ -165,7 +168,7 @@ class ConversationService {
             },
             lastMessage,
             lastMessageAt: conv.lastMessageAt,
-            unreadCount,
+            unreadCount, // ✅ Now returns correct count
           };
         } else {
           const members = await ConversationMember.getActiveMembers(conv._id);
@@ -182,7 +185,7 @@ class ConversationService {
             })),
             lastMessage,
             lastMessageAt: conv.lastMessageAt,
-            unreadCount,
+            unreadCount, // ✅ Now returns correct count
           };
         }
       })

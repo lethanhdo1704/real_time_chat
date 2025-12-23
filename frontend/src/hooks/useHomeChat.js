@@ -5,8 +5,8 @@ import { conversationService } from "../services/api";
 import { messageService } from "../services/messageService";
 
 /**
- * Custom hook để quản lý conversations, last messages và unread counts
- * Sử dụng cho Sidebar - hiển thị danh sách chat
+ * Custom hook for managing conversations, last messages, and unread counts
+ * Handles real-time updates and conversation selection state
  */
 export function useHomeChat() {
   const { token, user } = useContext(AuthContext);
@@ -19,11 +19,10 @@ export function useHomeChat() {
   const [selectedConversation, setSelectedConversation] = useState(null);
 
   /**
-   * Load conversations và last messages
+   * Fetch all conversations and their associated last messages
+   * Also initializes unread counts from backend data
    */
   const loadConversations = useCallback(async () => {
-  
-    
     if (!token || !user) {
       return;
     }
@@ -32,22 +31,17 @@ export function useHomeChat() {
       setLoading(true);
       setError(null);
 
+      // Fetch user's conversations list
+      const conversationsData = await conversationService.getUserConversations(token);
       
-      // 1. Load conversations
-      const conversationsData = await conversationService.getConversations(token);
-      
-      
-      
-      // SAFE: Ensure conversationsData is array
+      // Normalize response to always work with array
       const conversationsArray = Array.isArray(conversationsData) 
         ? conversationsData 
         : (conversationsData?.conversations || []);
       
-  ;
-      
       setConversations(conversationsArray);
 
-      // 2. Extract conversationIds
+      // Extract conversation IDs for batch fetching last messages
       const conversationIds = conversationsArray.map(conv => conv.conversationId);
 
       if (conversationIds.length === 0) {
@@ -55,49 +49,41 @@ export function useHomeChat() {
         return;
       }
 
-      // 3. Load last messages for all conversations
+      // Batch fetch last messages for all conversations
       const lastMessagesData = await messageService.getLastMessages(conversationIds, token);
-      
       setLastMessages(lastMessagesData || {});
 
-      // 4. Calculate unread counts
+      // Initialize unread counts from backend (already calculated correctly)
       const unreadMap = {};
       conversationsArray.forEach(conv => {
-        const lastMsg = lastMessagesData[conv.conversationId];
-        
-        // Count unread if:
-        // - Last message exists
-        // - Last message is not from current user
-        // - lastSeenMessage is different from last message
-        if (lastMsg && lastMsg.sender?.uid !== user.uid) {
-          const isUnread = conv.lastSeenMessage !== lastMsg.messageId;
-          unreadMap[conv.conversationId] = isUnread ? 1 : 0;
-        } else {
-          unreadMap[conv.conversationId] = 0;
-        }
+        unreadMap[conv.conversationId] = conv.unreadCount || 0;
       });
       
       setUnreadCounts(unreadMap);
       setLoading(false);
       
     } catch (err) {
+      console.error("Error loading conversations:", err);
       setError(err.message);
       setLoading(false);
     }
   }, [token, user]);
 
   /**
-   * Update last message của một conversation (realtime)
+   * Update last message for a conversation (triggered by real-time socket events)
+   * Also increments unread count if message is from another user
+   * 
+   * @param {string} conversationId - ID of the conversation to update
+   * @param {Object} message - New message object
    */
   const updateConversationLastMessage = useCallback((conversationId, message) => {
-
-    
+    // Update last message in state
     setLastMessages(prev => ({
       ...prev,
       [conversationId]: message
     }));
 
-    // Update unread count if message is not from current user
+    // Increment unread count only for messages from other users
     if (message.sender?.uid !== user?.uid) {
       setUnreadCounts(prev => ({
         ...prev,
@@ -105,7 +91,7 @@ export function useHomeChat() {
       }));
     }
 
-    // Resort conversations
+    // Update lastMessageAt timestamp and re-sort conversations by recency
     setConversations(prev => {
       const updated = [...prev];
       const index = updated.findIndex(c => c.conversationId === conversationId);
@@ -116,7 +102,7 @@ export function useHomeChat() {
           lastMessageAt: message.createdAt
         };
         
-        // Sort by lastMessageAt DESC
+        // Sort by most recent message first
         return updated.sort((a, b) => 
           new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
         );
@@ -127,7 +113,9 @@ export function useHomeChat() {
   }, [user]);
 
   /**
-   * Clear unread count khi user mở conversation
+   * Reset unread count for a conversation (called when user opens the chat)
+   * 
+   * @param {string} conversationId - ID of the conversation to clear
    */
   const clearUnreadCount = useCallback((conversationId) => {
     setUnreadCounts(prev => ({
@@ -137,36 +125,24 @@ export function useHomeChat() {
   }, []);
 
   /**
-   * Handle select conversation
+   * Handle conversation selection and clear unread count
+   * 
+   * @param {Object} conversation - Conversation object to select
    */
   const handleSelectConversation = useCallback((conversation) => {
-   
-    
     setSelectedConversation(conversation);
     
     const convId = conversation?.conversationId || conversation?._id;
     clearUnreadCount(convId);
   }, [clearUnreadCount]);
 
-  /**
-   * Get sorted conversations by lastMessageAt
-   */
-  const sortedConversations = Array.isArray(conversations) 
-    ? [...conversations].sort((a, b) => {
-        const dateA = new Date(a.lastMessageAt || 0);
-        const dateB = new Date(b.lastMessageAt || 0);
-        return dateB - dateA;
-      })
-    : [];
-
-
-  // Load conversations on mount
+  // Load conversations on component mount
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
 
   return {
-    conversations: sortedConversations,
+    conversations,
     lastMessages,
     unreadCounts,
     loading,

@@ -1,152 +1,181 @@
 // frontend/src/hooks/useChatMessages.js
-import { useEffect, useState, useCallback, useContext } from "react";
+import { useEffect, useState, useCallback, useContext, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { messageService } from "../services/messageService";
 
-/**
- * Custom hook để quản lý messages của một conversation
- * Xử lý: load messages, pagination, mark as read, realtime updates
- * 
- * @param {string} conversationId - ID của conversation đang active
- */
 export function useChatMessages(conversationId) {
   const { token, user } = useContext(AuthContext);
-  
+
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState(null);
 
-  /**
-   * Load messages lần đầu hoặc refresh
-   */
+  const markedAsReadRef = useRef(false);
+  const lastMarkedMessageIdRef = useRef(null);
+
   const loadMessages = useCallback(async () => {
-    if (!conversationId || !token) return;
+    if (!conversationId || !token) {
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
 
-      const response = await messageService.getMessages(conversationId, token);
-      
-      // Backend returns newest first, reverse for UI (oldest first)
+      markedAsReadRef.current = false;
+      lastMarkedMessageIdRef.current = null;
+
+      const response = await messageService.getMessages(
+        conversationId,
+        token,
+        null,
+        50
+      );
+
       const sortedMessages = [...response.messages].reverse();
-      
+
       setMessages(sortedMessages);
-      setHasMore(response.hasMore);
+      setHasMore(response.hasMore || false);
       setLoading(false);
     } catch (err) {
-      console.error("Load messages error:", err);
       setError(err.message);
+      setMessages([]);
       setLoading(false);
     }
   }, [conversationId, token]);
 
-  /**
-   * Load more messages (pagination)
-   */
   const loadMoreMessages = useCallback(async () => {
-    if (!conversationId || !token || !hasMore || loading) return;
+    if (!conversationId || !token || !hasMore || loading) {
+      return;
+    }
+
+    if (messages.length === 0) {
+      return;
+    }
 
     try {
       setLoading(true);
 
-      // Get oldest message ID for pagination
-      const oldestMessageId = messages[0]?.messageId;
-      if (!oldestMessageId) return;
+      const oldestMessage = messages[0];
+      const beforeCursor = oldestMessage?.messageId;
 
       const response = await messageService.getMessages(
-        conversationId, 
-        token, 
-        oldestMessageId
+        conversationId,
+        token,
+        beforeCursor,
+        50
       );
 
-      // Prepend older messages (reverse because backend returns newest first)
       const olderMessages = [...response.messages].reverse();
-      setMessages(prev => [...olderMessages, ...prev]);
-      setHasMore(response.hasMore);
+      setMessages((prev) => [...olderMessages, ...prev]);
+      setHasMore(response.hasMore || false);
       setLoading(false);
     } catch (err) {
-      console.error("Load more messages error:", err);
       setLoading(false);
     }
   }, [conversationId, token, messages, hasMore, loading]);
 
-  /**
-   * Mark conversation as read
-   * ✅ FIXED: Đúng thứ tự tham số và lấy lastSeenMessage
-   */
-  const markConversationAsRead = useCallback(async () => {
-    if (!conversationId || !token || messages.length === 0) return;
-
-    try {
-      // Lấy message mới nhất (cuối cùng trong array)
-      const lastMessage = messages[messages.length - 1];
-      const lastSeenMessage = lastMessage?.messageId;
-
-      
-      await messageService.markAsRead(conversationId, token, lastSeenMessage);
-      
-    } catch (err) {
-      console.error("Mark as read error:", err);
-    }
-  }, [conversationId, token, messages]);
-
-  /**
-   * Add new message from socket (realtime)
-   * Prevents duplicates by checking messageId
-   */
   const addMessage = useCallback((newMessage) => {
-    setMessages(prev => {
-      // Check if message already exists
-      const exists = prev.some(msg => msg.messageId === newMessage.messageId);
-      if (exists) return prev;
-      
-      // Append new message
+    if (!newMessage?.messageId) {
+      return;
+    }
+
+    setMessages((prev) => {
+      const exists = prev.some((msg) => msg.messageId === newMessage.messageId);
+
+      if (exists) {
+        return prev;
+      }
+
       return [...prev, newMessage];
     });
   }, []);
 
-  /**
-   * Update message read status
-   */
-  const updateMessageReadStatus = useCallback((userUid, lastSeenMessage) => {
-    setMessages(prev =>
-      prev.map(msg => {
-        // Mark messages as read if:
-        // - Sender is current user
-        // - Message ID <= lastSeenMessage
-        if (msg.sender.uid === user?.uid && msg.messageId <= lastSeenMessage) {
-          return { ...msg, read: true };
-        }
-        return msg;
-      })
-    );
-  }, [user]);
+  const updateMessageReadStatus = useCallback(
+    (userUid, lastSeenMessageId) => {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (
+            msg.sender?.uid === user?.uid &&
+            msg.messageId <= lastSeenMessageId
+          ) {
+            return { ...msg, read: true };
+          }
+          return msg;
+        })
+      );
+    },
+    [user]
+  );
 
-  /**
-   * Load messages when conversation changes
-   */
+  const markConversationAsRead = useCallback(async () => {
+    if (!conversationId || !token) {
+      return;
+    }
+
+    let shouldMark = false;
+    let lastMessageId = null;
+
+    setMessages((currentMessages) => {
+      if (currentMessages.length === 0) {
+        return currentMessages;
+      }
+
+      const lastMessage = currentMessages[currentMessages.length - 1];
+      lastMessageId = lastMessage?.messageId;
+
+      if (
+        !markedAsReadRef.current ||
+        lastMarkedMessageIdRef.current !== lastMessageId
+      ) {
+        shouldMark = true;
+      }
+
+      return currentMessages;
+    });
+
+    if (!shouldMark || !lastMessageId) {
+      return;
+    }
+
+    try {
+      markedAsReadRef.current = true;
+      lastMarkedMessageIdRef.current = lastMessageId;
+
+      await messageService.markAsRead(conversationId, token, lastMessageId);
+    } catch (err) {
+      markedAsReadRef.current = false;
+      lastMarkedMessageIdRef.current = null;
+    }
+  }, [conversationId, token]);
+
   useEffect(() => {
     if (conversationId) {
       loadMessages();
     } else {
       setMessages([]);
       setHasMore(false);
+      markedAsReadRef.current = false;
+      lastMarkedMessageIdRef.current = null;
     }
   }, [conversationId, loadMessages]);
 
-  /**
-   * Mark as read after messages loaded and after a short delay
-   */
   useEffect(() => {
     if (!conversationId || messages.length === 0) return;
 
+    const lastMessage = messages[messages.length - 1];
+    if (lastMarkedMessageIdRef.current === lastMessage.messageId) {
+      return;
+    }
+
     const timer = setTimeout(() => {
       markConversationAsRead();
-    }, 500);
+    }, 1000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [conversationId, messages.length, markConversationAsRead]);
 
   return {
