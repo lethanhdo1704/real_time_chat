@@ -136,6 +136,43 @@ export function useHomeChat() {
     clearUnreadCount(convId);
   }, [clearUnreadCount]);
 
+  /**
+   * ✅ ADD NEW CONVERSATION TO STATE
+   * Called when user creates a new conversation with a friend
+   * 
+   * @param {Object} newConversation - New conversation object from API
+   */
+  const addConversation = useCallback((newConversation) => {
+    setConversations(prev => {
+      // Check if conversation already exists
+      const exists = prev.find(
+        c => c.conversationId === newConversation.conversationId || 
+             c._id === newConversation._id ||
+             c.conversationId === newConversation._id
+      );
+      
+      if (exists) {
+        console.log('Conversation already exists, skipping add');
+        return prev; // Already exists, don't add
+      }
+      
+      console.log('Adding new conversation to state:', newConversation);
+      // Add new conversation to the beginning of the list
+      return [newConversation, ...prev];
+    });
+    
+    // Initialize lastMessage and unreadCount for new conversation
+    const convId = newConversation.conversationId || newConversation._id;
+    setLastMessages(prev => ({
+      ...prev,
+      [convId]: newConversation.lastMessage || null
+    }));
+    setUnreadCounts(prev => ({
+      ...prev,
+      [convId]: 0
+    }));
+  }, []);
+
   // Load conversations on component mount
   useEffect(() => {
     loadConversations();
@@ -152,5 +189,6 @@ export function useHomeChat() {
     updateConversationLastMessage,
     clearUnreadCount,
     reloadConversations: loadConversations,
+    addConversation, // ✅ EXPORT NEW FUNCTION
   };
 }

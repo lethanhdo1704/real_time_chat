@@ -1,3 +1,4 @@
+// frontend/src/pages/Home.jsx
 import { useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -31,6 +32,7 @@ export default function Home() {
     handleSelectConversation,
     updateConversationLastMessage,
     reloadConversations,
+    addConversation, // ✅ GET NEW FUNCTION
   } = useHomeChat();
 
   const activeTab = location.pathname.split('/')[1] || 'friends';
@@ -96,7 +98,7 @@ export default function Home() {
       // Clear selection when navigating away from conversation
       handleSelectConversation(null);
     }
-  }, [conversationId, enrichedConversations.length]); // Don't include handleSelectConversation or selectedConversation
+  }, [conversationId, enrichedConversations.length]);
 
   if (loading) {
     return (
@@ -130,15 +132,24 @@ export default function Home() {
     navigate(`/${tab}`);
   };
 
+  // ✅ UPDATED: Add conversation to state immediately
   const handleSelectFriend = async (friendInfo) => {
     try {
       const friendUid = friendInfo.uid || friendInfo._id;
+      
+      console.log('Creating/fetching conversation with friend:', friendUid);
       
       const conversation = await conversationService.createPrivateConversation(
         friendUid,
         token
       );
 
+      console.log('Conversation created/fetched:', conversation);
+
+      // ✅ ADD TO STATE IMMEDIATELY - This fixes the issue!
+      addConversation(conversation);
+
+      // Navigate to the conversation
       navigate(`/friends/${conversation.conversationId}`);
       
     } catch (error) {
