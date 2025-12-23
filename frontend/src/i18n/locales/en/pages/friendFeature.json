@@ -60,6 +60,16 @@
     "members": "members"
   },
 
+  "messagePreview": {
+    "you": "You",
+    "friend": "Friend",
+    "photo": "📷 Sent a photo",
+    "file": "📎 Sent a file",
+    "video": "🎥 Sent a video",
+    "audio": "🎵 Sent a voice message",
+    "startConversation": "👋 Start a conversation"
+  },
+
   "common": {
     "uid": "UID",
     "loading": "Loading..."

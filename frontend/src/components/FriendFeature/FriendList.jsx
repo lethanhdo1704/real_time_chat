@@ -48,10 +48,6 @@ export default function FriendList({
     }
   };
 
-  /**
-   * Get conversation info for a friend
-   * Returns: { hasConversation, unreadCount, isActive, lastMessage, lastMessageAt }
-   */
   const getConversationInfo = (friendUid) => {
     // Find conversation with this friend
     const conversation = conversations.find(conv => {
@@ -91,31 +87,31 @@ export default function FriendList({
     if (!lastMessage) return null;
 
     const isOwnMessage = lastMessage.sender?.uid === currentUserId;
-    const senderName = isOwnMessage ? 'You' : (lastMessage.sender?.nickname || 'Friend');
+    const senderName = isOwnMessage ? t('messagePreview.you') : (lastMessage.sender?.nickname || t('messagePreview.friend'));
 
     // Handle different message types
     switch (lastMessage.type) {
       case 'image':
         return {
-          text: `${senderName}: 📷 Sent a photo`,
+          text: `${senderName}: ${t('messagePreview.photo')}`,
           icon: '📷',
           isSpecial: true
         };
       case 'file':
         return {
-          text: `${senderName}: 📎 Sent a file`,
+          text: `${senderName}: ${t('messagePreview.file')}`,
           icon: '📎',
           isSpecial: true
         };
       case 'video':
         return {
-          text: `${senderName}: 🎥 Sent a video`,
+          text: `${senderName}: ${t('messagePreview.video')}`,
           icon: '🎥',
           isSpecial: true
         };
       case 'audio':
         return {
-          text: `${senderName}: 🎵 Sent a voice message`,
+          text: `${senderName}: ${t('messagePreview.audio')}`,
           icon: '🎵',
           isSpecial: true
         };
@@ -126,7 +122,7 @@ export default function FriendList({
           ? content.substring(0, maxLength) + '...' 
           : content;
         return {
-          text: isOwnMessage ? `You: ${truncated}` : truncated,
+          text: isOwnMessage ? `${t('messagePreview.you')}: ${truncated}` : truncated,
           icon: null,
           isSpecial: false
         };
@@ -324,7 +320,7 @@ export default function FriendList({
                     text-[13px] italic flex-1 leading-tight
                     ${isActive ? 'text-blue-100' : 'text-gray-400'}
                   `}>
-                    👋 Start a conversation
+                    {t('messagePreview.startConversation')}
                   </p>
                 )}
 

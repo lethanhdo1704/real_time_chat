@@ -1,64 +1,77 @@
 {
-    "addFriend": {
-      "title": "Tìm kiếm người dùng",
-      "inputPlaceholder": "Nhập UID người dùng...",
-      "searchButton": "Tìm kiếm",
-      "searching": "Đang tìm kiếm...",
-      "sendRequest": "Kết bạn",
-      "resultTitle": "Kết quả tìm kiếm",
-      "status": {
-        "friends": "Đã là bạn bè",
-        "requestSent": "Đã gửi lời mời",
-        "requestReceived": "Đã nhận lời mời"
-      },
-      "messages": {
-        "emptyUID": "Vui lòng nhập UID",
-        "cannotAddSelf": "Không thể kết bạn với chính mình",
-        "alreadyFriends": "Bạn đã là bạn bè với người này",
-        "requestAlreadySent": "Bạn đã gửi lời mời kết bạn cho người này",
-        "requestAlreadyReceived": "Người này đã gửi lời mời kết bạn cho bạn. Hãy kiểm tra lời mời kết bạn",
-        "userNotFound": "Không tìm thấy người dùng",
-        "requestSentSuccess": "Đã gửi lời mời kết bạn thành công!",
-        "requestFailed": "Gửi lời mời thất bại"
-      }
+  "addFriend": {
+    "title": "Tìm kiếm người dùng",
+    "inputPlaceholder": "Nhập UID người dùng...",
+    "searchButton": "Tìm kiếm",
+    "searching": "Đang tìm kiếm...",
+    "sendRequest": "Thêm bạn",
+    "resultTitle": "Kết quả tìm kiếm",
+    "status": {
+      "friends": "Đã là bạn bè",
+      "requestSent": "Đã gửi lời mời",
+      "requestReceived": "Đã nhận lời mời"
     },
-    "friendList": {
-      "empty": {
-        "title": "Chưa có bạn bè",
-        "subtitle": "Hãy thêm bạn bè để trò chuyện"
-      },
-      "you": "Bạn",
-      "copyUID": "Sao chép UID"
-    },
-    "friendRequests": {
-      "accept": "Chấp nhận",
-      "reject": "Từ chối",
-      "removeRequest": "Xóa yêu cầu",
-      "alreadyFriend": "Đã là bạn bè",
-      "empty": "Không có lời mời kết bạn",
-      "errors": {
-        "acceptFailed": "Có lỗi xảy ra khi chấp nhận lời mời kết bạn",
-        "rejectFailed": "Có lỗi xảy ra khi từ chối lời mời kết bạn",
-        "alreadyFriendAlert": "Bạn đã là bạn bè với người này rồi!"
-      }
-    },
-    "groupList": {
-      "createButton": "Tạo nhóm mới",
-      "createModal": {
-        "title": "Tạo nhóm chat mới",
-        "inputPlaceholder": "Nhập tên nhóm...",
-        "cancel": "Hủy",
-        "create": "Tạo nhóm"
-      },
-      "empty": {
-        "title": "Chưa có nhóm chat",
-        "subtitle": "Tạo nhóm để trò chuyện cùng nhiều người"
-      },
-      "members": "thành viên"
-    },
-    "common": {
-      "uid": "UID",
-      "loading": "Đang tải..."
+    "messages": {
+      "emptyUID": "Vui lòng nhập UID",
+      "cannotAddSelf": "Không thể thêm chính mình làm bạn",
+      "alreadyFriends": "Bạn đã là bạn bè với người này",
+      "requestAlreadySent": "Bạn đã gửi lời mời kết bạn cho người này",
+      "requestAlreadyReceived": "Người này đã gửi lời mời kết bạn cho bạn. Vui lòng kiểm tra lời mời kết bạn",
+      "userNotFound": "Không tìm thấy người dùng",
+      "requestSentSuccess": "Đã gửi lời mời kết bạn thành công!",
+      "requestFailed": "Gửi lời mời kết bạn thất bại"
     }
-  
+  },
+
+  "friendList": {
+    "empty": {
+      "title": "Chưa có bạn bè",
+      "subtitle": "Thêm bạn bè để bắt đầu trò chuyện"
+    },
+    "you": "Bạn",
+    "copyUID": "Sao chép UID"
+  },
+
+  "friendRequests": {
+    "accept": "Chấp nhận",
+    "reject": "Từ chối",
+    "removeRequest": "Xóa lời mời",
+    "alreadyFriend": "Đã là bạn bè",
+    "empty": "Không có lời mời kết bạn",
+    "errors": {
+      "acceptFailed": "Đã xảy ra lỗi khi chấp nhận lời mời kết bạn",
+      "rejectFailed": "Đã xảy ra lỗi khi từ chối lời mời kết bạn",
+      "alreadyFriendAlert": "Bạn đã là bạn bè với người này!"
+    }
+  },
+
+  "groupList": {
+    "createButton": "Tạo nhóm mới",
+    "createModal": {
+      "title": "Tạo nhóm chat mới",
+      "inputPlaceholder": "Nhập tên nhóm...",
+      "cancel": "Hủy",
+      "create": "Tạo nhóm"
+    },
+    "empty": {
+      "title": "Chưa có nhóm chat",
+      "subtitle": "Tạo nhóm để trò chuyện với nhiều người"
+    },
+    "members": "thành viên"
+  },
+
+  "messagePreview": {
+    "you": "Bạn",
+    "friend": "Bạn bè",
+    "photo": "📷 Đã gửi ảnh",
+    "file": "📎 Đã gửi tệp",
+    "video": "🎥 Đã gửi video",
+    "audio": "🎵 Đã gửi tin nhắn thoại",
+    "startConversation": "👋 Bắt đầu cuộc trò chuyện"
+  },
+
+  "common": {
+    "uid": "UID",
+    "loading": "Đang tải..."
+  }
 }
