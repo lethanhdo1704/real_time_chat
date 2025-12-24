@@ -22,11 +22,9 @@ export default function ChatWindow({ conversation, onUpdateSidebar }) {
 
   useEmojiStyle();
 
-  // Get conversationId - support both _id and conversationId
   const conversationId = conversation?.conversationId || conversation?._id;
   const friend = conversation?.friend;
 
-  // Load and manage messages
   const {
     messages,
     loading,
@@ -36,24 +34,20 @@ export default function ChatWindow({ conversation, onUpdateSidebar }) {
     loadMoreMessages,
   } = useChatMessages(conversationId);
 
-  // Handle socket events
+  // ✅ UPDATED: Removed onUpdateSidebar from useChatSocket
+  // Global updates are now handled by useGlobalSocket in Home.jsx
   const { emitTyping, emitMessageRead } = useChatSocket({
     activeConversationId: conversationId,
     
     onMessageReceived: (message) => {
-      
-      // Add message to list (prevents duplicates automatically)
       addMessage(message);
-      
-      // Scroll to bottom
       setTimeout(() => scrollToBottom(), 100);
       
-      // Update sidebar with last message
+      // ✅ Still update sidebar for messages in active chat
       if (onUpdateSidebar) {
         onUpdateSidebar(conversationId, message);
       }
       
-      // Don't emit read for our own messages
       if (message.sender?.uid !== user?.uid) {
         setTimeout(() => {
           emitMessageRead(conversationId, message.messageId);
@@ -62,8 +56,6 @@ export default function ChatWindow({ conversation, onUpdateSidebar }) {
     },
     
     onTyping: (typingUserData, isTyping) => {
-      
-      // ✅ Only show typing if it's from OTHER user
       if (typingUserData?.uid !== user?.uid) {
         if (isTyping) {
           setTypingUser(typingUserData);
@@ -75,55 +67,38 @@ export default function ChatWindow({ conversation, onUpdateSidebar }) {
     },
     
     onMessageRead: (readByUser, lastSeenMessage) => {
-      
       if (readByUser?.uid !== user?.uid) {
         updateMessageReadStatus(readByUser.uid, lastSeenMessage);
       } 
     },
-    
-    onUpdateSidebar: (convId, lastMessage) => {
-      if (onUpdateSidebar) {
-        onUpdateSidebar(convId, lastMessage);
-      }
-    },
   });
 
-  // Scroll to bottom helper
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  //  FIX: Only scroll when new message is added, not on every render
   const prevMessagesLength = useRef(messages.length);
   useEffect(() => {
-    // Only scroll if messages length increased (new message added)
     if (messages.length > prevMessagesLength.current && !loading) {
       setTimeout(() => scrollToBottom(), 100);
     }
     prevMessagesLength.current = messages.length;
   }, [messages.length, loading]);
 
-  // ✨ NEW: Infinite scroll - auto load more messages when scrolling near top
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
     const handleScroll = async () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
-      
-      // Check if user scrolled near the top (within 100px)
       const isNearTop = scrollTop < 100;
       
       if (isNearTop && hasMore && !loading && !isLoadingMore) {
         setIsLoadingMore(true);
-        
-        // Save current scroll position before loading
         const previousScrollHeight = scrollHeight;
         
         try {
           await loadMoreMessages();
-          
-          // Restore scroll position after loading to prevent jump
           setTimeout(() => {
             const newScrollHeight = container.scrollHeight;
             const scrollDiff = newScrollHeight - previousScrollHeight;
@@ -141,7 +116,6 @@ export default function ChatWindow({ conversation, onUpdateSidebar }) {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [hasMore, loading, isLoadingMore, loadMoreMessages]);
 
-  // Handle send message
   const handleSendMessage = async (text) => {
     if (!conversationId || !text.trim()) {
       console.warn('⚠️ [ChatWindow] Cannot send: missing conversationId or empty text');
@@ -149,40 +123,34 @@ export default function ChatWindow({ conversation, onUpdateSidebar }) {
     }
 
     try {
-      
       const sentMessage = await messageService.sendMessage(
         conversationId,
         text.trim(),
         token
       );
-
     } catch (error) {
       console.error("❌ [ChatWindow] Send message error:", error);
       alert(`Failed to send message: ${error.message}`);
     }
   };
 
-  // Handle typing indicator
   const handleTypingChange = (isTyping) => {
     if (!conversationId) return;
     emitTyping(conversationId, isTyping);
   };
 
-  // Show empty state if no conversation selected
   if (!conversation || !conversationId) {
     return <ChatEmptyState />;
   }
 
   return (
     <div className="flex flex-col h-full w-full min-h-0 bg-linear-to-br from-gray-50 to-blue-50">
-      {/* Header */}
       <ChatHeader
         receiverName={friend?.nickname || 'Unknown'}
         receiverAvatar={friend?.avatar}
         isTyping={!!typingUser}
       />
 
-      {/* Messages List */}
       <div 
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto px-4 py-4"
@@ -196,7 +164,6 @@ export default function ChatWindow({ conversation, onUpdateSidebar }) {
           </div>
         ) : (
           <>
-            {/* Loading indicator at top when loading more */}
             {isLoadingMore && hasMore && (
               <div className="flex justify-center py-3">
                 <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -206,7 +173,6 @@ export default function ChatWindow({ conversation, onUpdateSidebar }) {
               </div>
             )}
 
-            {/* Messages */}
             {messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
@@ -225,7 +191,6 @@ export default function ChatWindow({ conversation, onUpdateSidebar }) {
               />
             )}
 
-            {/* Typing indicator */}
             {typingUser && (
               <div className="flex items-center gap-2 px-4 py-2 text-sm text-gray-500 animate-fadeIn">
                 <div className="flex gap-1">
@@ -237,13 +202,11 @@ export default function ChatWindow({ conversation, onUpdateSidebar }) {
               </div>
             )}
 
-            {/* Scroll anchor */}
             <div ref={messagesEndRef} />
           </>
         )}
       </div>
 
-      {/* Input */}
       <ChatInput
         onSendMessage={handleSendMessage}
         onTypingChange={handleTypingChange}

@@ -1,121 +1,85 @@
-// frontend/src/hooks/useChatSocket.js
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 import socket from "../socket";
 
-/**
- * Custom hook để quản lý socket events cho chat
- * Centralize tất cả socket event handling
- * 
- * @param {Object} params
- * @param {string} params.activeConversationId - ID của conversation đang active
- * @param {Function} params.onMessageReceived - Callback khi nhận message mới
- * @param {Function} params.onTyping - Callback khi user typing
- * @param {Function} params.onMessageRead - Callback khi message được đọc
- * @param {Function} params.onUpdateSidebar - Callback để update sidebar (last message)
- */
 export const useChatSocket = ({
   activeConversationId,
   onMessageReceived,
   onTyping,
   onMessageRead,
-  onUpdateSidebar,
 }) => {
-  /**
-   * Join conversation room
-   */
+  const { user } = useContext(AuthContext);
+
   const joinConversation = useCallback((conversationId) => {
     if (!conversationId) return;
-    
+    console.log('💬 [Chat] Joining conversation:', conversationId);
     socket.emit('join_conversation', { conversationId });
   }, []);
 
-  /**
-   * Leave conversation room
-   */
   const leaveConversation = useCallback((conversationId) => {
     if (!conversationId) return;
-    
+    console.log('💬 [Chat] Leaving conversation:', conversationId);
     socket.emit('leave_conversation', { conversationId });
   }, []);
 
-  /**
-   * Emit typing event
-   */
   const emitTyping = useCallback((conversationId, isTyping) => {
     if (!conversationId) return;
-    
     socket.emit('typing', { conversationId, isTyping });
   }, []);
 
-  /**
-   * Emit message read event
-   */
   const emitMessageRead = useCallback((conversationId, lastSeenMessage) => {
     if (!conversationId) return;
-    
     socket.emit('message_read', { conversationId, lastSeenMessage });
   }, []);
 
-  /**
-   * Setup socket listeners
-   */
   useEffect(() => {
-    // Listen for new messages
+    if (!activeConversationId) return;
+
     const handleMessageReceived = ({ message }) => {
-      const isActiveConversation = message.conversation === activeConversationId;
-      
-      // Always update sidebar with last message
-      if (onUpdateSidebar) {
-        onUpdateSidebar(message.conversation, {
-          messageId: message.messageId,
-          content: message.content,
-          type: message.type,
-          sender: message.sender,
-          createdAt: message.createdAt,
-        });
+      // ✅ ONLY process if it's for the active conversation
+      if (message.conversation !== activeConversationId) {
+        return;
       }
+
+      console.log('💬 [Chat] Message for active conversation:', {
+        conversationId: message.conversation,
+        from: message.sender?.nickname,
+        isOwnMessage: message.sender?.uid === user?.uid
+      });
       
-      // Only append to chat window if it's the active conversation
-      if (isActiveConversation && onMessageReceived) {
+      if (onMessageReceived) {
         onMessageReceived(message);
       }
     };
 
-    // Listen for typing indicator
-    const handleUserTyping = ({ conversationId, user, isTyping }) => {
+    const handleUserTyping = ({ conversationId, user: typingUser, isTyping }) => {
       if (conversationId === activeConversationId && onTyping) {
-        onTyping(user, isTyping);
+        onTyping(typingUser, isTyping);
       }
     };
 
-    // Listen for read receipts
-    const handleMessageRead = ({ conversationId, user, lastSeenMessage }) => {
+    const handleMessageRead = ({ conversationId, user: readByUser, lastSeenMessage }) => {
       if (conversationId === activeConversationId && onMessageRead) {
-        onMessageRead(user, lastSeenMessage);
+        onMessageRead(readByUser, lastSeenMessage);
       }
     };
 
-    // Register listeners
     socket.on('message_received', handleMessageReceived);
     socket.on('user_typing', handleUserTyping);
     socket.on('message_read', handleMessageRead);
+    console.log('💬 [Chat] Listeners registered for:', activeConversationId);
 
-    // Cleanup
     return () => {
       socket.off('message_received', handleMessageReceived);
       socket.off('user_typing', handleUserTyping);
       socket.off('message_read', handleMessageRead);
+      console.log('💬 [Chat] Listeners cleaned up for:', activeConversationId);
     };
-  }, [activeConversationId, onMessageReceived, onTyping, onMessageRead, onUpdateSidebar]);
+  }, [activeConversationId, onMessageReceived, onTyping, onMessageRead, user]);
 
-  /**
-   * Auto join/leave conversation when activeConversationId changes
-   */
   useEffect(() => {
     if (!activeConversationId) return;
-
     joinConversation(activeConversationId);
-
     return () => {
       leaveConversation(activeConversationId);
     };

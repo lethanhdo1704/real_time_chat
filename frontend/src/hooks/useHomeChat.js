@@ -1,13 +1,8 @@
-// frontend/src/hooks/useHomeChat.js
 import { useState, useEffect, useCallback, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { conversationService } from "../services/api";
 import { messageService } from "../services/messageService";
 
-/**
- * Custom hook for managing conversations, last messages, and unread counts
- * Handles real-time updates and conversation selection state
- */
 export function useHomeChat() {
   const { token, user } = useContext(AuthContext);
   const [conversations, setConversations] = useState([]);
@@ -15,45 +10,31 @@ export function useHomeChat() {
   const [unreadCounts, setUnreadCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
   const [selectedConversation, setSelectedConversation] = useState(null);
 
-  /**
-   * Fetch all conversations and their associated last messages
-   * Also initializes unread counts from backend data
-   */
   const loadConversations = useCallback(async () => {
-    if (!token || !user) {
-      return;
-    }
+    if (!token || !user) return;
 
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch user's conversations list
       const conversationsData = await conversationService.getUserConversations(token);
-      
-      // Normalize response to always work with array
       const conversationsArray = Array.isArray(conversationsData) 
         ? conversationsData 
         : (conversationsData?.conversations || []);
       
       setConversations(conversationsArray);
 
-      // Extract conversation IDs for batch fetching last messages
       const conversationIds = conversationsArray.map(conv => conv.conversationId);
-
       if (conversationIds.length === 0) {
         setLoading(false);
         return;
       }
 
-      // Batch fetch last messages for all conversations
       const lastMessagesData = await messageService.getLastMessages(conversationIds, token);
       setLastMessages(lastMessagesData || {});
 
-      // Initialize unread counts from backend (already calculated correctly)
       const unreadMap = {};
       conversationsArray.forEach(conv => {
         unreadMap[conv.conversationId] = conv.unreadCount || 0;
@@ -69,29 +50,41 @@ export function useHomeChat() {
     }
   }, [token, user]);
 
-  /**
-   * Update last message for a conversation (triggered by real-time socket events)
-   * Also increments unread count if message is from another user
-   * 
-   * @param {string} conversationId - ID of the conversation to update
-   * @param {Object} message - New message object
-   */
   const updateConversationLastMessage = useCallback((conversationId, message) => {
-    // Update last message in state
+    console.log('📊 updateConversationLastMessage:', {
+      conversationId,
+      messageFrom: message.sender?.nickname,
+      currentUser: user?.uid,
+      isOwnMessage: message.sender?.uid === user?.uid
+    });
+
     setLastMessages(prev => ({
       ...prev,
       [conversationId]: message
     }));
 
-    // Increment unread count only for messages from other users
-    if (message.sender?.uid !== user?.uid) {
-      setUnreadCounts(prev => ({
-        ...prev,
-        [conversationId]: (prev[conversationId] || 0) + 1
-      }));
+    const isOwnMessage = message.sender?.uid === user?.uid;
+    const isActiveConversation = selectedConversation?.conversationId === conversationId ||
+                                  selectedConversation?._id === conversationId;
+    
+    if (!isOwnMessage && !isActiveConversation) {
+      console.log('➕ Incrementing unread count for:', conversationId);
+      setUnreadCounts(prev => {
+        const currentCount = prev[conversationId] || 0;
+        const newCount = currentCount + 1;
+        console.log(`   ${currentCount} → ${newCount}`);
+        return {
+          ...prev,
+          [conversationId]: newCount
+        };
+      });
+    } else {
+      console.log('⏭️  Not incrementing unread:', {
+        isOwnMessage,
+        isActiveConversation
+      });
     }
 
-    // Update lastMessageAt timestamp and re-sort conversations by recency
     setConversations(prev => {
       const updated = [...prev];
       const index = updated.findIndex(c => c.conversationId === conversationId);
@@ -102,49 +95,35 @@ export function useHomeChat() {
           lastMessageAt: message.createdAt
         };
         
-        // Sort by most recent message first
         return updated.sort((a, b) => 
-          new Date(b.lastMessageAt) - new Date(a.lastMessageAt)
+          new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
         );
       }
       
       return updated;
     });
-  }, [user]);
+  }, [user, selectedConversation]);
 
-  /**
-   * Reset unread count for a conversation (called when user opens the chat)
-   * 
-   * @param {string} conversationId - ID of the conversation to clear
-   */
   const clearUnreadCount = useCallback((conversationId) => {
+    if (!conversationId) return;
+    console.log('🧹 Clearing unread count for:', conversationId);
     setUnreadCounts(prev => ({
       ...prev,
       [conversationId]: 0
     }));
   }, []);
 
-  /**
-   * Handle conversation selection and clear unread count
-   * 
-   * @param {Object} conversation - Conversation object to select
-   */
   const handleSelectConversation = useCallback((conversation) => {
+    console.log('🎯 Selecting conversation:', conversation?.conversationId || 'none');
     setSelectedConversation(conversation);
-    
-    const convId = conversation?.conversationId || conversation?._id;
-    clearUnreadCount(convId);
+    if (conversation) {
+      const convId = conversation.conversationId || conversation._id;
+      clearUnreadCount(convId);
+    }
   }, [clearUnreadCount]);
 
-  /**
-   * ✅ ADD NEW CONVERSATION TO STATE
-   * Called when user creates a new conversation with a friend
-   * 
-   * @param {Object} newConversation - New conversation object from API
-   */
   const addConversation = useCallback((newConversation) => {
     setConversations(prev => {
-      // Check if conversation already exists
       const exists = prev.find(
         c => c.conversationId === newConversation.conversationId || 
              c._id === newConversation._id ||
@@ -152,16 +131,14 @@ export function useHomeChat() {
       );
       
       if (exists) {
-        console.log('Conversation already exists, skipping add');
-        return prev; // Already exists, don't add
+        console.log('ℹ️  Conversation already exists, skipping add');
+        return prev;
       }
       
-      console.log('Adding new conversation to state:', newConversation);
-      // Add new conversation to the beginning of the list
+      console.log('➕ Adding new conversation to state:', newConversation);
       return [newConversation, ...prev];
     });
     
-    // Initialize lastMessage and unreadCount for new conversation
     const convId = newConversation.conversationId || newConversation._id;
     setLastMessages(prev => ({
       ...prev,
@@ -173,7 +150,6 @@ export function useHomeChat() {
     }));
   }, []);
 
-  // Load conversations on component mount
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
@@ -189,6 +165,6 @@ export function useHomeChat() {
     updateConversationLastMessage,
     clearUnreadCount,
     reloadConversations: loadConversations,
-    addConversation, // ✅ EXPORT NEW FUNCTION
+    addConversation,
   };
 }

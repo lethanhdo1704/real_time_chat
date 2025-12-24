@@ -1,5 +1,5 @@
 // frontend/src/pages/Home.jsx
-import { useContext, useState, useEffect, useMemo, useCallback } from "react";
+import { useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import ChatWindow from "../components/Chat/ChatWindow";
@@ -8,7 +8,7 @@ import { Sidebar, HomeEmptyChat, CopyToast } from "../components/Home";
 import { useFriendRequestCount } from "../hooks/useFriendRequestCount";
 import { useHomeChat } from "../hooks/useHomeChat";
 import { useCopyToast } from "../hooks/useCopyToast";
-import { useChatSocket } from "../hooks/useChatSocket";
+import { useGlobalSocket } from "../hooks/useGlobalSocket"; 
 import { conversationService } from "../services/api";
 import { connectSocket } from "../socket";
 import "../styles/animations.css";
@@ -32,31 +32,51 @@ export default function Home() {
     handleSelectConversation,
     updateConversationLastMessage,
     reloadConversations,
-    addConversation, // ✅ GET NEW FUNCTION
+    addConversation,
   } = useHomeChat();
+
+  const lastMessagesCache = useRef({});
+  const [sidebarUpdateTrigger, setSidebarUpdateTrigger] = useState(0);
 
   const activeTab = location.pathname.split('/')[1] || 'friends';
 
-  useChatSocket({
-    activeConversationId: selectedConversation?.conversationId,
-    onMessageReceived: null,
-    onTyping: null,
-    onMessageRead: null,
-    onUpdateSidebar: (conversationId, message) => {
+  useGlobalSocket({
+    onMessageReceived: (conversationId, message) => {
+      console.log('🏠 [Home] Global message received:', {
+        conversationId,
+        from: message.sender?.nickname
+      });
+      
+      lastMessagesCache.current[conversationId] = message;
       updateConversationLastMessage(conversationId, message);
+      setSidebarUpdateTrigger(prev => prev + 1);
+      
       setTimeout(() => {
+        console.log('🔄 [Home] Reloading conversations from backend');
         reloadConversations();
-      }, 300);
-    },
+      }, 500);
+    }
   });
 
   const enrichedConversations = useMemo(() => {
     if (!Array.isArray(rawConversations)) return [];
     
+    console.log('🔄 Enriching conversations:', {
+      total: rawConversations.length,
+      cacheSize: Object.keys(lastMessagesCache.current).length,
+      unreadCounts: unreadCounts
+    });
+    
     return rawConversations.map(conv => {
       const convId = conv.conversationId || conv._id;
-      const lastMessage = lastMessages?.[convId];
+      const lastMessage = lastMessagesCache.current[convId] || 
+                          lastMessages?.[convId] || 
+                          conv.lastMessage;
       const unreadCount = unreadCounts?.[convId] || 0;
+      
+      if (lastMessage && !lastMessagesCache.current[convId]) {
+        lastMessagesCache.current[convId] = lastMessage;
+      }
       
       return {
         ...conv,
@@ -65,7 +85,7 @@ export default function Home() {
         unreadCount: unreadCount,
       };
     });
-  }, [rawConversations, lastMessages, unreadCounts]);
+  }, [rawConversations, lastMessages, unreadCounts, sidebarUpdateTrigger]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -79,12 +99,23 @@ export default function Home() {
     }
   }, [user, token]);
 
-  // Load conversation from URL - FIXED: Only update if conversationId actually changed
+  useEffect(() => {
+    if (rawConversations.length > 0 && Object.keys(lastMessages).length > 0) {
+      rawConversations.forEach(conv => {
+        const convId = conv.conversationId || conv._id;
+        const lastMsg = lastMessages[convId];
+        
+        if (lastMsg && !lastMessagesCache.current[convId]) {
+          lastMessagesCache.current[convId] = lastMsg;
+        }
+      });
+    }
+  }, [rawConversations, lastMessages]);
+
   useEffect(() => {
     if (conversationId && enrichedConversations.length > 0) {
       const currentConvId = selectedConversation?.conversationId || selectedConversation?._id;
       
-      // Only update if the URL conversationId is different from current selection
       if (currentConvId !== conversationId) {
         const conversation = enrichedConversations.find(
           c => c.conversationId === conversationId || c._id === conversationId
@@ -95,7 +126,6 @@ export default function Home() {
         }
       }
     } else if (!conversationId && selectedConversation) {
-      // Clear selection when navigating away from conversation
       handleSelectConversation(null);
     }
   }, [conversationId, enrichedConversations.length]);
@@ -132,11 +162,9 @@ export default function Home() {
     navigate(`/${tab}`);
   };
 
-  // ✅ UPDATED: Add conversation to state immediately
   const handleSelectFriend = async (friendInfo) => {
     try {
       const friendUid = friendInfo.uid || friendInfo._id;
-      
       console.log('Creating/fetching conversation with friend:', friendUid);
       
       const conversation = await conversationService.createPrivateConversation(
@@ -145,11 +173,13 @@ export default function Home() {
       );
 
       console.log('Conversation created/fetched:', conversation);
-
-      // ✅ ADD TO STATE IMMEDIATELY - This fixes the issue!
       addConversation(conversation);
+      
+      const convId = conversation.conversationId || conversation._id;
+      if (conversation.lastMessage) {
+        lastMessagesCache.current[convId] = conversation.lastMessage;
+      }
 
-      // Navigate to the conversation
       navigate(`/friends/${conversation.conversationId}`);
       
     } catch (error) {
@@ -160,7 +190,6 @@ export default function Home() {
 
   const handleSelectConversationWithRoute = useCallback((conversation) => {
     if (!conversation) return;
-    
     const tab = conversation.type === 'group' ? 'groups' : 'friends';
     const convId = conversation.conversationId || conversation._id;
     navigate(`/${tab}/${convId}`);

@@ -1,4 +1,3 @@
-// frontend/src/components/FriendFeature/FriendList.jsx
 import { useEffect, useState } from "react";
 import { getFriendsAndRequests } from "../../services/friendService";
 import { useTranslation } from "react-i18next";
@@ -8,14 +7,12 @@ import { vi, enUS } from "date-fns/locale";
 export default function FriendList({
   currentUser,
   onSelectFriend,
-  // Props to show chat status
   conversations = [],
   selectedConversation = null,
 }) {
   const { t, i18n } = useTranslation("friendFeature");
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(false);
-
   const locale = i18n.language === 'vi' ? vi : enUS;
 
   const fetchFriends = async () => {
@@ -49,7 +46,6 @@ export default function FriendList({
   };
 
   const getConversationInfo = (friendUid) => {
-    // Find conversation with this friend
     const conversation = conversations.find(conv => {
       if (conv.type === 'private' && conv.friend) {
         return conv.friend.uid === friendUid;
@@ -67,7 +63,6 @@ export default function FriendList({
       };
     }
 
-    // Check if this conversation is currently selected
     const isActive = selectedConversation?.conversationId === conversation.conversationId ||
                      selectedConversation?._id === conversation._id;
 
@@ -80,16 +75,12 @@ export default function FriendList({
     };
   };
 
-  /**
-   * Format last message preview - Like Messenger
-   */
   const formatLastMessage = (lastMessage, currentUserId) => {
     if (!lastMessage) return null;
 
     const isOwnMessage = lastMessage.sender?.uid === currentUserId;
     const senderName = isOwnMessage ? t('messagePreview.you') : (lastMessage.sender?.nickname || t('messagePreview.friend'));
 
-    // Handle different message types
     switch (lastMessage.type) {
       case 'image':
         return {
@@ -129,9 +120,6 @@ export default function FriendList({
     }
   };
 
-  /**
-   * Format timestamp - Like Messenger
-   */
   const formatTimestamp = (date) => {
     if (!date) return '';
     try {
@@ -163,30 +151,26 @@ export default function FriendList({
     );
   }
 
-  // Sort friends: Unread first, then by recent message, then alphabetically
   const sortedFriends = [...friends].sort((a, b) => {
     const infoA = getConversationInfo(a.uid);
     const infoB = getConversationInfo(b.uid);
 
-    // 1. Unread messages first (removed active check)
     if (infoA.unreadCount > 0 && infoB.unreadCount === 0) return -1;
     if (infoA.unreadCount === 0 && infoB.unreadCount > 0) return 1;
 
-    // 2. Most recent conversation second
     if (infoA.lastMessageAt && infoB.lastMessageAt) {
       return new Date(infoB.lastMessageAt) - new Date(infoA.lastMessageAt);
     }
     if (infoA.lastMessageAt) return -1;
     if (infoB.lastMessageAt) return 1;
 
-    // 3. Alphabetically last
     const nameA = a.nickname || a.uid || "";
     const nameB = b.nickname || b.uid || "";
     return nameA.localeCompare(nameB);
   });
 
   return (
-    <div className="py-2 space-y-1.5">{/* ✅ Vertical padding only, no horizontal padding for full-width items */}
+    <div className="py-2 space-y-1.5">
       {friends.length === 0 && (
         <div className="text-center py-8">
           <svg
@@ -247,19 +231,23 @@ export default function FriendList({
                 `}
               />
               
-              {/* Online Status Indicator */}
               <span className={`
                 absolute bottom-0 right-0 w-4 h-4 rounded-full border-2
                 ${isActive ? 'border-blue-600' : 'border-white'}
                 ${isActive ? 'bg-white' : 'bg-green-500'}
               `}></span>
               
-              {/* Unread Badge on Avatar - Facebook Style */}
-              {unreadCount > 0 && !isActive && (
-                <span className="absolute -top-1 -right-1 min-w-5.5 h-5.5 px-1.5 
-                               text-[11px] font-bold flex items-center justify-center
-                               bg-red-500 text-white rounded-full border-2 border-white
-                               shadow-lg animate-pulse">
+              {/* ✅ Show badge even when active if has unread */}
+              {unreadCount > 0 && (
+                <span className={`
+                  absolute -top-1 -right-1 min-w-5.5 h-5.5 px-1.5 
+                  text-[11px] font-bold flex items-center justify-center
+                  rounded-full border-2 border-white shadow-lg
+                  ${isActive 
+                    ? 'bg-white text-blue-600' 
+                    : 'bg-red-500 text-white animate-pulse'
+                  }
+                `}>
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
@@ -267,19 +255,14 @@ export default function FriendList({
 
             {/* Info Section */}
             <div className="flex-1 min-w-0">
-              {/* Name and Timestamp */}
               <div className="flex items-baseline justify-between gap-2 mb-0.5">
                 <h3 className={`
                   font-semibold truncate text-[15px]
-                  ${isActive 
-                    ? 'text-white' 
-                    : 'text-gray-900'
-                  }
+                  ${isActive ? 'text-white' : 'text-gray-900'}
                 `}>
                   {friend.nickname || friend.uid}
                 </h3>
                 
-                {/* Timestamp - Messenger Style */}
                 {timestamp && (
                   <span className={`
                     text-[11px] font-medium shrink-0
@@ -295,7 +278,7 @@ export default function FriendList({
                 )}
               </div>
 
-              {/* Message Preview - Messenger Style */}
+              {/* ✅ Message Preview - Don't show placeholder when active */}
               <div className="flex items-center gap-1.5">
                 {messagePreview ? (
                   <>
@@ -316,17 +299,20 @@ export default function FriendList({
                     </p>
                   </>
                 ) : (
-                  <p className={`
-                    text-[13px] italic flex-1 leading-tight
-                    ${isActive ? 'text-blue-100' : 'text-gray-400'}
-                  `}>
-                    {t('messagePreview.startConversation')}
-                  </p>
+                  /* ✅ Only show placeholder if NOT active */
+                  !isActive && (
+                    <p className="text-[13px] italic flex-1 leading-tight text-gray-400">
+                      {t('messagePreview.startConversation')}
+                    </p>
+                  )
                 )}
 
-                {/* Unread Indicator Dot - Subtle */}
-                {unreadCount > 0 && !isActive && (
-                  <div className="w-2.5 h-2.5 bg-blue-600 rounded-full shrink-0 animate-pulse"></div>
+                {/* ✅ Show dot indicator even when active if has unread */}
+                {unreadCount > 0 && (
+                  <div className={`
+                    w-2.5 h-2.5 rounded-full shrink-0
+                    ${isActive ? 'bg-white' : 'bg-blue-600 animate-pulse'}
+                  `}></div>
                 )}
               </div>
             </div>
