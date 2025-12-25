@@ -1,33 +1,50 @@
 // frontend/src/hooks/useFriendRequestCount.js
-import { useEffect } from "react";
-import useFriendStore from "../store/friendStore"; // ✅ NEW
+import { useEffect, useMemo } from "react";
+import useFriendStore from "../store/friendStore";
+import useFriendActions from "./useFriendActions";
 
 /**
- * useFriendRequestCount Hook - FIXED
+ * useFriendRequestCount Hook - ✅ UPDATED TO MATCH NEW STRUCTURE
  * 
- * ✅ Now reads from store instead of fetching API
- * ✅ No more duplicate requests
- * ✅ Real-time updates via store
+ * Changes:
+ * - Removed unreadCount from store (doesn't exist in new friendStore.js)
+ * - Calculate count from friendRequests.length
+ * - Dùng useFriendActions.loadFriendsData thay vì store.fetchFriends
+ * - Real-time updates via store + socket
  * 
  * @param {object} user - Current user object
- * @returns {object} { count, setCount, loading }
+ * @returns {object} { count, loading }
  */
 export function useFriendRequestCount(user) {
-  // ✅ Read from store (no API call)
-  const count = useFriendStore((state) => state.unreadCount);
-  const loading = useFriendStore((state) => state.loading);
-  const fetchFriends = useFriendStore((state) => state.fetchFriends);
+  // ============================================
+  // GET STATE FROM STORE - ✅ UPDATED
+  // ============================================
+  
+  // ✅ friendRequests instead of unreadCount
+  const friendRequests = useFriendStore((state) => state.friendRequests);
+  
+  // ============================================
+  // GET ACTIONS FROM HOOK - ✅ NEW
+  // ============================================
+  
+  const { loading, loadFriendsData } = useFriendActions();
 
   // ============================================
-  // FETCH ON MOUNT (IF NOT ALREADY LOADED)
+  // CALCULATE COUNT - ✅ NEW
   // ============================================
+  
+  const count = useMemo(() => {
+    return friendRequests.length;
+  }, [friendRequests.length]);
 
-  useEffect(() => {
-    if (user?.uid) {
-      // ✅ Store handles caching - won't refetch if already loaded
-      fetchFriends();
-    }
-  }, [user?.uid, fetchFriends]);
+  // ============================================
+  // FETCH ON MOUNT - ✅ REMOVED
+  // Store will be loaded by a single source (e.g., App.jsx or Home.jsx)
+  // This hook only reads the count, no fetching
+  // ============================================
+  
+  // REMOVED: useEffect that calls loadFriendsData()
+  // Reason: Multiple components calling this hook were causing 429 errors
 
   // ============================================
   // RETURN
@@ -36,6 +53,7 @@ export function useFriendRequestCount(user) {
   return {
     count,
     loading,
-    // Note: setCount is now handled by store actions (acceptRequest, rejectRequest, etc.)
+    // Note: setCount is now handled by store actions via useFriendActions
+    // (acceptFriendRequest, rejectFriendRequest, etc.)
   };
 }

@@ -1,80 +1,227 @@
 // frontend/src/hooks/useFriendSocket.js
-import { useEffect, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
-import { useSocket } from '../context/SocketContext'; // ✅ NEW
-import socketService from '../services/socketService';
+import { useEffect, useCallback } from 'react';
+import { useSocket } from '../context/SocketContext';
 import useFriendStore from '../store/friendStore';
 
 /**
- * useFriendSocket Hook
- * 
- * Setup socket listeners for friend events
- * Connects socket events to friendStore
- * 
- * ✅ Use this in App.jsx or Home.jsx (setup once)
+ * Hook để handle tất cả friend socket events
  */
-export function useFriendSocket() {
-  const { user } = useContext(AuthContext);
-  const { socket, isConnected } = useSocket(); // ✅ NEW: Get socket from context
-  
-  // Get store actions
-  const handleNewRequest = useFriendStore((state) => state.handleNewRequest);
-  const handleRequestAccepted = useFriendStore((state) => state.handleRequestAccepted);
-  const handleRequestRejected = useFriendStore((state) => state.handleRequestRejected);
-  const handleUnfriended = useFriendStore((state) => state.handleUnfriended);
+export default function useFriendSocket() {
+  const socket = useSocket();
+  const { 
+    addFriendRequest, 
+    removeFriendRequest,
+    addFriend,
+    removeFriend,
+    removeSentRequest,
+    updateRequestStatus
+  } = useFriendStore();
 
-  useEffect(() => {
-    if (!user || !isConnected) return; // ✅ Wait for socket to be connected
+  // ============================================
+  // 1️⃣ FRIEND REQUEST RECEIVED
+  // ============================================
+  const handleFriendRequestReceived = useCallback((data) => {
+    console.log('📩 Friend request received:', data);
+    
+    try {
+      // Thêm vào danh sách requests
+      addFriendRequest({
+        _id: data.requestId,
+        uid: data.uid,
+        nickname: data.nickname,
+        avatar: data.avatar,
+        timestamp: data.timestamp
+      });
 
-    // ============================================
-    // SETUP SOCKET LISTENERS
-    // ============================================
+      // Optional: Show notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Lời mời kết bạn mới', {
+          body: `${data.nickname} đã gửi lời mời kết bạn`,
+          icon: data.avatar
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error handling friend request received:', error);
+    }
+  }, [addFriendRequest]);
 
-    // 🔔 New friend request received
-    const onFriendRequest = (data) => {
-      console.log('🔔 [Socket] Friend request received:', data);
-      handleNewRequest(data.request);
-    };
-
-    // 🎉 Friend request accepted
-    const onRequestAccepted = (data) => {
-      console.log('🎉 [Socket] Friend request accepted:', data);
-      handleRequestAccepted(data.friend);
-    };
-
-    // ❌ Friend request rejected
-    const onRequestRejected = (data) => {
-      console.log('❌ [Socket] Friend request rejected:', data);
-      handleRequestRejected(data.friendUid);
-    };
-
-    // 💔 Unfriended by someone
-    const onUnfriended = (data) => {
-      console.log('💔 [Socket] Unfriended by:', data);
-      handleUnfriended(data.friendUid);
-    };
-
-    // Register listeners
-    socketService.on('friend:request', onFriendRequest);
-    socketService.on('friend:accepted', onRequestAccepted);
-    socketService.on('friend:rejected', onRequestRejected);
-    socketService.on('friend:unfriended', onUnfriended);
-
-    console.log('✅ Friend socket listeners registered');
-
-    // ============================================
-    // CLEANUP
-    // ============================================
-
-    return () => {
-      socketService.off('friend:request', onFriendRequest);
-      socketService.off('friend:accepted', onRequestAccepted);
-      socketService.off('friend:rejected', onRequestRejected);
-      socketService.off('friend:unfriended', onUnfriended);
+  // ============================================
+  // 2️⃣ FRIEND REQUEST ACCEPTED (A nhận - request được chấp nhận)
+  // ============================================
+  const handleFriendRequestAccepted = useCallback((data) => {
+    console.log('✅ Friend request accepted:', data);
+    
+    try {
+      // Xóa khỏi sent requests
+      removeSentRequest(data.uid);
       
-      console.log('🧹 Friend socket listeners cleaned up');
-    };
-  }, [user, isConnected, handleNewRequest, handleRequestAccepted, handleRequestRejected, handleUnfriended]); // ✅ Add isConnected
-}
+      // Thêm vào friend list
+      addFriend({
+        uid: data.uid,
+        nickname: data.nickname,
+        avatar: data.avatar,
+        timestamp: data.timestamp
+      });
 
-export default useFriendSocket;
+      // Optional: Show notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Lời mời được chấp nhận', {
+          body: `${data.nickname} đã chấp nhận lời mời kết bạn`,
+          icon: data.avatar
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error handling friend request accepted:', error);
+    }
+  }, [removeSentRequest, addFriend]);
+
+  // ============================================
+  // 3️⃣ FRIEND ADDED (B nhận - được thêm vào friend list)
+  // ============================================
+  const handleFriendAdded = useCallback((data) => {
+    console.log('👥 Friend added:', data);
+    
+    try {
+      // Xóa khỏi requests (người B đã accept)
+      removeFriendRequest(data.uid);
+      
+      // Thêm vào friend list
+      addFriend({
+        uid: data.uid,
+        nickname: data.nickname,
+        avatar: data.avatar,
+        timestamp: data.timestamp
+      });
+    } catch (error) {
+      console.error('❌ Error handling friend added:', error);
+    }
+  }, [removeFriendRequest, addFriend]);
+
+  // ============================================
+  // 4️⃣ FRIEND REQUEST REJECTED
+  // ============================================
+  const handleFriendRequestRejected = useCallback((data) => {
+    console.log('❌ Friend request rejected:', data);
+    
+    try {
+      // Xóa khỏi sent requests
+      removeSentRequest(data.uid);
+      
+      // Optional: Show notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Lời mời bị từ chối', {
+          body: 'Lời mời kết bạn của bạn đã bị từ chối'
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error handling friend request rejected:', error);
+    }
+  }, [removeSentRequest]);
+
+  // ============================================
+  // 5️⃣ FRIEND REQUEST CANCELLED
+  // ============================================
+  const handleFriendRequestCancelled = useCallback((data) => {
+    console.log('🚫 Friend request cancelled:', data);
+    
+    try {
+      // Xóa khỏi requests
+      removeFriendRequest(data.uid);
+    } catch (error) {
+      console.error('❌ Error handling friend request cancelled:', error);
+    }
+  }, [removeFriendRequest]);
+
+  // ============================================
+  // 6️⃣ FRIEND REMOVED (Unfriended)
+  // ============================================
+  const handleFriendRemoved = useCallback((data) => {
+    console.log('💔 Friend removed:', data);
+    
+    try {
+      // Xóa khỏi friend list
+      removeFriend(data.uid);
+      
+      // Optional: Show notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Đã hủy kết bạn', {
+          body: 'Một người bạn đã hủy kết bạn với bạn'
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error handling friend removed:', error);
+    }
+  }, [removeFriend]);
+
+  // ============================================
+  // 7️⃣ SETUP SOCKET LISTENERS
+  // ============================================
+  useEffect(() => {
+    // Kiểm tra socket có tồn tại và đã connected chưa
+    if (!socket) {
+      console.log('⏳ Socket not available yet');
+      return;
+    }
+
+    // Kiểm tra socket có method 'on' không (đảm bảo là socket instance thật)
+    if (typeof socket.on !== 'function') {
+      console.warn('⚠️ Socket does not have "on" method');
+      return;
+    }
+
+    // Chờ socket connected trước khi setup listeners
+    if (!socket.connected) {
+      console.log('⏳ Socket not connected yet, waiting...');
+      
+      // Lắng nghe sự kiện connect
+      const handleConnect = () => {
+        console.log('✅ Socket connected, setting up friend listeners...');
+        setupListeners();
+      };
+      
+      socket.once('connect', handleConnect);
+      
+      return () => {
+        socket.off('connect', handleConnect);
+      };
+    }
+
+    // Nếu đã connected, setup luôn
+    setupListeners();
+
+    function setupListeners() {
+      console.log('🔌 Setting up friend socket listeners...');
+
+      // Register all listeners
+      socket.on('friend_request_received', handleFriendRequestReceived);
+      socket.on('friend_request_accepted', handleFriendRequestAccepted);
+      socket.on('friend_added', handleFriendAdded);
+      socket.on('friend_request_rejected', handleFriendRequestRejected);
+      socket.on('friend_request_cancelled', handleFriendRequestCancelled);
+      socket.on('friend_removed', handleFriendRemoved);
+    }
+
+    // Cleanup
+    return () => {
+      if (socket && typeof socket.off === 'function') {
+        console.log('🔌 Cleaning up friend socket listeners...');
+        socket.off('friend_request_received', handleFriendRequestReceived);
+        socket.off('friend_request_accepted', handleFriendRequestAccepted);
+        socket.off('friend_added', handleFriendAdded);
+        socket.off('friend_request_rejected', handleFriendRequestRejected);
+        socket.off('friend_request_cancelled', handleFriendRequestCancelled);
+        socket.off('friend_removed', handleFriendRemoved);
+      }
+    };
+  }, [
+    socket,
+    handleFriendRequestReceived,
+    handleFriendRequestAccepted,
+    handleFriendAdded,
+    handleFriendRequestRejected,
+    handleFriendRequestCancelled,
+    handleFriendRemoved
+  ]);
+
+  return null; // Hook không return gì, chỉ setup listeners
+}

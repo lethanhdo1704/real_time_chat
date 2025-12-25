@@ -1,76 +1,116 @@
 // frontend/src/components/FriendFeature/FriendRequests.jsx
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { getFriendsAndRequests, acceptFriendRequest, rejectFriendRequest } from "../../services/friendService";
+import useFriendStore from "../../store/friendStore";
+import useFriendActions from "../../hooks/useFriendActions";
 
+/**
+ * FriendRequests Component - ✅ UPDATED TO MATCH NEW STRUCTURE
+ * 
+ * Changes:
+ * - Dùng useFriendActions hook thay vì gọi store actions trực tiếp
+ * - Dùng friendRequests thay vì requests (theo friendStore.js)
+ * - Removed fetchFriends (dùng loadFriendsData từ useFriendActions)
+ * - Socket tự động sync qua useFriendSocket
+ */
 export default function FriendRequests({ currentUser, onUpdateCount }) {
   const { t } = useTranslation("friendFeature");
-  const [requests, setRequests] = useState([]);
-  const [friends, setFriends] = useState([]);
-  const [loading, setLoading] = useState(false);
 
-  const fetchRequests = async () => {
-    setLoading(true);
-    try {
-      // ✅ Không cần truyền currentUser.uid, backend lấy từ JWT
-      const data = await getFriendsAndRequests();
-      setRequests(data.requests || []);
-      setFriends(data.friends || []);
-      
-      // Cập nhật số lượng lời mời cho parent component
-      if (onUpdateCount) {
-        onUpdateCount((data.requests || []).length);
-      }
-    } catch (err) {
-      console.error("Error fetching requests:", err);
-      setRequests([]);
-      setFriends([]);
-      if (onUpdateCount) {
-        onUpdateCount(0);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ============================================
+  // GET STATE FROM STORE - ✅ UPDATED
+  // ============================================
+
+  const friendRequests = useFriendStore((state) => state.friendRequests); // ✅ friendRequests instead of requests
+  const friends = useFriendStore((state) => state.friends);
+  
+  // ============================================
+  // GET ACTIONS FROM HOOK - ✅ NEW
+  // ============================================
+  
+  const {
+    loading,
+    error,
+    loadFriendsData,
+    acceptFriendRequest,
+    rejectFriendRequest
+  } = useFriendActions();
+
+  // ============================================
+  // NO FETCH ON MOUNT - ✅ UPDATED
+  // Data is loaded centrally by useInitFriends in App/Home
+  // This component just reads from store
+  // ============================================
+  
+  // REMOVED: useEffect that calls loadFriendsData()
+  // Reason: Central loading prevents 429 rate limit errors
+
+  // ============================================
+  // UPDATE PARENT COUNT
+  // ============================================
 
   useEffect(() => {
-    fetchRequests();
-  }, []);
+    if (onUpdateCount) {
+      onUpdateCount(friendRequests.length);
+    }
+  }, [friendRequests.length, onUpdateCount]);
+
+  // ============================================
+  // HELPER: CHECK IF ALREADY FRIEND
+  // ============================================
 
   const isAlreadyFriend = (friendUid) => {
     return friends.some(friend => friend.uid === friendUid);
   };
 
+  // ============================================
+  // HANDLE ACCEPT - ✅ UPDATED
+  // ============================================
+
   const handleAccept = async (friendUid) => {
     // Kiểm tra đã kết bạn chưa
     if (isAlreadyFriend(friendUid)) {
       alert(t("friendRequests.errors.alreadyFriendAlert"));
-      fetchRequests(); // Refresh để cập nhật UI
+      await loadFriendsData(); // Force refresh
       return;
     }
 
     try {
-      // ✅ Chỉ truyền friendUid, backend lấy userUid từ JWT
-      await acceptFriendRequest(friendUid);
-      fetchRequests();
+      // ✅ Dùng hook action
+      const request = friendRequests.find(r => r.uid === friendUid);
+      await acceptFriendRequest(friendUid, request);
+      
+      console.log("✅ Friend request accepted, UI auto-updated");
+      
+      // Store và socket đã handle update, không cần reload!
     } catch (err) {
       console.error("Error accepting request:", err);
-      alert(t("friendRequests.errors.acceptFailed"));
+      
+      const errorMsg = err.message || t("friendRequests.errors.acceptFailed");
+      alert(errorMsg);
     }
   };
 
+  // ============================================
+  // HANDLE REJECT - ✅ UPDATED
+  // ============================================
+
   const handleReject = async (friendUid) => {
     try {
-      // ✅ Chỉ truyền friendUid
+      // ✅ Dùng hook action
       await rejectFriendRequest(friendUid);
-      fetchRequests();
+      
+      console.log("✅ Friend request rejected, UI auto-updated");
     } catch (err) {
       console.error("Error rejecting request:", err);
       alert(t("friendRequests.errors.rejectFailed"));
     }
   };
 
-  if (loading) {
+  // ============================================
+  // RENDER: LOADING
+  // ============================================
+
+  if (loading && friendRequests.length === 0) {
     return (
       <div className="flex justify-center items-center h-32">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
@@ -78,39 +118,100 @@ export default function FriendRequests({ currentUser, onUpdateCount }) {
     );
   }
 
+  // ============================================
+  // RENDER: ERROR
+  // ============================================
+
+  if (error && friendRequests.length === 0) {
+    return (
+      <div className="text-center py-8 px-4">
+        <svg
+          className="w-12 h-12 mx-auto text-red-400 mb-3"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <p className="text-red-500 text-sm mb-2">{error}</p>
+        <button
+          onClick={() => loadFriendsData()}
+          className="text-blue-500 hover:text-blue-600 text-sm font-medium"
+        >
+          {t("friendList.retry") || "Try again"}
+        </button>
+      </div>
+    );
+  }
+
+  // ============================================
+  // RENDER: EMPTY STATE
+  // ============================================
+
+  if (friendRequests.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <svg 
+          className="w-16 h-16 mx-auto text-gray-300 mb-3" 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={2} 
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" 
+          />
+        </svg>
+        <p className="text-gray-500 text-sm">{t("friendRequests.empty")}</p>
+      </div>
+    );
+  }
+
+  // ============================================
+  // RENDER: REQUEST LIST
+  // ============================================
+
   return (
     <div className="space-y-2">
-      {requests.length === 0 && (
-        <div className="text-center py-8">
-          <svg className="w-16 h-16 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          <p className="text-gray-500 text-sm">{t("friendRequests.empty")}</p>
-        </div>
-      )}
-      
-      {requests.map(r => {
+      {friendRequests.map(r => {
         const alreadyFriend = isAlreadyFriend(r.uid);
         
         return (
-          <div key={r._id} className="flex items-center p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+          <div 
+            key={r._id || r.uid} 
+            className="flex items-center p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+          >
             <img 
               src={r.avatar || "https://i.pravatar.cc/40"} 
               alt={r.nickname || r.uid} 
               className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-100"
             />
+            
             <div className="flex-1 ml-3">
-              <p className="font-medium text-gray-900">{r.nickname || r.uid}</p>
+              <p className="font-medium text-gray-900">
+                {r.nickname || r.uid}
+              </p>
               <p className="text-xs text-gray-500 flex items-center gap-1">
-                <span className="font-medium text-gray-400">{t("common.uid")}:</span>
+                <span className="font-medium text-gray-400">
+                  {t("common.uid")}:
+                </span>
                 {r.uid}
               </p>
+              
               {alreadyFriend && (
                 <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium text-green-700 bg-green-100 rounded">
                   {t("friendRequests.alreadyFriend")}
                 </span>
               )}
             </div>
+            
             <div className="flex gap-2">
               {alreadyFriend ? (
                 <button 
@@ -123,13 +224,15 @@ export default function FriendRequests({ currentUser, onUpdateCount }) {
                 <>
                   <button 
                     onClick={() => handleAccept(r.uid)} 
-                    className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors shadow-sm"
+                    className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={loading}
                   >
                     {t("friendRequests.accept")}
                   </button>
                   <button 
                     onClick={() => handleReject(r.uid)} 
-                    className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors"
+                    className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={loading}
                   >
                     {t("friendRequests.reject")}
                   </button>

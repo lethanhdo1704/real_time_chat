@@ -7,6 +7,7 @@ export const SocketContext = createContext();
 
 export const SocketProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
+  const [socket, setSocket] = useState(null); // ✅ Store actual socket instance
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
 
@@ -19,10 +20,14 @@ export const SocketProvider = ({ children }) => {
       console.log('🔌 Connecting socket for user:', user.uid);
       
       socketService.connect(token);
+      
+      // ✅ Get the actual socket instance
+      const socketInstance = socketService.getSocket();
+      setSocket(socketInstance);
 
       // Setup connection status listeners
       const handleConnect = () => {
-        console.log('✅ Socket connected');
+        console.log('✅ Socket connected:', socketInstance.id);
         setIsConnected(true);
         setError(null);
       };
@@ -48,6 +53,9 @@ export const SocketProvider = ({ children }) => {
         socketService.off('connect', handleConnect);
         socketService.off('disconnect', handleDisconnect);
         socketService.off('connect_error', handleConnectError);
+        socketService.disconnect();
+        setSocket(null);
+        setIsConnected(false);
       };
     }
 
@@ -55,13 +63,14 @@ export const SocketProvider = ({ children }) => {
     if (!user) {
       console.log('🔌 User logged out, disconnecting socket');
       socketService.disconnect();
+      setSocket(null);
       setIsConnected(false);
       setError(null);
     }
   }, [user]);
 
   const value = {
-    socket: socketService,
+    socket, // ✅ Return actual socket instance, not service
     isConnected,
     error,
   };
@@ -78,5 +87,5 @@ export const useSocket = () => {
   if (!context) {
     throw new Error('useSocket must be used within SocketProvider');
   }
-  return context;
+  return context.socket; // ✅ Return socket instance
 };

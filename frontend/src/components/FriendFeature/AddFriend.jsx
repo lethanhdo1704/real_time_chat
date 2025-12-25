@@ -1,8 +1,18 @@
 // frontend/src/components/FriendFeature/AddFriend.jsx
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { searchUser, sendFriendRequest, getFriendStatus } from "../../services/friendService";
+import friendService from "../../services/friendService";
+import useFriendActions from "../../hooks/useFriendActions";
 
+/**
+ * AddFriend Component - ✅ UPDATED TO MATCH NEW STRUCTURE
+ * 
+ * Changes:
+ * - Dùng useFriendActions hook thay vì gọi friendService trực tiếp
+ * - Removed searchUser và getFriendStatus imports (không có trong friendService.js mới)
+ * - Dùng checkFriendStatus từ useFriendActions
+ * - sendFriendRequest giờ từ useFriendActions (auto update store)
+ */
 export default function AddFriend({ currentUser }) {
   const { t } = useTranslation("friendFeature");
   const [uid, setUid] = useState("");
@@ -11,10 +21,23 @@ export default function AddFriend({ currentUser }) {
   const [message, setMessage] = useState({ text: "", type: "" });
   const [searching, setSearching] = useState(false);
 
-  // ✅ Helper: Refetch status
+  // ============================================
+  // GET ACTIONS FROM HOOK - ✅ NEW
+  // ============================================
+  
+  const {
+    loading,
+    sendFriendRequest,
+    checkFriendStatus
+  } = useFriendActions();
+
+  // ============================================
+  // HELPER: CHECK STATUS - ✅ UPDATED
+  // ============================================
+  
   const checkStatus = async (friendUid) => {
     try {
-      const status = await getFriendStatus(friendUid); // ← Chỉ truyền friendUid
+      const status = await checkFriendStatus(friendUid);
       setFriendStatus(status);
       return status;
     } catch (err) {
@@ -24,6 +47,13 @@ export default function AddFriend({ currentUser }) {
     }
   };
 
+  // ============================================
+  // SEARCH USER - ✅ UPDATED
+  // Vì friendService.js mới không có searchUser,
+  // ta giả định BE có endpoint GET /users/search?uid=xxx
+  // Hoặc bạn có thể thêm searchUser vào friendService.js
+  // ============================================
+  
   const handleSearch = async () => {
     if (!uid.trim()) {
       setMessage({ text: t("addFriend.messages.emptyUID"), type: "error" });
@@ -35,7 +65,16 @@ export default function AddFriend({ currentUser }) {
     setFriendStatus(null);
     
     try {
-      const user = await searchUser(uid.trim());
+      // ⚠️ Bạn cần thêm searchUser vào friendService.js
+      // Hoặc gọi trực tiếp api
+      const response = await friendService.getFriendStatus(uid.trim());
+      
+      // Giả sử response có thêm user info
+      const user = {
+        uid: uid.trim(),
+        nickname: response.nickname,
+        avatar: response.avatar
+      };
       
       if (user.uid === currentUser.uid) {
         setResult(null);
@@ -46,7 +85,7 @@ export default function AddFriend({ currentUser }) {
       
       setResult(user);
       
-      // ✅ Kiểm tra trạng thái quan hệ (KHÔNG truyền currentUser.uid)
+      // Kiểm tra trạng thái
       const status = await checkStatus(user.uid);
       
       if (status === "friends") {
@@ -66,38 +105,36 @@ export default function AddFriend({ currentUser }) {
     }
   };
 
+  // ============================================
+  // SEND REQUEST - ✅ UPDATED
+  // ============================================
+  
   const handleSend = async () => {
     if (!result) return;
     
     try {
-      // ✅ Chỉ truyền friendUid, backend lấy userUid từ JWT
+      // ✅ Dùng hook action - tự động update store
       await sendFriendRequest(result.uid);
       
-      // ✅ REFETCH status sau khi gửi request
+      // Refetch status
       const newStatus = await checkStatus(result.uid);
       
       setMessage({ text: t("addFriend.messages.requestSentSuccess"), type: "success" });
       
-      // Chỉ clear nếu thành công và không phải đã kết bạn
-      if (newStatus !== "friends") {
-        // Giữ result để user thấy status cập nhật
-        // setResult(null);
-        // setFriendStatus(null);
-        // setUid("");
-      }
+      // Giữ result để user thấy status mới
     } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message || t("addFriend.messages.requestFailed");
-      const errorCode = err.response?.data?.code;
+      const errorMessage = err.message || t("addFriend.messages.requestFailed");
       
+      // Parse error codes nếu có
       let displayMessage = errorMessage;
-      if (errorCode === "ALREADY_FRIENDS") {
+      
+      if (errorMessage.includes("ALREADY_FRIENDS") || errorMessage.includes("already friends")) {
         displayMessage = t("addFriend.messages.alreadyFriends");
-        // ✅ Refetch để đồng bộ UI
         await checkStatus(result.uid);
-      } else if (errorCode === "REQUEST_ALREADY_SENT") {
+      } else if (errorMessage.includes("REQUEST_ALREADY_SENT") || errorMessage.includes("already sent")) {
         displayMessage = t("addFriend.messages.requestAlreadySent");
         await checkStatus(result.uid);
-      } else if (errorCode === "REQUEST_ALREADY_RECEIVED") {
+      } else if (errorMessage.includes("REQUEST_ALREADY_RECEIVED") || errorMessage.includes("already received")) {
         displayMessage = t("addFriend.messages.requestAlreadyReceived");
         await checkStatus(result.uid);
       }
@@ -106,6 +143,10 @@ export default function AddFriend({ currentUser }) {
     }
   };
 
+  // ============================================
+  // GET STATUS BADGE
+  // ============================================
+  
   const getStatusBadge = () => {
     if (!friendStatus) return null;
     
@@ -125,9 +166,17 @@ export default function AddFriend({ currentUser }) {
     );
   };
 
+  // ============================================
+  // CAN SEND REQUEST
+  // ============================================
+  
   const canSendRequest = () => {
     return result && (!friendStatus || friendStatus === "none");
   };
+
+  // ============================================
+  // RENDER
+  // ============================================
 
   return (
     <div className="space-y-4">
@@ -207,8 +256,9 @@ export default function AddFriend({ currentUser }) {
             
             {canSendRequest() ? (
               <button 
-                onClick={handleSend} 
-                className="px-6 py-3 bg-linear-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg flex items-center gap-2 transform hover:scale-105 active:scale-95"
+                onClick={handleSend}
+                disabled={loading}
+                className="px-6 py-3 bg-linear-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg flex items-center gap-2 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />

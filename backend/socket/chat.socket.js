@@ -4,22 +4,6 @@ import ConversationMember from "../models/ConversationMember.js";
 import Friend from "../models/Friend.js";
 import User from "../models/User.js";
 
-/**
- * Setup Chat Socket
- * 
- * RESPONSIBILITIES:
- * 1. Authenticate socket connections
- * 2. Auto-join user to their conversations
- * 3. Handle typing indicators (ONLY)
- * 4. Handle online/offline status
- * 
- * NOT RESPONSIBLE FOR:
- * - Sending messages (use REST API)
- * - Marking as read (use REST API)
- * - Message CRUD (use REST API)
- * 
- * Those actions emit via SocketEmitter service after DB update
- */
 export default function setupChatSocket(io) {
   // ============================================
   // AUTHENTICATION MIDDLEWARE

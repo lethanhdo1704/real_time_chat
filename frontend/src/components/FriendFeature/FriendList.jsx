@@ -4,27 +4,26 @@ import { useTranslation } from "react-i18next";
 import ConversationItem from "../Chat/ConversationItem";
 import useChatStore from "../../store/chatStore";
 import useFriendStore from "../../store/friendStore";
+import useFriendActions from "../../hooks/useFriendActions";
 
 /**
- * FriendList Component - ✅ FIXED
+ * FriendList Component - ✅ UPDATED TO MATCH NEW STRUCTURE
  * 
- * Fixes:
- * - Removed fetchFriends from useEffect deps (prevents re-render loop)
- * - Added useRef to track mount state
- * - Only fetch once on mount
+ * Changes:
+ * - Dùng useFriendActions hook
+ * - Removed fetchFriends from store (không tồn tại trong friendStore.js mới)
+ * - Dùng loadFriendsData từ useFriendActions
+ * - Socket tự động sync qua useFriendSocket
  */
 export default function FriendList({ currentUser, onSelectFriend }) {
   const { t } = useTranslation("friendFeature");
-  const hasFetchedRef = useRef(false); // ✅ Track if already fetched
+  const hasFetchedRef = useRef(false);
 
   // ============================================
   // GET STATE FROM STORES
   // ============================================
 
   const friends = useFriendStore((state) => state.friends);
-  const loading = useFriendStore((state) => state.loading);
-  const error = useFriendStore((state) => state.error);
-  const fetchFriends = useFriendStore((state) => state.fetchFriends);
 
   const conversationsMap = useChatStore((state) => state.conversations);
   const conversationsOrder = useChatStore((state) => state.conversationsOrder);
@@ -37,21 +36,23 @@ export default function FriendList({ currentUser, onSelectFriend }) {
   }, [conversationsOrder, conversationsMap]);
 
   // ============================================
-  // FETCH ON MOUNT - ✅ FIXED
+  // GET ACTIONS FROM HOOK - ✅ NEW
   // ============================================
+  
+  const {
+    loading,
+    error,
+    loadFriendsData
+  } = useFriendActions();
 
-  useEffect(() => {
-    // ✅ Only fetch once, even in Strict Mode
-    if (currentUser?.uid && !hasFetchedRef.current) {
-      hasFetchedRef.current = true;
-      fetchFriends();
-    }
-
-    // ✅ Reset ref on unmount
-    return () => {
-      hasFetchedRef.current = false;
-    };
-  }, [currentUser?.uid]); // ✅ fetchFriends REMOVED from deps
+  // ============================================
+  // NO FETCH ON MOUNT - ✅ UPDATED
+  // Data is loaded centrally by useInitFriends in App/Home
+  // This component just reads from store
+  // ============================================
+  
+  // REMOVED: useEffect that calls loadFriendsData()
+  // Reason: Central loading prevents 429 rate limit errors
 
   // ============================================
   // HELPER: GET CONVERSATION FOR FRIEND
@@ -111,13 +112,13 @@ export default function FriendList({ currentUser, onSelectFriend }) {
   }, [onSelectFriend]);
 
   // ============================================
-  // MANUAL RETRY HANDLER - ✅ NEW
+  // MANUAL RETRY HANDLER - ✅ UPDATED
   // ============================================
 
   const handleRetry = useCallback(() => {
-    hasFetchedRef.current = false; // Reset flag
-    fetchFriends(true); // Force refresh
-  }, [fetchFriends]);
+    hasFetchedRef.current = false;
+    loadFriendsData();
+  }, [loadFriendsData]);
 
   // ============================================
   // RENDER
@@ -190,7 +191,7 @@ export default function FriendList({ currentUser, onSelectFriend }) {
 
         return (
           <ConversationItem
-            key={friend._id}
+            key={friend._id || friend.uid}
             conversation={conversation}
             friend={friend}
             isActive={isActive}

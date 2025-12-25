@@ -10,10 +10,12 @@ import { useCopyToast } from "../hooks/useCopyToast";
 import { useGlobalSocket } from "../hooks/useGlobalSocket";
 import  conversationService  from "../services/api";
 import { connectSocket } from "../socket";
+import useInitFriends from '../hooks/useInitFriends'; // ✅ NEW
 
 export default function Home() {
   const { t } = useTranslation("home");
   const { user, logout, loading, token } = useContext(AuthContext);
+  useInitFriends(user);
   const navigate = useNavigate();
   const { conversationId } = useParams();
   const location = useLocation();

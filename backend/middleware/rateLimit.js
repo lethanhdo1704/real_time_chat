@@ -16,13 +16,15 @@ const userOrIpKey = (req) => {
   return ipKeyGenerator(req);
 };
 
+const isDev = process.env.NODE_ENV === 'development';
+
 // =========================
-// GLOBAL LIMITER
+// GLOBAL LIMITER - ✅ TĂNG LÊN
 // =========================
 export const globalLimiter = rateLimit({
   ...baseOptions,
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: isDev ? 1000 : 300, // Dev: 1000, Prod: 300 requests
   message: {
     success: false,
     error: {
@@ -31,16 +33,16 @@ export const globalLimiter = rateLimit({
     }
   },
   keyGenerator: (req) => ipKeyGenerator(req),
-  skip: (req) => process.env.NODE_ENV === 'development'
+  skip: () => isDev // Skip hoàn toàn trong dev
 });
 
 // =========================
-// AUTH LIMITER
+// AUTH LIMITER - ✅ HỢP LÝ HƠN
 // =========================
 export const authLimiter = rateLimit({
   ...baseOptions,
-  windowMs: 15 * 60 * 1000,
-  max: 5,
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: isDev ? 100 : 10, // Dev: 100, Prod: 10 attempts
   skipSuccessfulRequests: true,
   message: {
     success: false,
@@ -53,12 +55,12 @@ export const authLimiter = rateLimit({
 });
 
 // =========================
-// OTP LIMITER
+// OTP LIMITER - ✅ TĂNG NHẸ
 // =========================
 export const otpLimiter = rateLimit({
   ...baseOptions,
-  windowMs: 15 * 60 * 1000,
-  max: 3,
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: isDev ? 50 : 5, // Dev: 50, Prod: 5 OTP requests
   message: {
     success: false,
     error: {
@@ -70,12 +72,12 @@ export const otpLimiter = rateLimit({
 });
 
 // =========================
-// MESSAGE LIMITER (PER USER)
+// MESSAGE LIMITER - ✅ TĂNG ĐÁNG KỂ
 // =========================
 export const messageLimiter = rateLimit({
   ...baseOptions,
-  windowMs: 60 * 1000,
-  max: 20,
+  windowMs: 60 * 1000, // 1 phút
+  max: isDev ? 200 : 60, // Dev: 200, Prod: 60 messages/minute
   message: {
     success: false,
     error: {
@@ -84,13 +86,13 @@ export const messageLimiter = rateLimit({
     }
   },
   keyGenerator: userOrIpKey,
-  skip: () => process.env.NODE_ENV === 'development'
+  skip: () => isDev
 });
 
 export const messageActionLimiter = rateLimit({
   ...baseOptions,
-  windowMs: 60 * 1000,
-  max: 10,
+  windowMs: 60 * 1000, // 1 phút
+  max: isDev ? 100 : 30, // Dev: 100, Prod: 30 actions/minute
   message: {
     success: false,
     error: {
@@ -99,16 +101,16 @@ export const messageActionLimiter = rateLimit({
     }
   },
   keyGenerator: userOrIpKey,
-  skip: () => process.env.NODE_ENV === 'development'
+  skip: () => isDev
 });
 
 // =========================
-// FRIEND REQUEST LIMITER - ✅ FIXED
+// FRIEND REQUEST LIMITER - ✅ HỢP LÝ HƠN
 // =========================
 export const friendRequestLimiter = rateLimit({
   ...baseOptions,
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10,
+  windowMs: 60 * 60 * 1000, // 1 giờ
+  max: isDev ? 200 : 20, // Dev: 200, Prod: 20 friend requests/hour
   message: {
     success: false,
     error: {
@@ -117,16 +119,16 @@ export const friendRequestLimiter = rateLimit({
     }
   },
   keyGenerator: userOrIpKey,
-  skip: () => process.env.NODE_ENV === 'development' // ✅ THÊM DÒNG NÀY!
+  skip: () => isDev
 });
 
 // =========================
-// FRIEND API LIMITER - ✅ NEW (cho /list endpoint)
+// FRIEND API LIMITER - ✅ TĂNG MẠNH (cho /list, /search endpoints)
 // =========================
 export const friendApiLimiter = rateLimit({
   ...baseOptions,
-  windowMs: 60 * 1000, // 1 minute
-  max: 30, // 30 requests/minute (đủ dùng)
+  windowMs: 60 * 1000, // 1 phút
+  max: isDev ? 500 : 100, // Dev: 500, Prod: 100 requests/minute
   message: {
     success: false,
     error: {
@@ -135,16 +137,16 @@ export const friendApiLimiter = rateLimit({
     }
   },
   keyGenerator: userOrIpKey,
-  skip: () => process.env.NODE_ENV === 'development' // ✅ Skip trong dev
+  skip: () => isDev
 });
 
 // =========================
-// SEARCH LIMITER
+// SEARCH LIMITER - ✅ TĂNG LÊN
 // =========================
 export const searchLimiter = rateLimit({
   ...baseOptions,
-  windowMs: 60 * 1000,
-  max: 30,
+  windowMs: 60 * 1000, // 1 phút
+  max: isDev ? 200 : 60, // Dev: 200, Prod: 60 searches/minute
   message: {
     success: false,
     error: {
@@ -153,16 +155,16 @@ export const searchLimiter = rateLimit({
     }
   },
   keyGenerator: userOrIpKey,
-  skip: () => process.env.NODE_ENV === 'development' // ✅ THÊM DÒNG NÀY!
+  skip: () => isDev
 });
 
 // =========================
-// UPLOAD LIMITER
+// UPLOAD LIMITER - ✅ TĂNG NHẸ
 // =========================
 export const uploadLimiter = rateLimit({
   ...baseOptions,
-  windowMs: 10 * 60 * 1000,
-  max: 10,
+  windowMs: 10 * 60 * 1000, // 10 phút
+  max: isDev ? 100 : 20, // Dev: 100, Prod: 20 uploads/10min
   message: {
     success: false,
     error: {
@@ -174,12 +176,12 @@ export const uploadLimiter = rateLimit({
 });
 
 // =========================
-// API LIMITER
+// API LIMITER - ✅ TĂNG MẠNH
 // =========================
 export const apiLimiter = rateLimit({
   ...baseOptions,
-  windowMs: 60 * 1000,
-  max: 60,
+  windowMs: 60 * 1000, // 1 phút
+  max: isDev ? 500 : 150, // Dev: 500, Prod: 150 requests/minute
   message: {
     success: false,
     error: {
@@ -188,17 +190,24 @@ export const apiLimiter = rateLimit({
     }
   },
   keyGenerator: userOrIpKey,
-  skip: () => process.env.NODE_ENV === 'development'
+  skip: () => isDev
 });
 
 // =========================
-// FACTORY
+// FACTORY - ✅ CẢI THIỆN
 // =========================
-export const createRateLimiter = ({ windowMs = 60000, max = 60, message, useUserId = false, skipDev = true }) =>
+export const createRateLimiter = ({ 
+  windowMs = 60000, 
+  max = 60, 
+  maxDev = null, // Cho phép set riêng cho dev
+  message, 
+  useUserId = false, 
+  skipDev = true 
+}) =>
   rateLimit({
     ...baseOptions,
     windowMs,
-    max,
+    max: isDev && maxDev ? maxDev : max,
     message: {
       success: false,
       error: {
@@ -207,7 +216,7 @@ export const createRateLimiter = ({ windowMs = 60000, max = 60, message, useUser
       }
     },
     keyGenerator: useUserId ? userOrIpKey : (req) => ipKeyGenerator(req),
-    skip: () => process.env.NODE_ENV === 'development' && skipDev
+    skip: () => isDev && skipDev
   });
 
 export default {
@@ -217,7 +226,7 @@ export default {
   messageLimiter,
   messageActionLimiter,
   friendRequestLimiter,
-  friendApiLimiter, // ✅ NEW export
+  friendApiLimiter,
   searchLimiter,
   uploadLimiter,
   apiLimiter,

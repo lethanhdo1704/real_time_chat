@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect } from "react";
 import api from "../services/api";
+import useFriendStore from '@/store/friendStore';
 
 export const AuthContext = createContext();
 
@@ -68,6 +69,8 @@ export const AuthProvider = ({ children }) => {
     sessionStorage.removeItem("token");
     setToken(null);
     setUser(null);
+    useFriendStore.getState().reset();
+    localStorage.removeItem('friend-store');
   };
 
   // =========================

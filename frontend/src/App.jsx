@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import ForgotPassword from "./pages/ForgotPassword";
 
 function App() {
+  
   return (
     <AuthProvider>
       <BrowserRouter>

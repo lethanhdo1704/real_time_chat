@@ -1,107 +1,41 @@
 // backend/routes/friends.js
 import express from "express";
-import Friend from "../models/Friend.js";
-import User from "../models/User.js";
-import authMiddleware from "../middleware/auth.js"; // Giả sử bạn có middleware này
+import authMiddleware from "../middleware/auth.js";
+import friendService from "../services/friend.service.js";
 
 const router = express.Router();
-
-import mongoose from "mongoose";
-
-/**
- * Helper: Convert uid (string) → _id (ObjectId)
- */
-async function uidToId(uid) {
-  const user = await User.findOne({ uid }).select("_id");
-  if (!user) throw new Error("USER_NOT_FOUND");
-  return user._id;
-}
-
-/**
- * Helper: Ensure value is ObjectId
- */
-function toObjectId(value) {
-  if (value instanceof mongoose.Types.ObjectId) return value;
-  return new mongoose.Types.ObjectId(value);
-}
 
 /**
  * Gửi lời mời kết bạn
  * POST /api/friends/request
- * body: { friendUid }  ← CHỈ nhận friendUid, userUid lấy từ JWT
+ * body: { friendUid }
  */
 router.post("/request", authMiddleware, async (req, res) => {
   const { friendUid } = req.body;
-  const userId = toObjectId(req.user.id); // ← Convert to ObjectId
 
   try {
-    // Convert friendUid → friendId
-    const friendId = await uidToId(friendUid);
-
-    // Không thể tự kết bạn
-    if (userId.equals(friendId)) {
-      return res.status(400).json({ 
-        message: "Không thể tự kết bạn với chính mình",
-        code: "SELF_FRIEND"
-      });
-    }
-
-    // Kiểm tra đã là bạn bè chưa
-    const alreadyFriends = await Friend.findOne({
-      $or: [
-        { user: userId, friend: friendId, status: "accepted" },
-        { user: friendId, friend: userId, status: "accepted" }
-      ]
-    });
-    
-    if (alreadyFriends) {
-      return res.status(400).json({ 
-        message: "Bạn đã là bạn bè với người này rồi",
-        code: "ALREADY_FRIENDS"
-      });
-    }
-
-    // Kiểm tra đã có lời mời pending chưa
-    const existingRequest = await Friend.findOne({
-      $or: [
-        { user: userId, friend: friendId, status: "pending" },
-        { user: friendId, friend: userId, status: "pending" }
-      ]
-    });
-    
-    if (existingRequest) {
-      if (existingRequest.user.equals(friendId)) {
-        return res.status(400).json({ 
-          message: "Người này đã gửi lời mời kết bạn cho bạn, hãy kiểm tra lời mời kết bạn",
-          code: "REQUEST_ALREADY_RECEIVED"
-        });
-      }
-      return res.status(400).json({ 
-        message: "Bạn đã gửi lời mời kết bạn cho người này rồi",
-        code: "REQUEST_ALREADY_SENT"
-      });
-    }
-
-    // Tạo lời mời mới
-    const newFriend = new Friend({ 
-      user: userId, 
-      friend: friendId, 
-      status: "pending" 
-    });
-    await newFriend.save();
+    const newFriend = await friendService.sendRequest(req.user.id, friendUid);
 
     res.status(200).json({ 
       message: "Đã gửi lời mời kết bạn thành công", 
       friend: newFriend 
     });
   } catch (err) {
-    if (err.message === "USER_NOT_FOUND") {
+    if (err.code === "USER_NOT_FOUND") {
       return res.status(404).json({ 
-        message: "Không tìm thấy người dùng này",
-        code: "USER_NOT_FOUND"
+        message: err.message,
+        code: err.code
       });
     }
-    res.status(500).json({ message: err.message });
+    if (err.code === "SELF_FRIEND" || err.code === "ALREADY_FRIENDS" || 
+        err.code === "REQUEST_ALREADY_SENT" || err.code === "REQUEST_ALREADY_RECEIVED") {
+      return res.status(400).json({ 
+        message: err.message,
+        code: err.code
+      });
+    }
+    console.error("Error in POST /request:", err);
+    res.status(500).json({ message: "Lỗi server" });
   }
 });
 
@@ -112,56 +46,29 @@ router.post("/request", authMiddleware, async (req, res) => {
  */
 router.post("/accept", authMiddleware, async (req, res) => {
   const { friendUid } = req.body;
-  const userId = toObjectId(req.user.id);
 
   try {
-    const friendId = await uidToId(friendUid);
-
-    // Kiểm tra đã là bạn bè chưa
-    const alreadyFriends = await Friend.findOne({
-      $or: [
-        { user: userId, friend: friendId, status: "accepted" },
-        { user: friendId, friend: userId, status: "accepted" }
-      ]
-    });
-    
-    if (alreadyFriends) {
-      return res.status(400).json({ 
-        message: "Bạn đã là bạn bè với người này rồi",
-        code: "ALREADY_FRIENDS"
-      });
-    }
-
-    // Tìm lời mời từ người gửi
-    const friendDoc = await Friend.findOne({
-      user: friendId,
-      friend: userId,
-      status: "pending",
-    });
-    
-    if (!friendDoc) {
-      return res.status(404).json({ 
-        message: "Không tìm thấy lời mời kết bạn",
-        code: "REQUEST_NOT_FOUND"
-      });
-    }
-
-    // Cập nhật trạng thái
-    friendDoc.status = "accepted";
-    await friendDoc.save();
+    const friendDoc = await friendService.acceptRequest(req.user.id, friendUid);
 
     res.status(200).json({ 
       message: "Đã chấp nhận lời mời kết bạn", 
       friend: friendDoc 
     });
   } catch (err) {
-    if (err.message === "USER_NOT_FOUND") {
+    if (err.code === "USER_NOT_FOUND") {
       return res.status(404).json({ 
-        message: "Không tìm thấy người dùng này",
-        code: "USER_NOT_FOUND"
+        message: err.message,
+        code: err.code
       });
     }
-    res.status(500).json({ message: err.message });
+    if (err.code === "ALREADY_FRIENDS" || err.code === "REQUEST_NOT_FOUND") {
+      return res.status(400).json({ 
+        message: err.message,
+        code: err.code
+      });
+    }
+    console.error("Error in POST /accept:", err);
+    res.status(500).json({ message: "Lỗi server" });
   }
 });
 
@@ -172,33 +79,26 @@ router.post("/accept", authMiddleware, async (req, res) => {
  */
 router.post("/reject", authMiddleware, async (req, res) => {
   const { friendUid } = req.body;
-  const userId = toObjectId(req.user.id);
 
   try {
-    const friendId = await uidToId(friendUid);
-
-    const deleted = await Friend.findOneAndDelete({
-      user: friendId,
-      friend: userId,
-      status: "pending",
-    });
-    
-    if (!deleted) {
-      return res.status(404).json({ 
-        message: "Không tìm thấy lời mời kết bạn",
-        code: "REQUEST_NOT_FOUND"
-      });
-    }
+    await friendService.rejectRequest(req.user.id, friendUid);
 
     res.status(200).json({ message: "Đã từ chối lời mời kết bạn" });
   } catch (err) {
-    if (err.message === "USER_NOT_FOUND") {
+    if (err.code === "USER_NOT_FOUND") {
       return res.status(404).json({ 
-        message: "Không tìm thấy người dùng này",
-        code: "USER_NOT_FOUND"
+        message: err.message,
+        code: err.code
       });
     }
-    res.status(500).json({ message: err.message });
+    if (err.code === "REQUEST_NOT_FOUND") {
+      return res.status(400).json({ 
+        message: err.message,
+        code: err.code
+      });
+    }
+    console.error("Error in POST /reject:", err);
+    res.status(500).json({ message: "Lỗi server" });
   }
 });
 
@@ -209,33 +109,26 @@ router.post("/reject", authMiddleware, async (req, res) => {
  */
 router.post("/cancel", authMiddleware, async (req, res) => {
   const { friendUid } = req.body;
-  const userId = toObjectId(req.user.id);
 
   try {
-    const friendId = await uidToId(friendUid);
-
-    const deleted = await Friend.findOneAndDelete({
-      user: userId,
-      friend: friendId,
-      status: "pending",
-    });
-    
-    if (!deleted) {
-      return res.status(404).json({ 
-        message: "Không tìm thấy lời mời kết bạn",
-        code: "REQUEST_NOT_FOUND"
-      });
-    }
+    await friendService.cancelRequest(req.user.id, friendUid);
 
     res.status(200).json({ message: "Đã hủy lời mời kết bạn" });
   } catch (err) {
-    if (err.message === "USER_NOT_FOUND") {
+    if (err.code === "USER_NOT_FOUND") {
       return res.status(404).json({ 
-        message: "Không tìm thấy người dùng này",
-        code: "USER_NOT_FOUND"
+        message: err.message,
+        code: err.code
       });
     }
-    res.status(500).json({ message: err.message });
+    if (err.code === "REQUEST_NOT_FOUND") {
+      return res.status(400).json({ 
+        message: err.message,
+        code: err.code
+      });
+    }
+    console.error("Error in POST /cancel:", err);
+    res.status(500).json({ message: "Lỗi server" });
   }
 });
 
@@ -246,34 +139,26 @@ router.post("/cancel", authMiddleware, async (req, res) => {
  */
 router.post("/unfriend", authMiddleware, async (req, res) => {
   const { friendUid } = req.body;
-  const userId = toObjectId(req.user.id);
 
   try {
-    const friendId = await uidToId(friendUid);
-
-    const deleted = await Friend.findOneAndDelete({
-      $or: [
-        { user: userId, friend: friendId, status: "accepted" },
-        { user: friendId, friend: userId, status: "accepted" }
-      ]
-    });
-    
-    if (!deleted) {
-      return res.status(404).json({ 
-        message: "Không tìm thấy mối quan hệ bạn bè",
-        code: "FRIENDSHIP_NOT_FOUND"
-      });
-    }
+    await friendService.unfriend(req.user.id, friendUid);
 
     res.status(200).json({ message: "Đã hủy kết bạn" });
   } catch (err) {
-    if (err.message === "USER_NOT_FOUND") {
+    if (err.code === "USER_NOT_FOUND") {
       return res.status(404).json({ 
-        message: "Không tìm thấy người dùng này",
-        code: "USER_NOT_FOUND"
+        message: err.message,
+        code: err.code
       });
     }
-    res.status(500).json({ message: err.message });
+    if (err.code === "FRIENDSHIP_NOT_FOUND") {
+      return res.status(400).json({ 
+        message: err.message,
+        code: err.code
+      });
+    }
+    console.error("Error in POST /unfriend:", err);
+    res.status(500).json({ message: "Lỗi server" });
   }
 });
 
@@ -282,57 +167,13 @@ router.post("/unfriend", authMiddleware, async (req, res) => {
  * GET /api/friends/list
  */
 router.get("/list", authMiddleware, async (req, res) => {
-  const userId = toObjectId(req.user.id);
-
   try {
-    // Lấy tất cả bạn bè đã chấp nhận
-    const friendsDocs = await Friend.find({
-      $or: [
-        { user: userId, status: "accepted" },
-        { friend: userId, status: "accepted" }
-      ]
-    }).populate("user friend", "uid nickname avatar");
+    const result = await friendService.getFriendsList(req.user.id);
 
-    // Map ra thông tin bạn bè
-    const friends = friendsDocs.map((doc) => {
-      const friendUser = doc.user._id.equals(userId) ? doc.friend : doc.user;
-      return {
-        _id: doc._id,
-        uid: friendUser.uid,
-        nickname: friendUser.nickname,
-        avatar: friendUser.avatar,
-      };
-    });
-
-    // Lấy lời mời pending đến
-    const requestsDocs = await Friend.find({ 
-      friend: userId, 
-      status: "pending" 
-    }).populate("user", "uid nickname avatar");
-
-    const requests = requestsDocs.map((doc) => ({
-      _id: doc._id,
-      uid: doc.user.uid,
-      nickname: doc.user.nickname,
-      avatar: doc.user.avatar,
-    }));
-
-    // Lấy lời mời đã gửi
-    const sentRequestsDocs = await Friend.find({ 
-      user: userId, 
-      status: "pending" 
-    }).populate("friend", "uid nickname avatar");
-
-    const sentRequests = sentRequestsDocs.map((doc) => ({
-      _id: doc._id,
-      uid: doc.friend.uid,
-      nickname: doc.friend.nickname,
-      avatar: doc.friend.avatar,
-    }));
-
-    res.status(200).json({ friends, requests, sentRequests });
+    res.status(200).json(result);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Error in GET /list:", err);
+    res.status(500).json({ message: "Lỗi server" });
   }
 });
 
@@ -342,37 +183,11 @@ router.get("/list", authMiddleware, async (req, res) => {
  */
 router.get("/status/:friendUid", authMiddleware, async (req, res) => {
   const { friendUid } = req.params;
-  const userId = toObjectId(req.user.id);
 
   try {
-    const friendId = await uidToId(friendUid);
+    const result = await friendService.getFriendStatus(req.user.id, friendUid);
 
-    if (userId.equals(friendId)) {
-      return res.status(200).json({ status: "self" });
-    }
-
-    // Kiểm tra quan hệ
-    const friendship = await Friend.findOne({
-      $or: [
-        { user: userId, friend: friendId },
-        { user: friendId, friend: userId }
-      ]
-    });
-
-    if (!friendship) {
-      return res.status(200).json({ status: "none" });
-    }
-
-    if (friendship.status === "accepted") {
-      return res.status(200).json({ status: "friends" });
-    }
-
-    // Pending - kiểm tra ai là người gửi
-    if (friendship.user.equals(userId)) {
-      return res.status(200).json({ status: "request_sent" });
-    } else {
-      return res.status(200).json({ status: "request_received" });
-    }
+    res.status(200).json(result);
   } catch (err) {
     if (err.message === "USER_NOT_FOUND") {
       return res.status(404).json({ 
@@ -380,9 +195,9 @@ router.get("/status/:friendUid", authMiddleware, async (req, res) => {
         code: "USER_NOT_FOUND"
       });
     }
-    res.status(500).json({ message: err.message });
+    console.error("Error in GET /status:", err);
+    res.status(500).json({ message: "Lỗi server" });
   }
 });
-
 
 export default router;

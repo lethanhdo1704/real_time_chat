@@ -1,152 +1,97 @@
 // frontend/src/services/friendService.js
-const API_URL = "http://localhost:5000/api";
+import api from './api';
 
-// Check cả localStorage VÀ sessionStorage
-function getAuthHeaders() {
-  const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-}
+const friendService = {
+  /**
+   * Gửi lời mời kết bạn
+   */
+  async sendFriendRequest(friendUid) {
+    try {
+      const response = await api.post('/friends/request', { friendUid });
+      return response.data;
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      throw error.response?.data || error;
+    }
+  },
 
-// Tìm user theo UID
-export async function searchUser(uid) {
-  const res = await fetch(`${API_URL}/users/search?uid=${uid}`, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.message || "User not found");
+  /**
+   * Chấp nhận lời mời kết bạn
+   */
+  async acceptFriendRequest(friendUid) {
+    try {
+      const response = await api.post('/friends/accept', { friendUid });
+      return response.data;
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
+   * Từ chối lời mời kết bạn
+   */
+  async rejectFriendRequest(friendUid) {
+    try {
+      const response = await api.post('/friends/reject', { friendUid });
+      return response.data;
+    } catch (error) {
+      console.error('Error rejecting friend request:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
+   * Hủy lời mời đã gửi
+   */
+  async cancelFriendRequest(friendUid) {
+    try {
+      const response = await api.post('/friends/cancel', { friendUid });
+      return response.data;
+    } catch (error) {
+      console.error('Error cancelling friend request:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
+   * Hủy kết bạn
+   */
+  async unfriend(friendUid) {
+    try {
+      const response = await api.post('/friends/unfriend', { friendUid });
+      return response.data;
+    } catch (error) {
+      console.error('Error unfriending:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
+   * Lấy danh sách bạn bè và lời mời
+   */
+  async getFriendsList() {
+    try {
+      const response = await api.get('/friends/list');
+      return response.data; // { friends, requests, sentRequests }
+    } catch (error) {
+      console.error('Error fetching friends list:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
+   * Kiểm tra trạng thái quan hệ với một user
+   */
+  async getFriendStatus(friendUid) {
+    try {
+      const response = await api.get(`/friends/status/${friendUid}`);
+      return response.data; // { status: "friends" | "request_sent" | "request_received" | "none" | "self" }
+    } catch (error) {
+      console.error('Error fetching friend status:', error);
+      throw error.response?.data || error;
+    }
   }
-  return res.json();
-}
+};
 
-// Gửi lời mời kết bạn
-// ✅ Backend chỉ cần friendUid, userUid lấy từ JWT
-export async function sendFriendRequest(friendUid) {
-  const res = await fetch(`${API_URL}/friends/request`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ friendUid }), // ← CHỈ gửi friendUid
-  });
-  
-  const data = await res.json();
-  
-  if (!res.ok) {
-    const error = new Error(data.message || "Error sending request");
-    error.response = { data };
-    throw error;
-  }
-  
-  return data;
-}
-
-// Lấy danh sách bạn bè và lời mời
-// ✅ Backend lấy userUid từ JWT
-export async function getFriendsAndRequests() {
-  const res = await fetch(`${API_URL}/friends/list`, { // ← Không cần userUid trong URL
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.message || "Error fetching friends");
-  }
-  return res.json();
-}
-
-// Chấp nhận lời mời kết bạn
-// ✅ Backend chỉ cần friendUid
-export async function acceptFriendRequest(friendUid) {
-  const res = await fetch(`${API_URL}/friends/accept`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ friendUid }), // ← CHỈ gửi friendUid
-  });
-  
-  const data = await res.json();
-  
-  if (!res.ok) {
-    const error = new Error(data.message || "Error accepting request");
-    error.response = { data };
-    throw error;
-  }
-  
-  return data;
-}
-
-// Từ chối lời mời kết bạn
-// ✅ Backend chỉ cần friendUid
-export async function rejectFriendRequest(friendUid) {
-  const res = await fetch(`${API_URL}/friends/reject`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ friendUid }), // ← CHỈ gửi friendUid
-  });
-  
-  const data = await res.json();
-  
-  if (!res.ok) {
-    const error = new Error(data.message || "Error rejecting request");
-    error.response = { data };
-    throw error;
-  }
-  
-  return data;
-}
-
-// Kiểm tra trạng thái quan hệ với một user
-// ✅ Backend lấy userUid từ JWT
-export async function getFriendStatus(friendUid) {
-  const res = await fetch(`${API_URL}/friends/status/${friendUid}`, { // ← Chỉ cần friendUid
-    headers: getAuthHeaders(),
-  });
-  
-  const data = await res.json();
-  
-  if (!res.ok) {
-    throw new Error(data.message || "Error checking friend status");
-  }
-  
-  return data.status; // "self", "none", "friends", "request_sent", "request_received"
-}
-
-// Hủy lời mời kết bạn đã gửi
-// ✅ Backend chỉ cần friendUid
-export async function cancelFriendRequest(friendUid) {
-  const res = await fetch(`${API_URL}/friends/cancel`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ friendUid }), // ← CHỈ gửi friendUid
-  });
-  
-  const data = await res.json();
-  
-  if (!res.ok) {
-    const error = new Error(data.message || "Error canceling request");
-    error.response = { data };
-    throw error;
-  }
-  
-  return data;
-}
-
-// Hủy kết bạn
-// ✅ Backend chỉ cần friendUid
-export async function unfriend(friendUid) {
-  const res = await fetch(`${API_URL}/friends/unfriend`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ friendUid }), // ← CHỈ gửi friendUid
-  });
-  
-  const data = await res.json();
-  
-  if (!res.ok) {
-    const error = new Error(data.message || "Error unfriending");
-    error.response = { data };
-    throw error;
-  }
-  
-  return data;
-}
+export default friendService;
