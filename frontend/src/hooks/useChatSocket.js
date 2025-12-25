@@ -1,93 +1,112 @@
-import { useEffect, useCallback, useContext } from "react";
+import { useEffect, useCallback, useContext, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import socket from "../socket";
 
 export const useChatSocket = ({
   activeConversationId,
   onMessageReceived,
+  onMessageEdited,
+  onMessageDeleted,
   onTyping,
   onMessageRead,
 }) => {
   const { user } = useContext(AuthContext);
+  
+  // ✅ Use refs to avoid re-registering listeners
+  const callbacksRef = useRef({
+    onMessageReceived,
+    onMessageEdited,
+    onMessageDeleted,
+    onTyping,
+    onMessageRead,
+  });
 
-  const joinConversation = useCallback((conversationId) => {
-    if (!conversationId) return;
-    console.log('💬 [Chat] Joining conversation:', conversationId);
-    socket.emit('join_conversation', { conversationId });
-  }, []);
+  // ✅ Update refs when callbacks change (no re-register)
+  useEffect(() => {
+    callbacksRef.current = {
+      onMessageReceived,
+      onMessageEdited,
+      onMessageDeleted,
+      onTyping,
+      onMessageRead,
+    };
+  }, [onMessageReceived, onMessageEdited, onMessageDeleted, onTyping, onMessageRead]);
 
-  const leaveConversation = useCallback((conversationId) => {
-    if (!conversationId) return;
-    console.log('💬 [Chat] Leaving conversation:', conversationId);
-    socket.emit('leave_conversation', { conversationId });
-  }, []);
-
+  // ✅ Stable emit functions
   const emitTyping = useCallback((conversationId, isTyping) => {
     if (!conversationId) return;
-    socket.emit('typing', { conversationId, isTyping });
+    socket.emit("typing", { conversationId, isTyping });
   }, []);
 
   const emitMessageRead = useCallback((conversationId, lastSeenMessage) => {
     if (!conversationId) return;
-    socket.emit('message_read', { conversationId, lastSeenMessage });
+    socket.emit("message_read", { conversationId, lastSeenMessage });
   }, []);
 
+  // ✅ Register listeners ONCE per conversation
   useEffect(() => {
     if (!activeConversationId) return;
 
-    const handleMessageReceived = ({ message }) => {
-      // ✅ ONLY process if it's for the active conversation
-      if (message.conversation !== activeConversationId) {
-        return;
-      }
+    console.log("💬 [Chat] Registering listeners for:", activeConversationId);
 
-      console.log('💬 [Chat] Message for active conversation:', {
-        conversationId: message.conversation,
-        from: message.sender?.nickname,
-        isOwnMessage: message.sender?.uid === user?.uid
-      });
+    // ✅ Stable handlers using refs
+    const handleMessageReceived = ({ message }) => {
+      if (message.conversation !== activeConversationId) return;
       
-      if (onMessageReceived) {
-        onMessageReceived(message);
-      }
+      console.log("💬 [Chat] Message received:", {
+        from: message.sender?.nickname,
+        isOwn: message.sender?.uid === user?.uid
+      });
+
+      callbacksRef.current.onMessageReceived?.(message);
+    };
+
+    const handleMessageEdited = ({ message }) => {
+      if (message.conversation !== activeConversationId) return;
+      callbacksRef.current.onMessageEdited?.(message);
+    };
+
+    const handleMessageDeleted = ({ messageId, conversationId }) => {
+      if (conversationId !== activeConversationId) return;
+      callbacksRef.current.onMessageDeleted?.(messageId);
     };
 
     const handleUserTyping = ({ conversationId, user: typingUser, isTyping }) => {
-      if (conversationId === activeConversationId && onTyping) {
-        onTyping(typingUser, isTyping);
+      if (conversationId === activeConversationId) {
+        callbacksRef.current.onTyping?.(typingUser, isTyping);
       }
     };
 
     const handleMessageRead = ({ conversationId, user: readByUser, lastSeenMessage }) => {
-      if (conversationId === activeConversationId && onMessageRead) {
-        onMessageRead(readByUser, lastSeenMessage);
+      if (conversationId === activeConversationId) {
+        callbacksRef.current.onMessageRead?.(readByUser, lastSeenMessage);
       }
     };
 
-    socket.on('message_received', handleMessageReceived);
-    socket.on('user_typing', handleUserTyping);
-    socket.on('message_read', handleMessageRead);
-    console.log('💬 [Chat] Listeners registered for:', activeConversationId);
+    // Register
+    socket.on("message_received", handleMessageReceived);
+    socket.on("message_edited", handleMessageEdited);
+    socket.on("message_deleted", handleMessageDeleted);
+    socket.on("user_typing", handleUserTyping);
+    socket.on("message_read", handleMessageRead);
 
-    return () => {
-      socket.off('message_received', handleMessageReceived);
-      socket.off('user_typing', handleUserTyping);
-      socket.off('message_read', handleMessageRead);
-      console.log('💬 [Chat] Listeners cleaned up for:', activeConversationId);
-    };
-  }, [activeConversationId, onMessageReceived, onTyping, onMessageRead, user]);
+    // Join room
+    socket.emit("join_conversation", { conversationId: activeConversationId });
 
-  useEffect(() => {
-    if (!activeConversationId) return;
-    joinConversation(activeConversationId);
+    // Cleanup
     return () => {
-      leaveConversation(activeConversationId);
+      socket.off("message_received", handleMessageReceived);
+      socket.off("message_edited", handleMessageEdited);
+      socket.off("message_deleted", handleMessageDeleted);
+      socket.off("user_typing", handleUserTyping);
+      socket.off("message_read", handleMessageRead);
+      
+      socket.emit("leave_conversation", { conversationId: activeConversationId });
+      console.log("💬 [Chat] Cleaned up for:", activeConversationId);
     };
-  }, [activeConversationId, joinConversation, leaveConversation]);
+  }, [activeConversationId, user]); // ✅ Only re-run when conversation changes
 
   return {
-    joinConversation,
-    leaveConversation,
     emitTyping,
     emitMessageRead,
   };

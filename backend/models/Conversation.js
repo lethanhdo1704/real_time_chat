@@ -1,69 +1,59 @@
-// ===== models/Conversation.js =====
+// backend/models/Conversation.js
 import mongoose from "mongoose";
 
-const conversationSchema = new mongoose.Schema({
+const { Schema } = mongoose;
+
+const conversationSchema = new Schema({
   type: {
     type: String,
     enum: ['private', 'group'],
-    required: true
+    required: true,
   },
-  
+
+  // Group only
   name: {
     type: String,
-    default: null,
+    trim: true,
     maxlength: 100
   },
-  avatar: {
-    type: String,
-    default: null
-  },
+
+  avatar: String,
+
+  // Group only - private chat không có owner
   createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    type: Schema.Types.ObjectId,
+    ref: 'User'
   },
-  
+
+  // Private chat only - unique link to friendship
   friendshipId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: 'Friend',
-    default: null
+    unique: true,
+    sparse: true
   },
-  
+
+  // Performance cache - updated by service
   lastMessage: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Message',
-    default: null
+    type: Schema.Types.ObjectId,
+    ref: 'Message'
   },
+
   lastMessageAt: {
     type: Date,
-    default: null
+    index: true
+  },
+
+  isDeleted: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
 });
 
-conversationSchema.index({ friendshipId: 1 }, { unique: true, sparse: true });
+// Indexes for performance
 conversationSchema.index({ type: 1 });
-conversationSchema.index({ createdBy: 1 });
-
-conversationSchema.statics.findOrCreatePrivate = async function(userId, friendId, friendshipId) {
-  let conversation = await this.findOne({ friendshipId });
-  
-  if (!conversation) {
-    conversation = await this.create({
-      type: 'private',
-      createdBy: userId,
-      friendshipId
-    });
-    
-    const ConversationMember = mongoose.model('ConversationMember');
-    await ConversationMember.insertMany([
-      { conversation: conversation._id, user: userId, role: 'member' },
-      { conversation: conversation._id, user: friendId, role: 'member' }
-    ]);
-  }
-  
-  return conversation;
-};
+conversationSchema.index({ lastMessageAt: -1 }); // sidebar sorting
 
 export default mongoose.model('Conversation', conversationSchema);

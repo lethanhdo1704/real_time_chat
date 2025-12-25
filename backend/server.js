@@ -1,30 +1,39 @@
-// backend/server.js (UPDATED - FULL VERSION)
+// backend/server.js
 import express from "express";
 import cors from "cors";
 import connectDB from "./config/db.js";
 import { createServer } from "http";
 import "dotenv/config";
 
-// ✅ NEW: Import validation and config
-import { validateEnv, getEnvConfig, displayEnvConfig } from "./config/validateEnv.js";
+// ==========================
+// ENV VALIDATION
+// ==========================
+import {
+  validateEnv,
+  getEnvConfig,
+  displayEnvConfig,
+} from "./config/validateEnv.js";
 
-// ✅ NEW: Validate environment before starting
 validateEnv();
 const config = getEnvConfig();
 displayEnvConfig();
 
-// Middleware
+// ==========================
+// MIDDLEWARE IMPORTS
+// ==========================
 import auth from "./middleware/auth.js";
 import { sanitizeInput } from "./middleware/sanitize.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
-import { 
-  globalLimiter, 
-  authLimiter, 
+import {
+  globalLimiter,
+  authLimiter,
   otpLimiter,
-  friendRequestLimiter 
+  friendRequestLimiter,
 } from "./middleware/rateLimit.js";
 
-// Routes
+// ==========================
+// ROUTES
+// ==========================
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import otpForgotRoutes from "./routes/otp/forgot.js";
@@ -33,80 +42,85 @@ import friendsRoutes from "./routes/friend.js";
 import conversationRoutes from "./routes/conversation.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 
-// Socket
+// ==========================
+// SOCKET
+// ==========================
 import initSocket from "./socket/index.js";
-import setupChatSocket from "./socket/chat.socket.js";
-
-// ✅ NEW: Socket Emitter Service
-import SocketEmitter from "./services/socketEmitter.service.js";
 
 const app = express();
 
-// ============================================
+// ==========================
 // CORS CONFIGURATION
-// ============================================
-const allowedOrigins = config.nodeEnv === 'production'
-  ? [config.corsOrigin] // Production origin from env
-  : ['http://localhost:5173', 'http://localhost:3000']; // Development origins
+// ==========================
+const allowedOrigins =
+  config.nodeEnv === "production"
+    ? [config.corsOrigin]
+    : ["http://localhost:5173", "http://localhost:3000"];
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
       console.warn(`⚠️  CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
-}));
+      return callback(new Error("Not allowed by CORS"));
+    },
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 
-// ============================================
+// ==========================
 // GLOBAL MIDDLEWARE
-// ============================================
-app.use(express.json({ limit: '10mb' })); // Limit payload size
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// ==========================
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// ✅ Apply global input sanitization
-app.use(sanitizeInput);
+// Sanitize input
+app.use((req, res, next) => {
+  if (req.body) sanitizeInput(req, res, next);
+  else next();
+});
 
-// ✅ Apply rate limiting (only in production)
-if (config.nodeEnv === 'production') {
+// ==========================
+// RATE LIMITING (PROD ONLY)
+// ==========================
+if (config.nodeEnv === "production") {
   app.use(globalLimiter);
-  console.log('✅ Rate limiting enabled');
+  console.log("✅ Global rate limiting enabled (production)");
 }
 
-// ============================================
-// DATABASE CONNECTION
-// ============================================
+// ==========================
+// DATABASE
+// ==========================
 connectDB();
 
-// ============================================
+// ==========================
 // HEALTH CHECK
-// ============================================
-app.get('/health', (req, res) => {
+// ==========================
+app.get("/health", (req, res) => {
   res.json({
-    status: 'ok',
+    status: "ok",
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
-    features: config.features
+    features: config.features,
   });
 });
 
-// ============================================
+// ==========================
 // API ROUTES
-// ============================================
+// ==========================
 
-// Public routes (no auth required)
+// Public routes
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/otp/forgot", otpLimiter, otpForgotRoutes);
 app.use("/api/otp/register", otpLimiter, otpRegisterRoutes);
 
-// Protected routes (require auth)
+// Protected routes
 app.use("/api/users", auth, userRoutes);
 app.use("/api/friends", auth, friendRequestLimiter, friendsRoutes);
 app.use("/api/conversations", auth, conversationRoutes);
@@ -114,81 +128,76 @@ app.use("/api/messages", auth, messageRoutes);
 
 console.log("✅ All routes registered");
 
-// ============================================
+// ==========================
 // ERROR HANDLING
-// ============================================
-
-// 404 handler - must be after all routes
+// ==========================
 app.use(notFoundHandler);
-
-// Global error handler - must be last
 app.use(errorHandler);
 
-// ============================================
-// SERVER & SOCKET.IO SETUP
-// ============================================
+// ==========================
+// SERVER & SOCKET
+// ==========================
 const PORT = config.port;
 const server = createServer(app);
 
-// Initialize Socket.IO
-const io = initSocket(server);
+// Initialize Socket.IO with SocketEmitter and chat handlers
+// initSocket() returns { io, socketEmitter }
+const { io, socketEmitter } = initSocket(server);
 
-// ✅ Setup Socket Emitter Service
-const socketEmitter = new SocketEmitter(io);
+// Make available to app
 app.set("socketEmitter", socketEmitter);
-console.log('✅ Socket Emitter Service initialized');
-
-// Setup chat socket handlers
-setupChatSocket(io);
-
-// Make io accessible (backward compatibility)
 app.set("io", io);
 
-// ============================================
+console.log("✅ Socket.IO initialized");
+console.log("✅ SocketEmitter service ready");
+console.log("✅ Chat socket handlers ready");
+
+// ==========================
 // START SERVER
-// ============================================
+// ==========================
 server.listen(PORT, () => {
-  console.log('\n' + '='.repeat(50));
+  console.log("\n" + "=".repeat(50));
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`🌍 Environment: ${config.nodeEnv}`);
   console.log(`🔌 Socket.IO ready`);
   console.log(`💬 Chat system ready`);
-  console.log('='.repeat(50) + '\n');
+  console.log("=".repeat(50) + "\n");
 });
 
-// ============================================
+// ==========================
 // GRACEFUL SHUTDOWN
-// ============================================
-process.on('SIGTERM', () => {
-  console.log('👋 SIGTERM signal received: closing HTTP server');
+// ==========================
+const shutdown = (signal) => {
+  console.log(`\n👋 ${signal} received: shutting down gracefully...`);
+  
+  // Close server
   server.close(() => {
-    console.log('✅ HTTP server closed');
-    process.exit(0);
+    console.log("✅ HTTP server closed");
+    
+    // Close socket connections
+    io.close(() => {
+      console.log("✅ Socket.IO closed");
+      process.exit(0);
+    });
   });
-});
 
-process.on('SIGINT', () => {
-  console.log('\n👋 SIGINT signal received: closing HTTP server');
-  server.close(() => {
-    console.log('✅ HTTP server closed');
-    process.exit(0);
-  });
-});
-
-// ============================================
-// UNHANDLED REJECTIONS & EXCEPTIONS
-// ============================================
-process.on('unhandledRejection', (err) => {
-  console.error('❌ UNHANDLED REJECTION! 💥 Shutting down...');
-  console.error(err);
-  server.close(() => {
+  // Force close after 10s
+  setTimeout(() => {
+    console.error("❌ Forced shutdown after timeout");
     process.exit(1);
-  });
+  }, 10000);
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+
+process.on("unhandledRejection", (err) => {
+  console.error("❌ UNHANDLED REJECTION:", err);
+  shutdown("unhandledRejection");
 });
 
-process.on('uncaughtException', (err) => {
-  console.error('❌ UNCAUGHT EXCEPTION! 💥 Shutting down...');
-  console.error(err);
+process.on("uncaughtException", (err) => {
+  console.error("❌ UNCAUGHT EXCEPTION:", err);
   process.exit(1);
 });
 

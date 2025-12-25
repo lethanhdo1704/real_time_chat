@@ -1,4 +1,4 @@
-// ===== models/Message.js (REWRITE) =====
+// backend/models/Message.js
 import mongoose from "mongoose";
 
 const { Schema } = mongoose;

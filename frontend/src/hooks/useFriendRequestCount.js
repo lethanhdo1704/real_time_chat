@@ -4,22 +4,31 @@ import { getFriendsAndRequests } from "../services/friendService";
 
 export function useFriendRequestCount(user) {
   const [count, setCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    // ✅ Chỉ chạy khi có user.uid (primitive value, không phải object)
+    if (!user?.uid) {
+      setCount(0);
+      return;
+    }
 
     const fetchCount = async () => {
+      setLoading(true);
       try {
-        const data = await getFriendsAndRequests(user.uid);
+        const data = await getFriendsAndRequests(); // ✅ Không cần truyền uid
         const requestCount = (data.requests || []).length;
         setCount(requestCount);
       } catch (err) {
         console.error('Error fetching initial request count:', err);
+        setCount(0);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchCount();
-  }, [user]);
+  }, [user?.uid]); // ✅ CHỈ depend vào user.uid (string), KHÔNG phải user (object)
 
-  return [count, setCount];
+  return { count, setCount, loading };
 }

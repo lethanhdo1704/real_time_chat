@@ -1,169 +1,187 @@
-import { useState, useEffect, useCallback, useContext } from "react";
+// frontend/src/hooks/useHomeChat.js
+import { useEffect, useCallback, useContext, useMemo } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { conversationService } from "../services/api";
-import { messageService } from "../services/messageService";
+import useChatStore from "../store/chatStore";
+import * as chatApi from "../services/chatApi";
 
+/**
+ * useHomeChat Hook
+ * 
+ * Manages conversations for Home page
+ * Uses Zustand store for state management
+ * Provides methods to load, update, and select conversations
+ */
 export function useHomeChat() {
   const { token, user } = useContext(AuthContext);
-  const [conversations, setConversations] = useState([]);
-  const [lastMessages, setLastMessages] = useState({});
-  const [unreadCounts, setUnreadCounts] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedConversation, setSelectedConversation] = useState(null);
+
+  // ============================================
+  // GET STATE FROM ZUSTAND STORE (FIXED SELECTOR)
+  // ============================================
+
+  // ✅ Get primitives separately (Maps and arrays are stable references)
+  const conversationsMap = useChatStore((state) => state.conversations);
+  const conversationsOrder = useChatStore((state) => state.conversationsOrder);
+  
+  // ✅ Convert to array using useMemo (only re-compute when order/map changes)
+  const conversations = useMemo(() => {
+    return conversationsOrder
+      .map((id) => conversationsMap.get(id))
+      .filter(Boolean);
+  }, [conversationsOrder, conversationsMap]);
+  
+  const loading = useChatStore((state) => state.loadingConversations);
+  const error = useChatStore((state) => state.conversationsError);
+  const activeConversationId = useChatStore((state) => state.activeConversationId);
+  
+  // ✅ Get selected conversation using useMemo
+  const selectedConversation = useMemo(() => {
+    return activeConversationId ? conversationsMap.get(activeConversationId) : null;
+  }, [activeConversationId, conversationsMap]);
+
+  // ============================================
+  // GET ACTIONS FROM STORE
+  // ============================================
+
+  const setConversations = useChatStore((state) => state.setConversations);
+  const updateConversation = useChatStore((state) => state.updateConversation);
+  const addConversationToStore = useChatStore((state) => state.addConversation);
+  const setActiveConversation = useChatStore((state) => state.setActiveConversation);
+  const resetUnreadCount = useChatStore((state) => state.resetUnreadCount);
+  const setConversationsLoading = useChatStore((state) => state.setConversationsLoading);
+  const setConversationsError = useChatStore((state) => state.setConversationsError);
+
+  // ============================================
+  // LOAD CONVERSATIONS
+  // ============================================
 
   const loadConversations = useCallback(async () => {
-    if (!token || !user) return;
+    if (!token || !user) {
+      console.log('⏭️  Skipping loadConversations - no token or user');
+      return;
+    }
 
     try {
-      setLoading(true);
-      setError(null);
+      setConversationsLoading(true);
+      setConversationsError(null);
 
-      const conversationsData = await conversationService.getUserConversations(token);
-      const conversationsArray = Array.isArray(conversationsData) 
-        ? conversationsData 
-        : (conversationsData?.conversations || []);
+      console.log('📥 Loading conversations...');
+      const data = await chatApi.getUserConversations();
       
+      const conversationsArray = Array.isArray(data) 
+        ? data 
+        : (data?.conversations || []);
+      
+      console.log('✅ Loaded conversations:', conversationsArray.length);
       setConversations(conversationsArray);
-
-      const conversationIds = conversationsArray.map(conv => conv.conversationId);
-      if (conversationIds.length === 0) {
-        setLoading(false);
-        return;
-      }
-
-      const lastMessagesData = await messageService.getLastMessages(conversationIds, token);
-      setLastMessages(lastMessagesData || {});
-
-      const unreadMap = {};
-      conversationsArray.forEach(conv => {
-        unreadMap[conv.conversationId] = conv.unreadCount || 0;
-      });
-      
-      setUnreadCounts(unreadMap);
-      setLoading(false);
       
     } catch (err) {
-      console.error("Error loading conversations:", err);
-      setError(err.message);
-      setLoading(false);
+      console.error("❌ Error loading conversations:", err);
+      setConversationsError(err.message || 'Failed to load conversations');
+    } finally {
+      setConversationsLoading(false);
     }
-  }, [token, user]);
+  }, [token, user, setConversations, setConversationsLoading, setConversationsError]);
 
-  const updateConversationLastMessage = useCallback((conversationId, message) => {
-    console.log('📊 updateConversationLastMessage:', {
+  // ============================================
+  // UPDATE FROM SOCKET
+  // ============================================
+
+  /**
+   * Update conversation from socket event
+   * Backend sends full conversation update with unreadCount
+   */
+  const updateConversationFromSocket = useCallback((conversationId, conversationUpdate) => {
+    console.log('🔄 [useHomeChat] Updating from socket:', {
       conversationId,
-      messageFrom: message.sender?.nickname,
-      currentUser: user?.uid,
-      isOwnMessage: message.sender?.uid === user?.uid
+      unreadCount: conversationUpdate.unreadCount,
+      lastMessage: conversationUpdate.lastMessage?.content?.substring(0, 20)
     });
 
-    setLastMessages(prev => ({
-      ...prev,
-      [conversationId]: message
-    }));
-
-    const isOwnMessage = message.sender?.uid === user?.uid;
-    const isActiveConversation = selectedConversation?.conversationId === conversationId ||
-                                  selectedConversation?._id === conversationId;
-    
-    if (!isOwnMessage && !isActiveConversation) {
-      console.log('➕ Incrementing unread count for:', conversationId);
-      setUnreadCounts(prev => {
-        const currentCount = prev[conversationId] || 0;
-        const newCount = currentCount + 1;
-        console.log(`   ${currentCount} → ${newCount}`);
-        return {
-          ...prev,
-          [conversationId]: newCount
-        };
-      });
-    } else {
-      console.log('⏭️  Not incrementing unread:', {
-        isOwnMessage,
-        isActiveConversation
-      });
-    }
-
-    setConversations(prev => {
-      const updated = [...prev];
-      const index = updated.findIndex(c => c.conversationId === conversationId);
-      
-      if (index !== -1) {
-        updated[index] = {
-          ...updated[index],
-          lastMessageAt: message.createdAt
-        };
-        
-        return updated.sort((a, b) => 
-          new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
-        );
-      }
-      
-      return updated;
+    updateConversation(conversationId, {
+      lastMessage: conversationUpdate.lastMessage,
+      lastMessageAt: conversationUpdate.lastMessage?.createdAt,
+      unreadCount: conversationUpdate.unreadCount,
+      lastSeenMessage: conversationUpdate.lastSeenMessage,
     });
-  }, [user, selectedConversation]);
+  }, [updateConversation]);
 
-  const clearUnreadCount = useCallback((conversationId) => {
+  // ============================================
+  // MARK AS READ
+  // ============================================
+
+  /**
+   * Mark conversation as read
+   * Resets unread count and notifies backend
+   */
+  const markConversationAsRead = useCallback(async (conversationId) => {
     if (!conversationId) return;
-    console.log('🧹 Clearing unread count for:', conversationId);
-    setUnreadCounts(prev => ({
-      ...prev,
-      [conversationId]: 0
-    }));
-  }, []);
+    
+    console.log('✅ [useHomeChat] Marking as read:', conversationId);
+    
+    try {
+      // Reset unread count immediately (optimistic)
+      resetUnreadCount(conversationId);
+      
+      // Send to backend
+      await chatApi.markConversationAsRead(conversationId);
+    } catch (err) {
+      console.error('❌ Error marking as read:', err);
+      // Could revert optimistic update here if needed
+    }
+  }, [resetUnreadCount]);
 
+  // ============================================
+  // SELECT CONVERSATION
+  // ============================================
+
+  /**
+   * Select a conversation and mark it as read
+   */
   const handleSelectConversation = useCallback((conversation) => {
-    console.log('🎯 Selecting conversation:', conversation?.conversationId || 'none');
-    setSelectedConversation(conversation);
+    console.log('🎯 [useHomeChat] Selecting:', conversation?.conversationId || conversation?._id || 'none');
+    
     if (conversation) {
       const convId = conversation.conversationId || conversation._id;
-      clearUnreadCount(convId);
+      setActiveConversation(convId);
+      markConversationAsRead(convId);
+    } else {
+      setActiveConversation(null);
     }
-  }, [clearUnreadCount]);
+  }, [setActiveConversation, markConversationAsRead]);
 
+  // ============================================
+  // ADD CONVERSATION
+  // ============================================
+
+  /**
+   * Add new conversation to store
+   * Used when creating new private conversation
+   */
   const addConversation = useCallback((newConversation) => {
-    setConversations(prev => {
-      const exists = prev.find(
-        c => c.conversationId === newConversation.conversationId || 
-             c._id === newConversation._id ||
-             c.conversationId === newConversation._id
-      );
-      
-      if (exists) {
-        console.log('ℹ️  Conversation already exists, skipping add');
-        return prev;
-      }
-      
-      console.log('➕ Adding new conversation to state:', newConversation);
-      return [newConversation, ...prev];
-    });
-    
-    const convId = newConversation.conversationId || newConversation._id;
-    setLastMessages(prev => ({
-      ...prev,
-      [convId]: newConversation.lastMessage || null
-    }));
-    setUnreadCounts(prev => ({
-      ...prev,
-      [convId]: 0
-    }));
-  }, []);
+    console.log('➕ [useHomeChat] Adding conversation:', newConversation._id);
+    addConversationToStore(newConversation);
+  }, [addConversationToStore]);
+
+  // ============================================
+  // LOAD ON MOUNT
+  // ============================================
 
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
 
+  // ============================================
+  // RETURN
+  // ============================================
+
   return {
     conversations,
-    lastMessages,
-    unreadCounts,
     loading,
     error,
     selectedConversation,
     handleSelectConversation,
-    updateConversationLastMessage,
-    clearUnreadCount,
+    updateConversationFromSocket,
+    markConversationAsRead,
     reloadConversations: loadConversations,
     addConversation,
   };

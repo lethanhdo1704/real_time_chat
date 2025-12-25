@@ -1,14 +1,30 @@
 // frontend/src/services/api.js
 import axios from "axios";
 
-// Create axios instance with base URL for all API requests
+// Base URL from environment variable with fallback
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+/**
+ * Base Axios instance for all API requests
+ * Automatically handles:
+ * - JWT token injection
+ * - 401 token expiration
+ * - Response/Error normalization
+ */
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: BASE_URL,
+  timeout: 10000, // 10 second timeout
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-// Automatically attach JWT token to all requests if available
+// ============================================
+// REQUEST INTERCEPTOR
+// ============================================
 api.interceptors.request.use(
   (config) => {
+    // Get token from storage (prioritize localStorage)
     const token =
       localStorage.getItem("token") || sessionStorage.getItem("token");
 
@@ -18,127 +34,84 @@ api.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error("Request error:", error);
+    return Promise.reject(error);
+  }
 );
 
 // ============================================
-// CONVERSATION SERVICE
+// RESPONSE INTERCEPTOR
 // ============================================
-/**
- * Service for managing conversations (private and group chats)
- * All methods normalize backend responses by adding _id field
- * for consistency across the application
- */
-export const conversationService = {
-  /**
-   * Fetch all conversations for the current user
-   * @param {string} token - JWT authentication token
-   * @returns {Object} Normalized conversations list with _id field
-   */
-  async getUserConversations(token) {
-    try {
-      const response = await api.get("/conversations", {
-        headers: { Authorization: `Bearer ${token}` },
+api.interceptors.response.use(
+  (response) => {
+    // Return data directly for cleaner usage
+    return response;
+  },
+  (error) => {
+    // Handle specific error cases
+    if (error.response) {
+      const { status, data } = error.response;
+
+      switch (status) {
+        case 401:
+          // Token expired or invalid
+          console.error("Unauthorized - token invalid/expired");
+          // Clear token
+          localStorage.removeItem("token");
+          sessionStorage.removeItem("token");
+          // Redirect to login (optional - can handle in components)
+          if (window.location.pathname !== "/login") {
+            window.location.href = "/login";
+          }
+          break;
+
+        case 403:
+          console.error("Forbidden - insufficient permissions");
+          break;
+
+        case 404:
+          console.error("Resource not found");
+          break;
+
+        case 429:
+          console.error("Too many requests - rate limited");
+          break;
+
+        case 500:
+          console.error("Server error");
+          break;
+
+        default:
+          console.error(`API Error ${status}:`, data?.message || error.message);
+      }
+
+      // Return normalized error
+      return Promise.reject({
+        status,
+        message: data?.message || error.message,
+        data: data,
       });
-
-      // Normalize: Add _id field alongside conversationId for consistency
-      const normalized = {
-        conversations: (response.data.conversations || []).map(conv => ({
-          ...conv,
-          _id: conv.conversationId,
-        }))
-      };
-
-      return normalized;
-    } catch (error) {
-      console.error("Error fetching user conversations:", error);
-      throw error;
     }
-  },
 
-  /**
-   * Create or retrieve existing private conversation with a friend
-   * @param {string} friendUid - Friend's user ID
-   * @param {string} token - JWT authentication token
-   * @returns {Object} Normalized conversation object with _id field
-   */
-  async createPrivateConversation(friendUid, token) {
-    try {
-      const response = await api.post(
-        "/conversations/private",
-        { friendUid },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      // Normalize: Add _id field for component compatibility
-      const normalized = {
-        ...response.data,
-        _id: response.data.conversationId,
-      };
-
-      return normalized;
-    } catch (error) {
-      console.error("Error creating private conversation:", error);
-      throw error;
-    }
-  },
-
-  /**
-   * Get detailed information for a specific conversation
-   * @param {string} conversationId - Conversation ID
-   * @param {string} token - JWT authentication token
-   * @returns {Object} Normalized conversation details with _id field
-   */
-  async getConversationDetail(conversationId, token) {
-    try {
-      const response = await api.get(`/conversations/${conversationId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+    // Network error or request setup error
+    if (error.request) {
+      console.error("Network error - no response received");
+      return Promise.reject({
+        status: 0,
+        message: "Network error. Please check your connection.",
+        data: null,
       });
-
-      // Normalize: Add _id field
-      const normalized = {
-        ...response.data,
-        _id: response.data.conversationId,
-      };
-
-      return normalized;
-    } catch (error) {
-      console.error("Error fetching conversation detail:", error);
-      throw error;
     }
-  },
 
-  /**
-   * Create a new group conversation with multiple members
-   * @param {string} name - Group conversation name
-   * @param {string[]} memberUids - Array of member user IDs
-   * @param {string} token - JWT authentication token
-   * @returns {Object} Normalized group conversation with _id field
-   */
-  async createGroupConversation(name, memberUids, token) {
-    try {
-      const response = await api.post(
-        "/conversations/group",
-        { name, memberUids },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      // Normalize: Add _id field
-      const normalized = {
-        ...response.data,
-        _id: response.data.conversationId,
-      };
-
-      return normalized;
-    } catch (error) {
-      console.error("Error creating group conversation:", error);
-      throw error;
-    }
-  },
-};
+    // Request setup error
+    console.error("Request setup error:", error.message);
+    return Promise.reject({
+      status: -1,
+      message: error.message,
+      data: null,
+    });
+  }
+);
 
 export default api;

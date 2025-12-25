@@ -87,6 +87,20 @@ export const messageLimiter = rateLimit({
   skip: () => process.env.NODE_ENV === 'development'
 });
 
+export const messageActionLimiter = rateLimit({
+  ...baseOptions,
+  windowMs: 60 * 1000,
+  max: 10, // 10 edits/deletes per minute
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMIT_ERROR',
+      message: 'Too many message actions, please slow down'
+    }
+  },
+  keyGenerator: userOrIpKey,
+  skip: () => process.env.NODE_ENV === 'development'
+});
 // =========================
 // FRIEND REQUEST LIMITER
 // =========================

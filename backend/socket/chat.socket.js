@@ -1,9 +1,25 @@
-// backend/socket/chat.socket.js (UPDATED)
+// backend/socket/chat.socket.js
 import jwt from "jsonwebtoken";
 import ConversationMember from "../models/ConversationMember.js";
 import Friend from "../models/Friend.js";
 import User from "../models/User.js";
 
+/**
+ * Setup Chat Socket
+ * 
+ * RESPONSIBILITIES:
+ * 1. Authenticate socket connections
+ * 2. Auto-join user to their conversations
+ * 3. Handle typing indicators (ONLY)
+ * 4. Handle online/offline status
+ * 
+ * NOT RESPONSIBLE FOR:
+ * - Sending messages (use REST API)
+ * - Marking as read (use REST API)
+ * - Message CRUD (use REST API)
+ * 
+ * Those actions emit via SocketEmitter service after DB update
+ */
 export default function setupChatSocket(io) {
   // ============================================
   // AUTHENTICATION MIDDLEWARE
@@ -37,38 +53,38 @@ export default function setupChatSocket(io) {
     
     try {
       // ============================================
-      // JOIN USER ROOM (for direct user events)
+      // 1️⃣ JOIN USER ROOM (for per-user events)
       // ============================================
       socket.join(`user:${socket.uid}`);
       console.log(`  ↳ Joined user room: user:${socket.uid}`);
       
       // ============================================
-      // AUTO-JOIN ALL USER'S CONVERSATIONS
+      // 2️⃣ AUTO-JOIN ALL USER'S CONVERSATIONS
       // ============================================
       const conversations = await ConversationMember.find({
         user: socket.userId,
         leftAt: null
-      }).select('conversation');
+      }).select('conversation').lean();
       
       conversations.forEach(conv => {
         const roomId = conv.conversation.toString();
         socket.join(roomId);
-        console.log(`  ↳ Joined room: ${roomId}`);
       });
       
       console.log(`✅ User ${socket.uid} auto-joined ${conversations.length} conversations`);
       
       // ============================================
-      // BROADCAST ONLINE STATUS TO FRIENDS
+      // 3️⃣ BROADCAST ONLINE STATUS
       // ============================================
       await broadcastOnlineStatus(socket, io, true);
       
     } catch (error) {
-      console.error('❌ Auto-join error:', error);
+      console.error('❌ Socket connection setup error:', error);
     }
     
     // ============================================
-    // JOIN CONVERSATION (Manual)
+    // EVENT: JOIN CONVERSATION (Manual)
+    // Used when user opens a conversation
     // ============================================
     socket.on('join_conversation', async (data) => {
       try {
@@ -76,7 +92,7 @@ export default function setupChatSocket(io) {
         
         console.log(`📥 join_conversation: ${socket.uid} → ${conversationId}`);
         
-        // ✅ Verify membership
+        // Verify membership
         const isMember = await ConversationMember.isActiveMember(
           conversationId,
           socket.userId
@@ -92,9 +108,8 @@ export default function setupChatSocket(io) {
         }
         
         socket.join(conversationId);
-        console.log(`✅ User ${socket.uid} manually joined conversation ${conversationId}`);
+        console.log(`✅ User ${socket.uid} joined conversation ${conversationId}`);
         
-        // Emit success
         socket.emit('joined_conversation', { conversationId });
         
       } catch (error) {
@@ -107,7 +122,7 @@ export default function setupChatSocket(io) {
     });
     
     // ============================================
-    // LEAVE CONVERSATION
+    // EVENT: LEAVE CONVERSATION
     // ============================================
     socket.on('leave_conversation', (data) => {
       try {
@@ -122,7 +137,9 @@ export default function setupChatSocket(io) {
     });
     
     // ============================================
-    // TYPING INDICATOR
+    // EVENT: TYPING INDICATOR
+    // This is the ONLY real-time action in socket
+    // Messages are sent via REST API
     // ============================================
     socket.on('typing', async (data) => {
       try {
@@ -130,7 +147,7 @@ export default function setupChatSocket(io) {
         
         console.log(`⌨️  typing: ${socket.uid} in ${conversationId} - ${isTyping}`);
         
-        // ✅ ADDED: Verify membership
+        // Verify membership
         const isMember = await ConversationMember.isActiveMember(
           conversationId,
           socket.userId
@@ -138,14 +155,10 @@ export default function setupChatSocket(io) {
         
         if (!isMember) {
           console.log(`❌ User ${socket.uid} not a member, cannot emit typing`);
-          socket.emit('error', { 
-            code: 'NOT_MEMBER',
-            message: 'Not a member of this conversation' 
-          });
-          return;
+          return; // Silent fail for typing - not critical
         }
         
-        // Broadcast to other users in the conversation (not to sender)
+        // Broadcast to other users in conversation
         socket.to(conversationId).emit('user_typing', {
           conversationId,
           user: { uid: socket.uid },
@@ -156,49 +169,7 @@ export default function setupChatSocket(io) {
         
       } catch (error) {
         console.error('❌ Typing error:', error);
-        socket.emit('error', { 
-          code: 'TYPING_ERROR',
-          message: error.message 
-        });
-      }
-    });
-    
-    // ============================================
-    // MESSAGE READ RECEIPT
-    // ============================================
-    socket.on('message_read', async (data) => {
-      try {
-        const { conversationId, lastSeenMessage } = data;
-        
-        console.log(`👁️  message_read: ${socket.uid} in ${conversationId}`);
-        
-        // ✅ ADDED: Verify membership
-        const isMember = await ConversationMember.isActiveMember(
-          conversationId,
-          socket.userId
-        );
-        
-        if (!isMember) {
-          console.log(`❌ User ${socket.uid} not a member, cannot mark as read`);
-          return;
-        }
-        
-        // Broadcast read receipt to other users in conversation
-        socket.to(conversationId).emit('message_read', {
-          conversationId,
-          user: { uid: socket.uid },
-          lastSeenMessage,
-          readAt: new Date()
-        });
-        
-        console.log(`✅ Read receipt sent for ${conversationId}`);
-        
-      } catch (error) {
-        console.error('❌ Message read error:', error);
-        socket.emit('error', { 
-          code: 'READ_ERROR',
-          message: error.message 
-        });
+        // Silent fail - typing is not critical
       }
     });
     
@@ -209,7 +180,7 @@ export default function setupChatSocket(io) {
       console.log(`❌ User disconnected: ${socket.uid} (${socket.id})`);
       
       try {
-        // ✅ Broadcast offline status to friends
+        // Broadcast offline status
         await broadcastOnlineStatus(socket, io, false);
       } catch (error) {
         console.error('❌ Disconnect broadcast error:', error);
@@ -217,7 +188,7 @@ export default function setupChatSocket(io) {
     });
   });
   
-  // ✅ Return io instance so controllers can use it
+  console.log('✅ Chat socket handlers initialized');
   return io;
 }
 
@@ -232,7 +203,7 @@ async function broadcastOnlineStatus(socket, io, isOnline) {
         { user: socket.userId, status: 'accepted' },
         { friend: socket.userId, status: 'accepted' }
       ]
-    }).populate('user friend', 'uid');
+    }).populate('user friend', 'uid').lean();
     
     // Extract friend UIDs
     const friendUids = friendships.map(f => {
