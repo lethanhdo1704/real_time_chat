@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useContext, useRef } from "react";
-import { AuthContext } from "../context/AuthContext";
-import socket from "../socket";
+import { AuthContext } from "../../context/AuthContext";
+import socket from "../../socket";
 
 export const useChatSocket = ({
   activeConversationId,

@@ -6,8 +6,8 @@ import ForgotPasswordHeader from "./ForgotPasswordHeader";
 import EmailStep from "./EmailStep";
 import ResetPasswordStep from "./ResetPasswordStep";
 
-import useForgotPassword from "../../hooks/useForgotPassword";
-import useOTPInput from "../../hooks/useOTPInput";
+import useForgotPassword from "../../hooks/auth/useForgotPassword";
+import useOTPInput from "../../hooks/auth/useOTPInput";
 
 export default function ForgotPasswordForm() {
   const { t } = useTranslation("forgotPassword");

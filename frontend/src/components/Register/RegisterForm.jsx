@@ -7,7 +7,7 @@ import EmailWithOTP from "../common/EmailWithOTP";
 import OTPInput from "../common/OTPInput";
 import PasswordInput from "../common/PasswordInput";
 import SubmitButton from "../common/SubmitButton";
-import useRegister from "../../hooks/useRegister";
+import useRegister from "../../hooks/auth/useRegister";
 
 export default function RegisterForm() {
   const { t } = useTranslation("register");

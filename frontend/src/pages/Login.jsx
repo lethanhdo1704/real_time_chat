@@ -1,6 +1,6 @@
 // frontend/src/pages/Login.jsx
 import { LoginBranding, LoginForm } from "../components/Login";
-import { useLogin } from "../hooks/useLogin";
+import { useLogin } from "../hooks/auth/useLogin";
 
 export default function Login() {
   const loginProps = useLogin();

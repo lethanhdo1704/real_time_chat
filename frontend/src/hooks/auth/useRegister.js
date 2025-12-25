@@ -2,7 +2,7 @@
 import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../../context/AuthContext";
 import { useOTPTimer } from "./useOTPTimer";
 import { useOTPInput } from "./useOTPInput";
 import { useRegisterValidation } from "./useRegisterValidation";

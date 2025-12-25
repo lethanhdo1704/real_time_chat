@@ -2,7 +2,7 @@
 import { useState, useContext, useEffect } from "react"; // ← Thêm useEffect
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../../context/AuthContext";
 
 export function useForgotPassword() {
   const { t } = useTranslation("forgotPassword");

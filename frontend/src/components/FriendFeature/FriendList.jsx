@@ -1,65 +1,57 @@
 // frontend/src/components/FriendFeature/FriendList.jsx
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { getFriendsAndRequests } from "../../services/friendService";
+import { useEffect, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import ConversationItem from "../Chat/ConversationItem";
 import useChatStore from "../../store/chatStore";
+import useFriendStore from "../../store/friendStore";
 
 /**
- * FriendList Component
+ * FriendList Component - ✅ FIXED
  * 
- * Displays friends with conversation preview
- * Uses Zustand store for conversations (updated by useConversations hook)
- * Sorts by: unread > lastMessageAt > name
+ * Fixes:
+ * - Removed fetchFriends from useEffect deps (prevents re-render loop)
+ * - Added useRef to track mount state
+ * - Only fetch once on mount
  */
 export default function FriendList({ currentUser, onSelectFriend }) {
   const { t } = useTranslation("friendFeature");
-  const [friends, setFriends] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const hasFetchedRef = useRef(false); // ✅ Track if already fetched
 
   // ============================================
-  // GET CONVERSATIONS FROM STORE (FIXED SELECTOR)
+  // GET STATE FROM STORES
   // ============================================
 
-  // ✅ Get primitives separately
+  const friends = useFriendStore((state) => state.friends);
+  const loading = useFriendStore((state) => state.loading);
+  const error = useFriendStore((state) => state.error);
+  const fetchFriends = useFriendStore((state) => state.fetchFriends);
+
   const conversationsMap = useChatStore((state) => state.conversations);
   const conversationsOrder = useChatStore((state) => state.conversationsOrder);
+  const activeConversationId = useChatStore((state) => state.activeConversationId);
   
-  // ✅ Convert to array using useMemo
   const conversations = useMemo(() => {
     return conversationsOrder
       .map((id) => conversationsMap.get(id))
       .filter(Boolean);
   }, [conversationsOrder, conversationsMap]);
-  
-  const activeConversationId = useChatStore((state) => state.activeConversationId);
 
   // ============================================
-  // FETCH FRIENDS
+  // FETCH ON MOUNT - ✅ FIXED
   // ============================================
-
-  const fetchFriends = useCallback(async () => {
-    if (!currentUser?.uid) return;
-
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const data = await getFriendsAndRequests();
-      setFriends(data.friends || []);
-    } catch (err) {
-      console.error("Error fetching friends:", err);
-      setError(err.message);
-      setFriends([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentUser?.uid]);
 
   useEffect(() => {
-    fetchFriends();
-  }, [fetchFriends]);
+    // ✅ Only fetch once, even in Strict Mode
+    if (currentUser?.uid && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchFriends();
+    }
+
+    // ✅ Reset ref on unmount
+    return () => {
+      hasFetchedRef.current = false;
+    };
+  }, [currentUser?.uid]); // ✅ fetchFriends REMOVED from deps
 
   // ============================================
   // HELPER: GET CONVERSATION FOR FRIEND
@@ -68,7 +60,6 @@ export default function FriendList({ currentUser, onSelectFriend }) {
   const getConversationForFriend = useCallback((friendUid) => {
     return conversations.find((conv) => {
       if (conv.type === "private") {
-        // Check if conversation is with this friend
         return conv.friend?.uid === friendUid;
       }
       return false;
@@ -120,6 +111,15 @@ export default function FriendList({ currentUser, onSelectFriend }) {
   }, [onSelectFriend]);
 
   // ============================================
+  // MANUAL RETRY HANDLER - ✅ NEW
+  // ============================================
+
+  const handleRetry = useCallback(() => {
+    hasFetchedRef.current = false; // Reset flag
+    fetchFriends(true); // Force refresh
+  }, [fetchFriends]);
+
+  // ============================================
   // RENDER
   // ============================================
 
@@ -149,8 +149,8 @@ export default function FriendList({ currentUser, onSelectFriend }) {
         </svg>
         <p className="text-red-500 text-sm mb-2">{error}</p>
         <button
-          onClick={fetchFriends}
-          className="text-blue-500 hover:text-blue-600 text-sm font-medium"
+          onClick={handleRetry}
+          className="text-blue-500 hover:text-blue-600 text-sm font-medium transition-colors"
         >
           {t("friendList.retry") || "Try again"}
         </button>

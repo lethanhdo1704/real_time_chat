@@ -90,7 +90,7 @@ export const messageLimiter = rateLimit({
 export const messageActionLimiter = rateLimit({
   ...baseOptions,
   windowMs: 60 * 1000,
-  max: 10, // 10 edits/deletes per minute
+  max: 10,
   message: {
     success: false,
     error: {
@@ -101,12 +101,13 @@ export const messageActionLimiter = rateLimit({
   keyGenerator: userOrIpKey,
   skip: () => process.env.NODE_ENV === 'development'
 });
+
 // =========================
-// FRIEND REQUEST LIMITER
+// FRIEND REQUEST LIMITER - ✅ FIXED
 // =========================
 export const friendRequestLimiter = rateLimit({
   ...baseOptions,
-  windowMs: 60 * 60 * 1000,
+  windowMs: 60 * 60 * 1000, // 1 hour
   max: 10,
   message: {
     success: false,
@@ -115,7 +116,26 @@ export const friendRequestLimiter = rateLimit({
       message: 'Too many friend requests, please try again later'
     }
   },
-  keyGenerator: userOrIpKey
+  keyGenerator: userOrIpKey,
+  skip: () => process.env.NODE_ENV === 'development' // ✅ THÊM DÒNG NÀY!
+});
+
+// =========================
+// FRIEND API LIMITER - ✅ NEW (cho /list endpoint)
+// =========================
+export const friendApiLimiter = rateLimit({
+  ...baseOptions,
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // 30 requests/minute (đủ dùng)
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMIT_ERROR',
+      message: 'Too many requests, please slow down'
+    }
+  },
+  keyGenerator: userOrIpKey,
+  skip: () => process.env.NODE_ENV === 'development' // ✅ Skip trong dev
 });
 
 // =========================
@@ -132,7 +152,8 @@ export const searchLimiter = rateLimit({
       message: 'Too many search requests, please slow down'
     }
   },
-  keyGenerator: userOrIpKey
+  keyGenerator: userOrIpKey,
+  skip: () => process.env.NODE_ENV === 'development' // ✅ THÊM DÒNG NÀY!
 });
 
 // =========================
@@ -194,7 +215,9 @@ export default {
   authLimiter,
   otpLimiter,
   messageLimiter,
+  messageActionLimiter,
   friendRequestLimiter,
+  friendApiLimiter, // ✅ NEW export
   searchLimiter,
   uploadLimiter,
   apiLimiter,
