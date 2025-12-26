@@ -1,41 +1,39 @@
+// frontend/src/hooks/useGlobalSocket.js
 import { useEffect, useContext, useCallback } from "react";
 import { AuthContext } from "../context/AuthContext";
-import socket from "../socket";
+import { getSocket } from "../services/socketService";
 
 /**
- * ✅ FIXED: Global socket listener for sidebar updates
- * Now properly handles callback updates
+ * Global socket listener for sidebar updates
+ * Listens to message_received events for ALL conversations
+ * 
+ * @param {Function} onMessageReceived - Callback(data) với data = { conversationId, message, conversationUpdate }
  */
 export const useGlobalSocket = ({ onMessageReceived }) => {
   const { user } = useContext(AuthContext);
 
-  // ✅ Memoize the callback to prevent unnecessary re-registrations
-  const handleGlobalMessage = useCallback(({ message }) => {
+  const handleGlobalMessage = useCallback((data) => {
+    // ✅ Backend gửi: { conversationId, message, conversationUpdate }
     console.log('🌍 [Global] Message received:', {
-      conversationId: message.conversation,
-      from: message.sender?.nickname,
-      isOwnMessage: message.sender?.uid === user?.uid
+      conversationId: data.conversationId,
+      from: data.message?.sender?.nickname,
+      isOwnMessage: data.message?.sender?.uid === user?.uid,
+      unreadCount: data.conversationUpdate?.unreadCount
     });
 
     if (onMessageReceived) {
-      onMessageReceived(message.conversation, {
-        messageId: message.messageId,
-        content: message.content,
-        type: message.type,
-        sender: message.sender,
-        createdAt: message.createdAt,
-      });
+      onMessageReceived(data); // ✅ Pass toàn bộ data
     }
   }, [onMessageReceived, user?.uid]);
 
   useEffect(() => {
-    if (!user) return;
+    const socket = getSocket();
+    
+    if (!socket || !user) return;
 
-    // ✅ Register listener
+    console.log('🌍 [Global] Registering listener');
     socket.on('message_received', handleGlobalMessage);
-    console.log('🌍 [Global] Listener registered');
 
-    // ✅ Cleanup
     return () => {
       socket.off('message_received', handleGlobalMessage);
       console.log('🌍 [Global] Listener cleaned up');

@@ -1,6 +1,6 @@
 // frontend/src/hooks/chat/useMessages.js
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { useSocket } from '../../context/SocketContext';
+import { getSocket } from '../../services/socketService';
 import useChatStore from '../../store/chatStore';
 import chatApi from '../../services/chatApi';
 
@@ -9,20 +9,12 @@ import chatApi from '../../services/chatApi';
  * 
  * Manages messages for active conversation:
  * - Fetches messages with pagination
- * - Listens to real-time socket events
+ * - Listens to real-time socket events (from socketEmitter)
  * - Handles infinite scroll (load older messages)
  * - Auto-scrolls to bottom on new message
- * 
- * Socket Events Handled:
- * - message:new → Add to list
- * - message:edited → Update message
- * - message:deleted → Mark as deleted
- * 
- * @param {string} conversationId - Active conversation ID
- * @returns {Object} { messages, loading, hasMore, loadMore, scrollToBottom }
+ * - Joins/leaves conversation room for typing indicators
  */
 const useMessages = (conversationId) => {
-  const { socket, isConnected } = useSocket();
   const [currentPage, setCurrentPage] = useState(1);
   const hasFetchedRef = useRef(false);
   const messagesEndRef = useRef(null);
@@ -70,10 +62,8 @@ const useMessages = (conversationId) => {
         });
 
         if (page === 1) {
-          // Initial load
           setMessages(conversationId, data.messages, data.hasMore);
         } else {
-          // Pagination - prepend older messages
           prependMessages(conversationId, data.messages, data.hasMore);
         }
 
@@ -101,7 +91,6 @@ const useMessages = (conversationId) => {
 
   const loadMore = useCallback(() => {
     if (loading || !hasMore) return;
-
     fetchMessages(currentPage + 1);
   }, [loading, hasMore, currentPage, fetchMessages]);
 
@@ -116,38 +105,56 @@ const useMessages = (conversationId) => {
   }, []);
 
   // ============================================
-  // SOCKET EVENT HANDLERS
+  // JOIN/LEAVE CONVERSATION ROOM
   // ============================================
 
   useEffect(() => {
-    if (!isConnected || !socket || !conversationId) return;
+    const socket = getSocket();
+    
+    if (!socket || !conversationId) return;
 
-    // Join conversation room for typing indicators
-    socket.joinConversation(conversationId);
+    console.log('🔌 [Messages] Joining conversation room:', conversationId);
 
-    // Handler: New message
-    const handleNewMessage = (data) => {
+    // ✅ Join conversation room (for typing indicators)
+    socket.emit('join_conversation', { conversationId });
+
+    // Cleanup: Leave room
+    return () => {
+      console.log('🔌 [Messages] Leaving conversation room:', conversationId);
+      socket.emit('leave_conversation', { conversationId });
+    };
+  }, [conversationId]);
+
+  // ============================================
+  // SOCKET EVENT LISTENERS
+  // ============================================
+
+  useEffect(() => {
+    const socket = getSocket();
+    
+    if (!socket || !conversationId) return;
+
+    console.log('🔌 [Messages] Setting up listeners for:', conversationId);
+
+    // Handler: New message (from socketEmitter)
+    const handleMessageReceived = (data) => {
       const { conversationId: msgConvId, message } = data;
 
-      // Only handle if it's for current conversation
       if (msgConvId !== conversationId) return;
 
-      console.log('📩 New message in conversation:', message);
+      console.log('📩 [Messages] New message:', message._id);
 
-      // Add message to list
       addMessage(conversationId, message);
-
-      // Auto-scroll to bottom after short delay
       setTimeout(() => scrollToBottom(), 100);
     };
 
-    // Handler: Message edited
+    // Handler: Message edited (from socketEmitter)
     const handleMessageEdited = (data) => {
       const { conversationId: msgConvId, message } = data;
 
       if (msgConvId !== conversationId) return;
 
-      console.log('✏️ Message edited:', message);
+      console.log('✏️ [Messages] Message edited:', message._id);
 
       updateMessage(conversationId, message._id, {
         content: message.content,
@@ -155,34 +162,29 @@ const useMessages = (conversationId) => {
       });
     };
 
-    // Handler: Message deleted
+    // Handler: Message deleted (from socketEmitter)
     const handleMessageDeleted = (data) => {
       const { conversationId: msgConvId, messageId } = data;
 
       if (msgConvId !== conversationId) return;
 
-      console.log('🗑️ Message deleted:', messageId);
+      console.log('🗑️ [Messages] Message deleted:', messageId);
 
       removeMessage(conversationId, messageId);
     };
 
     // Subscribe to socket events
-    socket.on('message:new', handleNewMessage);
-    socket.on('message:edited', handleMessageEdited);
-    socket.on('message:deleted', handleMessageDeleted);
+    socket.on('message_received', handleMessageReceived);
+    socket.on('message_edited', handleMessageEdited);
+    socket.on('message_deleted', handleMessageDeleted);
 
     // Cleanup
     return () => {
-      socket.off('message:new', handleNewMessage);
-      socket.off('message:edited', handleMessageEdited);
-      socket.off('message:deleted', handleMessageDeleted);
-
-      // Leave conversation room
-      socket.leaveConversation(conversationId);
+      socket.off('message_received', handleMessageReceived);
+      socket.off('message_edited', handleMessageEdited);
+      socket.off('message_deleted', handleMessageDeleted);
     };
   }, [
-    socket,
-    isConnected,
     conversationId,
     addMessage,
     updateMessage,
@@ -195,15 +197,13 @@ const useMessages = (conversationId) => {
   // ============================================
 
   useEffect(() => {
-    // Reset state when conversation changes
     hasFetchedRef.current = false;
     setCurrentPage(1);
 
-    // Fetch messages for new conversation
-    if (conversationId && isConnected) {
+    if (conversationId) {
       fetchMessages(1);
     }
-  }, [conversationId, isConnected, fetchMessages]);
+  }, [conversationId, fetchMessages]);
 
   // ============================================
   // AUTO SCROLL ON MOUNT
@@ -211,14 +211,9 @@ const useMessages = (conversationId) => {
 
   useEffect(() => {
     if (messages.length > 0 && hasFetchedRef.current) {
-      // Scroll to bottom without animation on initial load
       scrollToBottom(false);
     }
   }, [messages.length, scrollToBottom]);
-
-  // ============================================
-  // RETURN
-  // ============================================
 
   return {
     messages,
@@ -227,7 +222,7 @@ const useMessages = (conversationId) => {
     error,
     loadMore,
     scrollToBottom,
-    messagesEndRef, // Attach to last message element
+    messagesEndRef,
   };
 };
 

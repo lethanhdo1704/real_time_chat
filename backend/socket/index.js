@@ -3,7 +3,7 @@ import { Server } from "socket.io";
 import setupChatSocket from "./chat.socket.js";
 import setupFriendSocket from "./friend.socket.js"; // ✅ Import friend socket
 import SocketEmitter from "../services/socketEmitter.service.js";
-import messageService from "../services/message.service.js";
+import messageService from "../services/message/message.service.js";
 
 export default function initSocket(server) {
   // ============================================

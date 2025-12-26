@@ -1,27 +1,34 @@
 // backend/controllers/message.controller.js
-import messageService from "../services/message.service.js";
+import messageService from "../services/message/message.service.js";
 
 class MessageController {
   /**
    * Send message
    * POST /api/messages
-   * 
+   *
    * ✅ CRITICAL: Do NOT emit socket here
    * Service already handles socket emission
    */
   async sendMessage(req, res, next) {
     try {
-      const { conversationId, content, type, replyTo, attachments } = req.body;
+      const {
+        conversationId,
+        content,
+        clientMessageId,
+        type,
+        replyTo,
+        attachments,
+      } = req.body;
 
       // Simple validation (detailed validation in middleware/service)
       if (!conversationId || !content) {
         return res.status(400).json({
           success: false,
-          message: "conversationId and content are required"
+          message: "conversationId and content are required",
         });
       }
 
-      console.log('📤 [MessageController] Sending message:', {
+      console.log("📤 [MessageController] Sending message:", {
         conversationId,
         senderId: req.user.id,
         contentLength: content.length,
@@ -40,14 +47,18 @@ class MessageController {
         attachments,
       });
 
-      console.log('✅ [MessageController] Message sent:', result.message.messageId);
+      console.log("📤 [MessageController] Sending message:", {
+        conversationId,
+        clientMessageId, // 🔥 Log clientMessageId
+        senderId: req.user.id,
+        contentLength: content.length,
+      });
 
       // ✅ Just return the result - NO socket emission here
       res.status(201).json({
         success: true,
-        data: result.message
+        data: result.message,
       });
-      
     } catch (error) {
       console.error("❌ [MessageController] sendMessage error:", error.message);
       next(error);
@@ -63,24 +74,31 @@ class MessageController {
       const { conversationId } = req.params;
       const { before, limit = 50 } = req.query;
 
-      console.log('📥 [MessageController] Getting messages:', {
+      console.log("📥 [MessageController] Getting messages:", {
         conversationId,
-        before: before || 'none',
+        before: before || "none",
         limit,
       });
 
-      const result = await messageService.getMessages(
+      const result = await messageService.sendMessage({
         conversationId,
-        req.user.id,
-        before,
-        parseInt(limit, 10)
-      );
+        senderId: req.user.id,
+        content,
+        clientMessageId, // 🔥 Pass to service
+        type,
+        replyTo,
+        attachments,
+      });
 
-      console.log('✅ [MessageController] Retrieved:', result.messages.length, 'messages');
+      console.log(
+        "✅ [MessageController] Retrieved:",
+        result.messages.length,
+        "messages"
+      );
 
       res.json({
         success: true,
-        data: result
+        data: result,
       });
     } catch (error) {
       console.error("❌ [MessageController] getMessages error:", error.message);
@@ -91,7 +109,7 @@ class MessageController {
   /**
    * Mark conversation as read
    * POST /api/messages/read
-   * 
+   *
    * ✅ Service handles socket emission
    */
   async markAsRead(req, res, next) {
@@ -101,11 +119,11 @@ class MessageController {
       if (!conversationId) {
         return res.status(400).json({
           success: false,
-          message: "conversationId is required"
+          message: "conversationId is required",
         });
       }
 
-      console.log('👁️  [MessageController] Marking as read:', {
+      console.log("👁️  [MessageController] Marking as read:", {
         conversationId,
         userId: req.user.id,
       });
@@ -116,11 +134,14 @@ class MessageController {
         req.user.id
       );
 
-      console.log('✅ [MessageController] Marked as read, unreadCount:', result.unreadCount);
+      console.log(
+        "✅ [MessageController] Marked as read, unreadCount:",
+        result.unreadCount
+      );
 
       res.json({
         success: true,
-        data: result
+        data: result,
       });
     } catch (error) {
       console.error("❌ [MessageController] markAsRead error:", error.message);
@@ -139,11 +160,15 @@ class MessageController {
       if (!Array.isArray(conversationIds) || conversationIds.length === 0) {
         return res.status(400).json({
           success: false,
-          message: "conversationIds must be a non-empty array"
+          message: "conversationIds must be a non-empty array",
         });
       }
 
-      console.log('📥 [MessageController] Getting last messages for:', conversationIds.length, 'conversations');
+      console.log(
+        "📥 [MessageController] Getting last messages for:",
+        conversationIds.length,
+        "conversations"
+      );
 
       const result = await messageService.getLastMessages(
         conversationIds,
@@ -152,10 +177,13 @@ class MessageController {
 
       res.json({
         success: true,
-        data: result
+        data: result,
       });
     } catch (error) {
-      console.error("❌ [MessageController] getLastMessages error:", error.message);
+      console.error(
+        "❌ [MessageController] getLastMessages error:",
+        error.message
+      );
       next(error);
     }
   }
@@ -163,7 +191,7 @@ class MessageController {
   /**
    * Edit message
    * PUT /api/messages/:messageId
-   * 
+   *
    * ✅ Service handles socket emission
    */
   async editMessage(req, res, next) {
@@ -174,11 +202,11 @@ class MessageController {
       if (!content) {
         return res.status(400).json({
           success: false,
-          message: "content is required"
+          message: "content is required",
         });
       }
 
-      console.log('✏️  [MessageController] Editing message:', messageId);
+      console.log("✏️  [MessageController] Editing message:", messageId);
 
       // 🔥 Service handles socket emission
       const result = await messageService.editMessage(
@@ -187,14 +215,17 @@ class MessageController {
         content
       );
 
-      console.log('✅ [MessageController] Message edited');
+      console.log("✅ [MessageController] Message sent:", {
+        messageId: result.message.messageId,
+        clientMessageId: result.message.clientMessageId, // 🔥 Log confirmation
+      });
 
-      res.json({
+      res.status(201).json({
         success: true,
-        data: result.message
+        data: result.message,
       });
     } catch (error) {
-      console.error("❌ [MessageController] editMessage error:", error.message);
+      console.error("❌ [MessageController] sendMessage error:", error.message);
       next(error);
     }
   }
@@ -202,29 +233,29 @@ class MessageController {
   /**
    * Delete message (soft delete)
    * DELETE /api/messages/:messageId
-   * 
+   *
    * ✅ Service handles socket emission
    */
   async deleteMessage(req, res, next) {
     try {
       const { messageId } = req.params;
 
-      console.log('🗑️  [MessageController] Deleting message:', messageId);
+      console.log("🗑️  [MessageController] Deleting message:", messageId);
 
       // 🔥 Service handles socket emission
-      const result = await messageService.deleteMessage(
-        messageId,
-        req.user.id
-      );
+      const result = await messageService.deleteMessage(messageId, req.user.id);
 
-      console.log('✅ [MessageController] Message deleted');
+      console.log("✅ [MessageController] Message deleted");
 
       res.json({
         success: true,
-        message: 'Message deleted successfully'
+        message: "Message deleted successfully",
       });
     } catch (error) {
-      console.error("❌ [MessageController] deleteMessage error:", error.message);
+      console.error(
+        "❌ [MessageController] deleteMessage error:",
+        error.message
+      );
       next(error);
     }
   }

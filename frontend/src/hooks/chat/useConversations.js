@@ -1,6 +1,6 @@
 // frontend/src/hooks/chat/useConversations.js
 import { useEffect, useCallback, useRef } from 'react';
-import { useSocket } from '../../context/SocketContext';
+import { getSocket } from '../../services/socketService';
 import useChatStore from '../../store/chatStore';
 import chatApi from '../../services/chatApi';
 
@@ -9,28 +9,23 @@ import chatApi from '../../services/chatApi';
  * 
  * Manages conversations list (sidebar):
  * - Fetches conversations on mount
- * - Listens to real-time socket events
+ * - Listens to real-time socket events from socketEmitter service
  * - Updates store automatically
  * - Sorts by lastMessageAt
  * 
- * Socket Events Handled:
- * - message:new → Update lastMessage + unreadCount
- * - message:read → Reset unreadCount
- * - message:deleted → Update lastMessage if needed
- * - conversation:joined → Add new conversation
- * - conversation:left → Remove conversation
- * 
- * @returns {Object} { conversations, loading, error, refetch }
+ * Socket Events (from socketEmitter service, NOT socket handlers):
+ * - message_received → Update lastMessage + unreadCount
+ * - message_read → Reset unreadCount
+ * - message_deleted → Update lastMessage if needed
+ * - conversation_updated → General conversation updates
  */
 const useConversations = () => {
-  const { socket, isConnected } = useSocket();
   const hasFetchedRef = useRef(false);
 
   // Get state from store
   const conversations = useChatStore((state) => {
     const conversationsMap = state.conversations;
     const order = state.conversationsOrder;
-    // Return as array in correct order
     return order.map((id) => conversationsMap.get(id)).filter(Boolean);
   });
 
@@ -71,13 +66,20 @@ const useConversations = () => {
   // ============================================
 
   useEffect(() => {
-    if (!isConnected || !socket) return;
+    const socket = getSocket();
+    
+    if (!socket) {
+      console.log('⏳ Socket not ready for conversations');
+      return;
+    }
 
-    // Handler: New message received
-    const handleNewMessage = (data) => {
+    console.log('🔌 Setting up conversation socket listeners');
+
+    // Handler: New message received (from socketEmitter)
+    const handleMessageReceived = (data) => {
       const { conversationId, message, conversationUpdate } = data;
 
-      console.log('📩 New message received:', { conversationId, message });
+      console.log('📩 [Conversations] Message received:', { conversationId });
 
       // Update conversation lastMessage
       updateConversation(conversationId, {
@@ -91,11 +93,11 @@ const useConversations = () => {
       }
     };
 
-    // Handler: Message marked as read
+    // Handler: Message marked as read (from socketEmitter)
     const handleMessageRead = (data) => {
       const { conversationId, conversationUpdate } = data;
 
-      console.log('👁️ Message read:', { conversationId });
+      console.log('👁️ [Conversations] Message read:', { conversationId });
 
       // Update unread count
       if (conversationUpdate?.unreadCount !== undefined) {
@@ -103,11 +105,11 @@ const useConversations = () => {
       }
     };
 
-    // Handler: Message deleted
+    // Handler: Message deleted (from socketEmitter)
     const handleMessageDeleted = (data) => {
       const { conversationId, conversationUpdate } = data;
 
-      console.log('🗑️ Message deleted:', { conversationId });
+      console.log('🗑️ [Conversations] Message deleted:', { conversationId });
 
       // Update lastMessage if backend provides it
       if (conversationUpdate?.lastMessage) {
@@ -118,42 +120,30 @@ const useConversations = () => {
       }
     };
 
-    // Handler: Joined new conversation
-    const handleConversationJoined = (data) => {
-      const { conversation } = data;
+    // Handler: Conversation updated (general updates)
+    const handleConversationUpdated = (data) => {
+      const { conversationId, updates } = data;
 
-      console.log('➕ Joined conversation:', conversation);
+      console.log('🔄 [Conversations] Conversation updated:', conversationId);
 
-      addConversation(conversation);
+      updateConversation(conversationId, updates);
     };
 
-    // Handler: Left conversation
-    const handleConversationLeft = (data) => {
-      const { conversationId } = data;
-
-      console.log('➖ Left conversation:', conversationId);
-
-      removeConversation(conversationId);
-    };
-
-    // Subscribe to socket events
-    socket.on('message:new', handleNewMessage);
-    socket.on('message:read', handleMessageRead);
-    socket.on('message:deleted', handleMessageDeleted);
-    socket.on('conversation:joined', handleConversationJoined);
-    socket.on('conversation:left', handleConversationLeft);
+    // Subscribe to socket events (these are emitted by socketEmitter service)
+    socket.on('message_received', handleMessageReceived);
+    socket.on('message_read', handleMessageRead);
+    socket.on('message_deleted', handleMessageDeleted);
+    socket.on('conversation_updated', handleConversationUpdated);
 
     // Cleanup
     return () => {
-      socket.off('message:new', handleNewMessage);
-      socket.off('message:read', handleMessageRead);
-      socket.off('message:deleted', handleMessageDeleted);
-      socket.off('conversation:joined', handleConversationJoined);
-      socket.off('conversation:left', handleConversationLeft);
+      console.log('🔌 Cleaning up conversation listeners');
+      socket.off('message_received', handleMessageReceived);
+      socket.off('message_read', handleMessageRead);
+      socket.off('message_deleted', handleMessageDeleted);
+      socket.off('conversation_updated', handleConversationUpdated);
     };
   }, [
-    socket,
-    isConnected,
     updateConversation,
     updateUnreadCount,
     addConversation,
@@ -165,15 +155,10 @@ const useConversations = () => {
   // ============================================
 
   useEffect(() => {
-    // Fetch conversations once when socket connects
-    if (isConnected && !hasFetchedRef.current) {
+    if (!hasFetchedRef.current) {
       fetchConversations();
     }
-  }, [isConnected, fetchConversations]);
-
-  // ============================================
-  // RETURN
-  // ============================================
+  }, [fetchConversations]);
 
   return {
     conversations,

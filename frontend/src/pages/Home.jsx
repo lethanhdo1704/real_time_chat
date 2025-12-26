@@ -8,9 +8,9 @@ import { useFriendRequestCount } from "../hooks/useFriendRequestCount";
 import { useHomeChat } from "../hooks/useHomeChat";
 import { useCopyToast } from "../hooks/useCopyToast";
 import { useGlobalSocket } from "../hooks/useGlobalSocket";
-import  conversationService  from "../services/api";
-import { connectSocket } from "../socket";
-import useInitFriends from '../hooks/useInitFriends'; // ✅ NEW
+import conversationService from "../services/api";
+// ❌ REMOVED: import { connectSocket } from "../socket";
+import useInitFriends from '../hooks/useInitFriends';
 
 export default function Home() {
   const { t } = useTranslation("home");
@@ -28,7 +28,7 @@ export default function Home() {
     loading: loadingConversations,
     selectedConversation,
     handleSelectConversation,
-    updateConversationFromSocket, // ✅ Use this for socket updates
+    updateConversationFromSocket,
     markConversationAsRead,
     reloadConversations,
     addConversation,
@@ -36,7 +36,7 @@ export default function Home() {
 
   const activeTab = location.pathname.split('/')[1] || 'friends';
 
-  // ✅ FIXED: Stable callback, no reload
+  // ✅ CHUẨN: Stable callback
   const handleGlobalMessage = useCallback((data) => {
     console.log('🏠 [Home] Global message received:', {
       conversationId: data.conversationId,
@@ -44,21 +44,18 @@ export default function Home() {
       unreadCount: data.conversationUpdate?.unreadCount
     });
 
-    // ✅ Update conversation with backend-calculated data
     updateConversationFromSocket(
       data.conversationId,
       data.conversationUpdate
     );
-    
-    // ❌ REMOVED: setTimeout reloadConversations
   }, [updateConversationFromSocket]);
 
-  // ✅ Register socket listener ONCE with stable callback
+  // ✅ CHUẨN: Hook tự động đăng ký/gỡ listener
   useGlobalSocket({
     onMessageReceived: handleGlobalMessage
   });
 
-  // ✅ Auto-select conversation from URL
+  // ✅ CHUẨN: Auto-select conversation from URL
   useEffect(() => {
     if (!conversationId) {
       if (selectedConversation) {
@@ -81,14 +78,14 @@ export default function Home() {
     }
   }, [conversationId, conversations, selectedConversation, handleSelectConversation]);
 
-  // ✅ Connect socket on mount
-  useEffect(() => {
-    if (user && token) {
-      connectSocket();
-    }
-  }, [user, token]);
+  // ❌ REMOVED - Socket connection được quản lý bởi SocketContext
+  // useEffect(() => {
+  //   if (user && token) {
+  //     connectSocket();
+  //   }
+  // }, [user, token]);
 
-  // ✅ Redirect if not authenticated
+  // ✅ CHUẨN: Redirect nếu chưa đăng nhập
   useEffect(() => {
     if (!loading && !user) {
       navigate("/login");
@@ -151,7 +148,7 @@ export default function Home() {
         }}
         handleCopyUID={triggerToast}
         updateRequestCount={setRequestCount}
-        conversations={conversations} // ✅ Direct use, no enrichment
+        conversations={conversations}
         selectedConversation={selectedConversation}
         onSelectConversation={handleSelectConversationWithRoute}
         onSelectFriend={handleSelectFriend}

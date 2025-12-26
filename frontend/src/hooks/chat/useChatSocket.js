@@ -1,7 +1,19 @@
-import { useEffect, useCallback, useContext, useRef } from "react";
+// frontend/src/hooks/chat/useChatSocket.js
+import { useEffect, useCallback, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
-import socket from "../../socket";
+import { getSocket } from "../../services/socketService";
 
+/**
+ * Chat socket hook - Manages chat-specific socket events
+ * 
+ * @param {Object} params
+ * @param {string} params.activeConversationId - Current conversation ID
+ * @param {Function} params.onMessageReceived - Callback for new messages
+ * @param {Function} params.onMessageEdited - Callback for edited messages
+ * @param {Function} params.onMessageDeleted - Callback for deleted messages
+ * @param {Function} params.onTyping - Callback for typing indicators
+ * @param {Function} params.onMessageRead - Callback for read receipts
+ */
 export const useChatSocket = ({
   activeConversationId,
   onMessageReceived,
@@ -11,45 +23,37 @@ export const useChatSocket = ({
   onMessageRead,
 }) => {
   const { user } = useContext(AuthContext);
-  
-  // ✅ Use refs to avoid re-registering listeners
-  const callbacksRef = useRef({
-    onMessageReceived,
-    onMessageEdited,
-    onMessageDeleted,
-    onTyping,
-    onMessageRead,
-  });
 
-  // ✅ Update refs when callbacks change (no re-register)
-  useEffect(() => {
-    callbacksRef.current = {
-      onMessageReceived,
-      onMessageEdited,
-      onMessageDeleted,
-      onTyping,
-      onMessageRead,
-    };
-  }, [onMessageReceived, onMessageEdited, onMessageDeleted, onTyping, onMessageRead]);
+  // ============================================
+  // EMIT FUNCTIONS
+  // ============================================
 
-  // ✅ Stable emit functions
   const emitTyping = useCallback((conversationId, isTyping) => {
-    if (!conversationId) return;
+    const socket = getSocket();
+    if (!socket || !conversationId) return;
+    
     socket.emit("typing", { conversationId, isTyping });
   }, []);
 
   const emitMessageRead = useCallback((conversationId, lastSeenMessage) => {
-    if (!conversationId) return;
+    const socket = getSocket();
+    if (!socket || !conversationId) return;
+    
     socket.emit("message_read", { conversationId, lastSeenMessage });
   }, []);
 
-  // ✅ Register listeners ONCE per conversation
+  // ============================================
+  // SOCKET LISTENERS
+  // ============================================
+
   useEffect(() => {
-    if (!activeConversationId) return;
+    const socket = getSocket();
+    
+    if (!socket || !activeConversationId) return;
 
-    console.log("💬 [Chat] Registering listeners for:", activeConversationId);
+    console.log("💬 [Chat] Setting up listeners for:", activeConversationId);
 
-    // ✅ Stable handlers using refs
+    // ✅ Stable handlers
     const handleMessageReceived = ({ message }) => {
       if (message.conversation !== activeConversationId) return;
       
@@ -58,39 +62,39 @@ export const useChatSocket = ({
         isOwn: message.sender?.uid === user?.uid
       });
 
-      callbacksRef.current.onMessageReceived?.(message);
+      onMessageReceived?.(message);
     };
 
     const handleMessageEdited = ({ message }) => {
       if (message.conversation !== activeConversationId) return;
-      callbacksRef.current.onMessageEdited?.(message);
+      onMessageEdited?.(message);
     };
 
     const handleMessageDeleted = ({ messageId, conversationId }) => {
       if (conversationId !== activeConversationId) return;
-      callbacksRef.current.onMessageDeleted?.(messageId);
+      onMessageDeleted?.(messageId);
     };
 
     const handleUserTyping = ({ conversationId, user: typingUser, isTyping }) => {
       if (conversationId === activeConversationId) {
-        callbacksRef.current.onTyping?.(typingUser, isTyping);
+        onTyping?.(typingUser, isTyping);
       }
     };
 
     const handleMessageRead = ({ conversationId, user: readByUser, lastSeenMessage }) => {
       if (conversationId === activeConversationId) {
-        callbacksRef.current.onMessageRead?.(readByUser, lastSeenMessage);
+        onMessageRead?.(readByUser, lastSeenMessage);
       }
     };
 
-    // Register
+    // Register listeners
     socket.on("message_received", handleMessageReceived);
     socket.on("message_edited", handleMessageEdited);
     socket.on("message_deleted", handleMessageDeleted);
     socket.on("user_typing", handleUserTyping);
     socket.on("message_read", handleMessageRead);
 
-    // Join room
+    // Join conversation room
     socket.emit("join_conversation", { conversationId: activeConversationId });
 
     // Cleanup
@@ -104,7 +108,15 @@ export const useChatSocket = ({
       socket.emit("leave_conversation", { conversationId: activeConversationId });
       console.log("💬 [Chat] Cleaned up for:", activeConversationId);
     };
-  }, [activeConversationId, user]); // ✅ Only re-run when conversation changes
+  }, [
+    activeConversationId,
+    user,
+    onMessageReceived,
+    onMessageEdited,
+    onMessageDeleted,
+    onTyping,
+    onMessageRead
+  ]);
 
   return {
     emitTyping,
