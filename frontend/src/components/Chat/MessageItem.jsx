@@ -5,16 +5,6 @@ import { useTranslation } from "react-i18next";
 import { isBigEmoji } from "../../utils/emoji";
 import { renderMessage } from "../../utils/renderMessage";
 
-/**
- * MessageItem Component
- * 
- * Individual message bubble with:
- * - Big emoji support (4x size for 1-3 emojis)
- * - Read status for private chats
- * - Sender info for group chats
- * - Hover actions (future: edit/delete/reply)
- * - Optimistic UI support (pending state)
- */
 export default function MessageItem({
   message,
   isMe,
@@ -133,7 +123,7 @@ export default function MessageItem({
         {/* Sender Avatar & Name (Group Chat) */}
         {senderInfo && (
           <div className="flex items-center gap-2 mb-1 px-1">
-            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-[10px] font-semibold overflow-hidden shrink-0">
+            <div className="w-6 h-6 rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-[10px] font-semibold overflow-hidden shrink-0">
               {senderInfo.avatar ? (
                 <img
                   src={senderInfo.avatar}
@@ -187,7 +177,7 @@ export default function MessageItem({
               className={
                 isBig
                   ? "text-4xl leading-none"
-                  : "text-[15px] leading-[1.4] whitespace-pre-wrap break-words"
+                  : "text-[15px] leading-[1.4] whitespace-pre-wrap wrap-break-word"
               }
             >
               {renderMessage(messageText)}

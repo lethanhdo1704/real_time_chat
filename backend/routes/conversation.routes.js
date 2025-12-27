@@ -10,6 +10,17 @@ const router = express.Router();
 router.use(auth);
 
 // ===========================
+// 🔥 NEW: CHECK CONVERSATION
+// ===========================
+
+// Check if conversation exists with a friend
+// GET /api/conversations/check/:friendId
+// 
+// ⚠️ IMPORTANT: This route MUST be BEFORE /:conversationId
+// Otherwise Express will match "check" as conversationId
+router.get('/check/:friendId', conversationController.checkConversation);
+
+// ===========================
 // CREATE CONVERSATIONS
 // ===========================
 
@@ -31,10 +42,23 @@ router.get('/', conversationController.getUserConversations);
 
 // Get conversation detail
 // GET /api/conversations/:conversationId
+// ⚠️ This route must be AFTER /check/:friendId
 router.get(
   '/:conversationId',
   checkMembership,
   conversationController.getConversationDetail
+);
+
+// ===========================
+// MARK AS READ
+// ===========================
+
+// Mark conversation as read
+// POST /api/conversations/:conversationId/read
+router.post(
+  '/:conversationId/read',
+  checkMembership,
+  conversationController.markAsRead
 );
 
 // ===========================

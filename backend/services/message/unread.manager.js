@@ -63,7 +63,8 @@ export async function resetUnreadCount(conversationId, userId, lastMessageId, se
 }
 
 /**
- * Get all members with their unread counts
+ * 🔥 CRITICAL FIX: Get all members with their unread counts
+ * Returns Map with PUBLIC UID as keys, NOT MongoDB _id
  */
 export async function getMembersWithUnreadCounts(conversationId, session = null) {
   const query = {
@@ -71,17 +72,35 @@ export async function getMembersWithUnreadCounts(conversationId, session = null)
     leftAt: null,
   };
 
+  // 🔥 FIX: Populate user to get public UID
   const members = session
-    ? await ConversationMember.find(query).session(session).lean()
-    : await ConversationMember.find(query).lean();
+    ? await ConversationMember.find(query)
+        .populate('user', 'uid') // ⭐ Get public UID
+        .session(session)
+        .lean()
+    : await ConversationMember.find(query)
+        .populate('user', 'uid') // ⭐ Get public UID
+        .lean();
 
   const memberUpdates = {};
+  
   members.forEach((member) => {
-    memberUpdates[member.user.toString()] = {
+    // 🔥 CRITICAL: Use public UID, NOT MongoDB _id
+    const userUid = member.user?.uid;
+    
+    if (!userUid) {
+      console.error('❌ [unread.manager] Member missing user.uid:', member);
+      return;
+    }
+    
+    memberUpdates[userUid] = {
       unreadCount: member.unreadCount,
       lastSeenMessage: member.lastSeenMessage,
     };
   });
+
+  console.log(`✅ [unread.manager] Member updates for ${Object.keys(memberUpdates).length} users:`, 
+    Object.keys(memberUpdates));
 
   return memberUpdates;
 }

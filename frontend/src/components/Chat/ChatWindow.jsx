@@ -1,5 +1,5 @@
 // frontend/src/components/Chat/ChatWindow.jsx
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import useChatStore from "../../store/chatStore";
 import useMessages from "../../hooks/chat/useMessages";
@@ -13,31 +13,28 @@ import ChatEmptyState from "./ChatEmptyState";
 
 /**
  * ChatWindow Component
- * 
- * ✅ SUPPORTS LAZY CONVERSATION:
- * - Can render even without conversationId
- * - Shows "Start conversation" state
- * - Creates conversation on first message
- * 
- * Main chat interface:
- * - Message display with infinite scroll
- * - Send messages with optimistic UI
- * - Typing indicators
- * - Mark as read
- * - Real-time updates via socket
+ *
+ * ✅ FIXED:
+ * - Tin nhắn mới tự động scroll xuống
+ * - Tin nhắn được sắp xếp đúng theo thời gian
+ * - Fix logic hiển thị empty state cho conversation có sẵn
+ * - Use activeFriend as fallback when conversation.friend is missing
  */
 export default function ChatWindow() {
   const { t } = useTranslation("chat");
-  const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const prevScrollHeightRef = useRef(0);
+  const isUserScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef(null);
 
   // ============================================
   // GET STATE FROM STORE
   // ============================================
 
-  const activeConversationId = useChatStore((state) => state.activeConversationId);
-  const activeFriend = useChatStore((state) => state.activeFriend); // 🔥 For lazy conversation
+  const activeConversationId = useChatStore(
+    (state) => state.activeConversationId
+  );
+  const activeFriend = useChatStore((state) => state.activeFriend);
   const conversations = useChatStore((state) => state.conversations);
   const currentUser = useChatStore((state) => state.currentUser);
 
@@ -49,59 +46,115 @@ export default function ChatWindow() {
   // HOOKS
   // ============================================
 
-  // 🔥 Messages (handles null conversationId)
   const {
-    messages,
-    loading,
-    hasMore,
-    error,
-    loadMore,
-    scrollToBottom: scrollToBottomHook,
-    messagesEndRef: hookMessagesEndRef,
-    hasMessages,
-  } = useMessages(activeConversationId);
+  messages: rawMessages,
+  loading,
+  hasMore,
+  error,
+  loadMore,
+  messagesEndRef: hookMessagesEndRef,
+} = useMessages(activeConversationId);
 
-  // 🔥 Send message (supports lazy conversation)
+
   const { sendMessage, retryMessage, sending } = useSendMessage();
-
-  // 🔥 Typing indicator (handles null conversationId)
-  const { isTyping, typingUsers, startTyping, stopTyping } = useTyping(activeConversationId);
-
-  // 🔥 Mark as read (handles null conversationId)
+  const { isTyping, typingUsers, startTyping, stopTyping } =
+    useTyping(activeConversationId);
   useMarkAsRead(activeConversationId);
 
   // ============================================
-  // AUTO SCROLL TO BOTTOM
+  // 🔥 SORT MESSAGES BY TIMESTAMP
+  // ============================================
+  const messages = useMemo(() => {
+    if (!rawMessages || rawMessages.length === 0) return [];
+
+    return [...rawMessages].sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.timestamp).getTime();
+      const timeB = new Date(b.createdAt || b.timestamp).getTime();
+      return timeA - timeB; // Oldest first
+    });
+  }, [rawMessages]);
+
+  // ============================================
+  // 🔥 IMPROVED SCROLL TO BOTTOM
   // ============================================
 
   const scrollToBottom = (behavior = "smooth") => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Clear any pending scroll timeout
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    scrollTimeoutRef.current = setTimeout(
+      () => {
+        container.scrollTop = container.scrollHeight;
+      },
+      behavior === "smooth" ? 100 : 0
+    );
   };
 
-  // Scroll to bottom when new messages arrive
+  // Track if user is manually scrolling
   useEffect(() => {
-    if (hasMessages && !loading) {
-      const container = messagesContainerRef.current;
-      if (container) {
-        const { scrollTop, scrollHeight, clientHeight } = container;
-        const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
+    const container = messagesContainerRef.current;
+    if (!container) return;
 
-        if (isNearBottom) {
-          setTimeout(() => scrollToBottom(), 100);
+    let scrollTimeout;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+
+      isUserScrollingRef.current = !isAtBottom;
+
+      // Clear previous timeout
+      clearTimeout(scrollTimeout);
+
+      // Reset user scrolling flag after 150ms of no scrolling
+      scrollTimeout = setTimeout(() => {
+        if (isAtBottom) {
+          isUserScrollingRef.current = false;
         }
-      }
-    }
-  }, [messages.length, loading, hasMessages]);
+      }, 150);
+    };
 
-  // Initial scroll to bottom when conversation changes
-  useEffect(() => {
-    if (activeConversationId && hasMessages) {
-      setTimeout(() => scrollToBottom("auto"), 200);
-    }
-  }, [activeConversationId, hasMessages]);
+    container.addEventListener("scroll", handleScroll);
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, []);
 
   // ============================================
-  // INFINITE SCROLL
+  // 🔥 AUTO SCROLL ON NEW MESSAGES
+  // ============================================
+
+  useEffect(() => {
+    if (!messages.length || loading) return;
+
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Only auto-scroll if user is not manually scrolling
+    if (!isUserScrollingRef.current) {
+      scrollToBottom("smooth");
+    }
+  }, [messages.length, loading]);
+
+  // ============================================
+  // INITIAL SCROLL ON CONVERSATION CHANGE
+  // ============================================
+
+  useEffect(() => {
+    if (activeConversationId && messages.length) {
+      isUserScrollingRef.current = false;
+      scrollToBottom("auto");
+    }
+  }, [activeConversationId, messages.length]);
+
+  // ============================================
+  // INFINITE SCROLL (LOAD MORE)
   // ============================================
 
   useEffect(() => {
@@ -117,7 +170,7 @@ export default function ChatWindow() {
 
         await loadMore();
 
-        // Restore scroll position
+        // Restore scroll position after loading
         setTimeout(() => {
           const newScrollHeight = container.scrollHeight;
           const scrollDiff = newScrollHeight - prevScrollHeightRef.current;
@@ -138,10 +191,9 @@ export default function ChatWindow() {
     if (!text.trim()) return;
 
     try {
-      // 🔥 Send with conversationId OR recipientId
       const result = await sendMessage(
-        activeConversationId, // null if no conversation yet
-        activeFriend?.uid, // recipientId for lazy creation
+        activeConversationId,
+        activeFriend?.uid,
         {
           content: text.trim(),
           type: "text",
@@ -150,16 +202,16 @@ export default function ChatWindow() {
 
       if (result) {
         console.log("✅ Message sent successfully");
-        setTimeout(() => scrollToBottom(), 100);
+        // Force scroll after sending
+        isUserScrollingRef.current = false;
+        scrollToBottom("smooth");
       }
     } catch (error) {
       console.error("❌ Failed to send message:", error);
-      // Error already handled in useSendMessage
     }
   };
 
   const handleTypingChange = (typing) => {
-    // 🔥 Only emit typing if conversation exists
     if (!activeConversationId) return;
 
     if (typing) {
@@ -185,22 +237,25 @@ export default function ChatWindow() {
   };
 
   // ============================================
-  // GET DISPLAY INFO
+  // 🔥 GET DISPLAY INFO - WITH FALLBACK TO activeFriend
   // ============================================
 
   const getDisplayInfo = () => {
-    // 🔥 If no conversation, use activeFriend
-    if (!conversation && activeFriend) {
+    // Trường hợp 1: Click vào friend mới (chưa có conversation)
+    if ((!conversation || conversation._placeholder) && activeFriend) {
       return {
-        name: activeFriend.nickname || activeFriend.fullName || activeFriend.uid,
+        name:
+          activeFriend.nickname || activeFriend.fullName || activeFriend.uid,
         avatar: activeFriend.avatar,
         type: "private",
         isNewConversation: true,
       };
     }
 
+    // Trường hợp 2: Không có gì cả
     if (!conversation) return null;
 
+    // Trường hợp 3: Group chat (có conversation)
     if (conversation.type === "group") {
       return {
         name: conversation.name || "Group Chat",
@@ -210,10 +265,13 @@ export default function ChatWindow() {
       };
     }
 
-    // Private chat
+    // Trường hợp 4: Private chat (có conversation)
+    // 🔥 FIX: Use activeFriend as fallback if conversation.friend is missing
+    const friendInfo = conversation.friend || activeFriend;
+
     return {
-      name: conversation.friend?.nickname || conversation.friend?.fullName || "Unknown",
-      avatar: conversation.friend?.avatar,
+      name: friendInfo?.nickname || friendInfo?.fullName || "Unknown",
+      avatar: friendInfo?.avatar,
       type: "private",
       isNewConversation: false,
     };
@@ -226,13 +284,11 @@ export default function ChatWindow() {
   // RENDER STATES
   // ============================================
 
-  // No conversation AND no friend selected
   if (!displayInfo) {
     return <ChatEmptyState />;
   }
 
-  // Loading initial messages (only if conversation exists)
-  if (loading && activeConversationId) {
+  if (loading && activeConversationId && !messages.length) {
     return (
       <div className="flex flex-col h-full w-full bg-gradient-to-br from-gray-50 to-blue-50">
         <ChatHeader
@@ -244,7 +300,9 @@ export default function ChatWindow() {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-gray-500 text-sm">{t("loading.messages") || "Loading messages..."}</p>
+            <p className="text-gray-500 text-sm">
+              {t("loading.messages") || "Loading messages..."}
+            </p>
           </div>
         </div>
       </div>
@@ -271,7 +329,7 @@ export default function ChatWindow() {
         className="flex-1 overflow-y-auto px-4 py-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
       >
         {/* Loading More Indicator */}
-        {loading && hasMore && hasMessages && (
+        {loading && hasMore && messages.length && (
           <div className="flex justify-center py-3 mb-2">
             <div className="flex items-center gap-2 text-sm text-gray-500 bg-white px-4 py-2 rounded-full shadow-sm">
               <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -280,60 +338,61 @@ export default function ChatWindow() {
           </div>
         )}
 
-        {/* Empty State: New Conversation */}
-        {!hasMessages && displayInfo.isNewConversation && (
+        {/* 🔥 Empty State: ONLY for truly new conversations (no conversation object exists) */}
+        {messages.length === 0 && displayInfo.isNewConversation && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              {/* Avatar */}
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-2xl font-semibold mx-auto mb-4 overflow-hidden">
                 {displayInfo.avatar ? (
-                  <img src={displayInfo.avatar} alt={displayInfo.name} className="w-full h-full object-cover" />
+                  <img
+                    src={displayInfo.avatar}
+                    alt={displayInfo.name}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   displayInfo.name[0]?.toUpperCase() || "?"
                 )}
               </div>
 
-              <h3 className="text-lg font-semibold text-gray-800 mb-1">{displayInfo.name}</h3>
-              <p className="text-gray-500 text-sm mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-1">
+                {displayInfo.name}
+              </h3>
+              <p className="text-gray-500 text-sm">
                 {t("empty.newConversation") || "Start your conversation"}
               </p>
-
-              {/* Suggested Messages */}
-              <div className="flex flex-col gap-2 max-w-xs mx-auto">
-                <button
-                  onClick={() => handleSendMessage("Hi! 👋")}
-                  className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  disabled={sending}
-                >
-                  👋 Say Hi
-                </button>
-                <button
-                  onClick={() => handleSendMessage("How are you?")}
-                  className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  disabled={sending}
-                >
-                  💬 Ask how they are
-                </button>
-              </div>
             </div>
           </div>
         )}
 
-        {/* Empty State: Existing Conversation */}
-        {!hasMessages && !displayInfo.isNewConversation && (
+        {/* 🔥 Empty State: For existing conversations with no messages yet */}
+        {messages.length === 0 && !displayInfo.isNewConversation && !loading && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <svg className="w-16 h-16 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              <svg
+                className="w-16 h-16 mx-auto text-gray-300 mb-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
               </svg>
-              <p className="text-gray-500 text-sm font-medium">{t("empty.title") || "No messages yet"}</p>
-              <p className="text-gray-400 text-xs mt-1">{t("empty.subtitle") || "Start the conversation!"}</p>
+              <p className="text-gray-500 text-sm font-medium">
+                {t("empty.title") || "No messages yet"}
+              </p>
+              <p className="text-gray-400 text-xs mt-1">
+                {t("empty.subtitle") || "Start the conversation!"}
+              </p>
             </div>
           </div>
         )}
 
         {/* Message List */}
-        {hasMessages && (
+        {messages.length > 0 && (
           <MessageList
             messages={messages}
             activeUser={currentUser}
@@ -348,23 +407,34 @@ export default function ChatWindow() {
           <div className="flex items-start gap-2 mt-2 animate-fadeIn">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-semibold overflow-hidden shrink-0">
               {typingUser.avatar ? (
-                <img src={typingUser.avatar} alt={typingUser.nickname} className="w-full h-full object-cover" />
+                <img
+                  src={typingUser.avatar}
+                  alt={typingUser.nickname}
+                  className="w-full h-full object-cover"
+                />
               ) : (
-                (typingUser.nickname || typingUser.fullName)?.[0]?.toUpperCase() || "?"
+                (typingUser.nickname ||
+                  typingUser.fullName)?.[0]?.toUpperCase() || "?"
               )}
             </div>
             <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-100">
               <div className="flex gap-1">
                 <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></span>
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></span>
+                <span
+                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.1s" }}
+                ></span>
+                <span
+                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.2s" }}
+                ></span>
               </div>
             </div>
           </div>
         )}
 
         {/* Scroll Anchor */}
-        <div ref={messagesEndRef} />
+        <div ref={hookMessagesEndRef} />
       </div>
 
       {/* Chat Input */}

@@ -1,11 +1,18 @@
 // backend/controllers/message.controller.js
 import messageService from "../services/message/message.service.js";
+import conversationService from "../services/conversation.service.js";
+import Conversation from "../models/Conversation.js";
+import ConversationMember from "../models/ConversationMember.js";
 
 class MessageController {
   /**
    * Send message
    * POST /api/messages
    *
+   * ✅ SUPPORTS LAZY CONVERSATION:
+   * - If conversationId provided → send to existing conversation
+   * - If conversationId is null BUT recipientId provided → create conversation first
+   * 
    * ✅ CRITICAL: Do NOT emit socket here
    * Service already handles socket emission
    */
@@ -13,6 +20,7 @@ class MessageController {
     try {
       const {
         conversationId,
+        recipientId, // 🔥 For lazy conversation creation
         content,
         clientMessageId,
         type,
@@ -20,44 +28,126 @@ class MessageController {
         attachments,
       } = req.body;
 
-      // Simple validation (detailed validation in middleware/service)
-      if (!conversationId || !content) {
+      // ============================================
+      // VALIDATION
+      // ============================================
+
+      if (!content) {
         return res.status(400).json({
           success: false,
-          message: "conversationId and content are required",
+          message: "content is required",
         });
       }
 
+      if (!conversationId && !recipientId) {
+        return res.status(400).json({
+          success: false,
+          message: "Either conversationId or recipientId is required",
+        });
+      }
+
+      // ============================================
+      // 🔥 LAZY CONVERSATION CREATION
+      // ============================================
+
+      let finalConversationId = conversationId;
+      let newConversation = null;
+
+      // If no conversationId, create conversation with recipientId
+      if (!conversationId && recipientId) {
+        console.log("🆕 [MessageController] Creating conversation with:", recipientId);
+
+        try {
+          // ✅ FIX: Use req.user.uid (not req.user.id)
+          // Service expects uid string, not ObjectId
+          const conversationData = await conversationService.createPrivate(
+            req.user.uid,  // ✅ FIXED: uid string
+            recipientId    // uid string
+          );
+
+          finalConversationId = conversationData.conversationId;
+
+          console.log("✅ [MessageController] Conversation created:", finalConversationId);
+
+          // Fetch conversation with members
+          newConversation = await Conversation.findById(finalConversationId).lean();
+
+          if (!newConversation) {
+            throw new Error("Failed to fetch created conversation");
+          }
+
+          // Get conversation members with user info
+          const members = await ConversationMember.find({
+            conversation: finalConversationId,
+            leftAt: null,
+          })
+            .populate("user", "uid nickname avatar fullName status")
+            .lean();
+
+          // Add members to conversation object
+          newConversation.participants = members.map((m) => ({
+            user: m.user,
+            role: m.role,
+            joinedAt: m.joinedAt,
+            unreadCount: m.unreadCount || 0,
+          }));
+
+          console.log("✅ [MessageController] Fetched conversation:", {
+            id: newConversation._id,
+            type: newConversation.type,
+            participantsCount: newConversation.participants?.length,
+          });
+
+        } catch (convError) {
+          console.error("❌ [MessageController] Failed to create conversation:", convError.message);
+          return res.status(500).json({
+            success: false,
+            message: `Failed to create conversation: ${convError.message}`,
+          });
+        }
+      }
+
+      // ============================================
+      // SEND MESSAGE
+      // ============================================
+
       console.log("📤 [MessageController] Sending message:", {
-        conversationId,
-        senderId: req.user.id,
+        conversationId: finalConversationId,
+        clientMessageId,
+        senderId: req.user.id,  // ✅ Keep using id (ObjectId) for message sender
         contentLength: content.length,
       });
 
-      // 🔥 Service handles EVERYTHING:
+      // Service handles EVERYTHING:
       // - Create message
+      // - Format response (returns messageId, not _id)
       // - Update unreadCount
       // - Emit socket events
       const result = await messageService.sendMessage({
-        conversationId,
-        senderId: req.user.id,
+        conversationId: finalConversationId,
+        senderId: req.user.id,  // ✅ Keep using id for message operations
         content,
+        clientMessageId,
         type,
         replyTo,
         attachments,
       });
 
-      console.log("📤 [MessageController] Sending message:", {
-        conversationId,
-        clientMessageId, // 🔥 Log clientMessageId
-        senderId: req.user.id,
-        contentLength: content.length,
+      console.log("✅ [MessageController] Message sent:", {
+        messageId: result.message.messageId,
+        clientMessageId: result.message.clientMessageId,
       });
 
-      // ✅ Just return the result - NO socket emission here
+      // ============================================
+      // RESPONSE
+      // ============================================
+
       res.status(201).json({
         success: true,
-        data: result.message,
+        data: {
+          message: result.message,
+          conversation: newConversation,
+        },
       });
     } catch (error) {
       console.error("❌ [MessageController] sendMessage error:", error.message);
@@ -80,15 +170,14 @@ class MessageController {
         limit,
       });
 
-      const result = await messageService.sendMessage({
+      const result = await messageService.getMessages(
         conversationId,
-        senderId: req.user.id,
-        content,
-        clientMessageId, // 🔥 Pass to service
-        type,
-        replyTo,
-        attachments,
-      });
+        req.user.id,  // ✅ Keep using id for message queries
+        {
+          before,
+          limit: parseInt(limit),
+        }
+      );
 
       console.log(
         "✅ [MessageController] Retrieved:",
@@ -109,8 +198,6 @@ class MessageController {
   /**
    * Mark conversation as read
    * POST /api/messages/read
-   *
-   * ✅ Service handles socket emission
    */
   async markAsRead(req, res, next) {
     try {
@@ -128,10 +215,9 @@ class MessageController {
         userId: req.user.id,
       });
 
-      // 🔥 Service handles socket emission
       const result = await messageService.markAsRead(
         conversationId,
-        req.user.id
+        req.user.id  // ✅ Keep using id
       );
 
       console.log(
@@ -172,7 +258,7 @@ class MessageController {
 
       const result = await messageService.getLastMessages(
         conversationIds,
-        req.user.id
+        req.user.id  // ✅ Keep using id
       );
 
       res.json({
@@ -191,8 +277,6 @@ class MessageController {
   /**
    * Edit message
    * PUT /api/messages/:messageId
-   *
-   * ✅ Service handles socket emission
    */
   async editMessage(req, res, next) {
     try {
@@ -208,24 +292,20 @@ class MessageController {
 
       console.log("✏️  [MessageController] Editing message:", messageId);
 
-      // 🔥 Service handles socket emission
       const result = await messageService.editMessage(
         messageId,
-        req.user.id,
+        req.user.id,  // ✅ Keep using id
         content
       );
 
-      console.log("✅ [MessageController] Message sent:", {
-        messageId: result.message.messageId,
-        clientMessageId: result.message.clientMessageId, // 🔥 Log confirmation
-      });
+      console.log("✅ [MessageController] Message edited");
 
-      res.status(201).json({
+      res.json({
         success: true,
         data: result.message,
       });
     } catch (error) {
-      console.error("❌ [MessageController] sendMessage error:", error.message);
+      console.error("❌ [MessageController] editMessage error:", error.message);
       next(error);
     }
   }
@@ -233,8 +313,6 @@ class MessageController {
   /**
    * Delete message (soft delete)
    * DELETE /api/messages/:messageId
-   *
-   * ✅ Service handles socket emission
    */
   async deleteMessage(req, res, next) {
     try {
@@ -242,8 +320,10 @@ class MessageController {
 
       console.log("🗑️  [MessageController] Deleting message:", messageId);
 
-      // 🔥 Service handles socket emission
-      const result = await messageService.deleteMessage(messageId, req.user.id);
+      const result = await messageService.deleteMessage(
+        messageId, 
+        req.user.id  // ✅ Keep using id
+      );
 
       console.log("✅ [MessageController] Message deleted");
 

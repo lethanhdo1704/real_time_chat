@@ -1,9 +1,8 @@
 // backend/socket/index.js
 import { Server } from "socket.io";
 import setupChatSocket from "./chat.socket.js";
-import setupFriendSocket from "./friend.socket.js"; // ✅ Import friend socket
-import SocketEmitter from "../services/socketEmitter.service.js";
-import messageService from "../services/message/message.service.js";
+import setupFriendSocket from "./friend.socket.js";
+import socketEmitter from "../services/socketEmitter.service.js";
 
 export default function initSocket(server) {
   // ============================================
@@ -15,7 +14,6 @@ export default function initSocket(server) {
       methods: ["GET", "POST"],
       credentials: true
     },
-    // Optional: Enable ping/pong for connection health
     pingInterval: 25000,
     pingTimeout: 60000,
   });
@@ -23,28 +21,22 @@ export default function initSocket(server) {
   console.log('🔌 Socket.IO server created');
 
   // ============================================
-  // 2️⃣ SETUP SOCKET HANDLERS
+  // 2️⃣ INJECT IO INTO SOCKET EMITTER (SINGLETON)
+  // ============================================
+  socketEmitter.setIO(io);
+  console.log('✅ [SocketEmitter] IO instance injected');
+
+  // ============================================
+  // 3️⃣ SETUP SOCKET HANDLERS
   // ============================================
   setupChatSocket(io);
   console.log('💬 Chat socket handlers initialized');
 
-  setupFriendSocket(io); // ✅ Initialize friend socket handlers
+  setupFriendSocket(io);
   console.log('👥 Friend socket handlers initialized');
 
   // ============================================
-  // 3️⃣ CREATE SOCKET EMITTER SERVICE
-  // ============================================
-  const socketEmitter = new SocketEmitter(io);
-  console.log('📡 SocketEmitter service created');
-
-  // ============================================
-  // 4️⃣ INJECT SOCKET EMITTER INTO MESSAGE SERVICE
-  // ============================================
-  messageService.setSocketEmitter(socketEmitter);
-  console.log('✅ SocketEmitter injected into messageService');
-
-  // ============================================
-  // 5️⃣ RETURN BOTH FOR SERVER.JS
+  // 4️⃣ RETURN FOR SERVER.JS
   // ============================================
   return { io, socketEmitter };
 }

@@ -1,6 +1,8 @@
+// frontend/src/context/AuthContext.jsx
 import { createContext, useState, useEffect } from "react";
 import api from "../services/api";
-import useFriendStore from '@/store/friendStore';
+import useChatStore from '../store/chatStore';
+import useFriendStore from '../store/friendStore';
 
 export const AuthContext = createContext();
 
@@ -33,6 +35,10 @@ export const AuthProvider = ({ children }) => {
         sessionStorage.removeItem("token");
         setToken(null);
         setUser(null);
+        
+        // 🔥 Clear stores on auth error
+        useChatStore.getState().resetStore();
+        useFriendStore.getState().reset();
       } finally {
         setLoading(false);
       }
@@ -47,6 +53,12 @@ export const AuthProvider = ({ children }) => {
 
   // LOGIN
   const login = async (email, password, rememberMe = false) => {
+    // 🔥 Clear old data before login (important for switching accounts)
+    console.log('🧹 [Auth] Clearing stores before login...');
+    useChatStore.getState().resetStore();
+    useFriendStore.getState().reset();
+    localStorage.removeItem('friend-storage');
+    
     const res = await api.post("/auth/login", { email, password });
 
     if (rememberMe) {
@@ -59,18 +71,34 @@ export const AuthProvider = ({ children }) => {
 
     setToken(res.data.token);
     setUser(res.data.user);
+    
+    console.log('✅ [Auth] Login successful:', res.data.user.uid);
 
     return res.data;
   };
 
   // LOGOUT
   const logout = () => {
+    console.log('🚪 [Auth] Logging out...');
+    
+    // 1. Clear tokens
     localStorage.removeItem("token");
     sessionStorage.removeItem("token");
+    
+    // 2. Clear auth state
     setToken(null);
     setUser(null);
+    
+    // 3. 🔥 Clear chat store
+    useChatStore.getState().resetStore();
+    
+    // 4. 🔥 Clear friend store
     useFriendStore.getState().reset();
-    localStorage.removeItem('friend-store');
+    
+    // 5. 🔥 Clear persisted storage
+    localStorage.removeItem('friend-storage');
+    
+    console.log('✅ [Auth] Logout complete - All stores cleared');
   };
 
   // =========================
@@ -83,6 +111,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async ({ email, otp, nickname, password }) => {
+    // 🔥 Clear stores before register (edge case)
+    useChatStore.getState().resetStore();
+    useFriendStore.getState().reset();
+    
     const res = await api.post("/otp/register/verify", {
       email,
       otp,
@@ -94,6 +126,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("token", res.data.token);
       setToken(res.data.token);
       setUser(res.data.user);
+      console.log('✅ [Auth] Registration successful:', res.data.user.uid);
     }
 
     return res.data;

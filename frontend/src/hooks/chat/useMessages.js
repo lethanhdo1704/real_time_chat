@@ -7,35 +7,47 @@ import chatApi from '../../services/chatApi';
 /**
  * useMessages Hook
  * 
- * Manages messages for active conversation:
- * - Fetches messages with pagination
- * - Listens to real-time socket events (from socketEmitter)
- * - Handles infinite scroll (load older messages)
- * - Auto-scrolls to bottom on new message
- * - Joins/leaves conversation room for typing indicators
+ * ✅ FIXED: Correct event data structure
+ * ✅ FIXED: Ignore own messages to prevent double add
+ * Backend emits: { message: {...}, conversationUpdate: {...} }
  */
+
+// ✅ Shared empty array reference (prevent new [] on every render)
+const EMPTY_ARRAY = [];
+
 const useMessages = (conversationId) => {
   const [currentPage, setCurrentPage] = useState(1);
   const hasFetchedRef = useRef(false);
   const messagesEndRef = useRef(null);
 
-  // Get state from store
+  // ============================================
+  // ✅ STABLE SELECTORS
+  // ============================================
+
   const messages = useChatStore((state) => {
-    return state.messages.get(conversationId) || [];
+    if (!conversationId) return EMPTY_ARRAY;
+    return state.messages.get(conversationId) || EMPTY_ARRAY;
   });
 
   const loading = useChatStore((state) => {
+    if (!conversationId) return false;
     return state.loadingMessages.get(conversationId) || false;
   });
 
   const hasMore = useChatStore((state) => {
+    if (!conversationId) return true;
     return state.hasMoreMessages.get(conversationId) ?? true;
   });
 
   const error = useChatStore((state) => {
+    if (!conversationId) return null;
     return state.messagesError.get(conversationId);
   });
 
+  // Get current user (for checking own messages)
+  const currentUser = useChatStore((state) => state.currentUser);
+
+  // Get actions (these are stable)
   const setMessages = useChatStore((state) => state.setMessages);
   const prependMessages = useChatStore((state) => state.prependMessages);
   const addMessage = useChatStore((state) => state.addMessage);
@@ -43,6 +55,8 @@ const useMessages = (conversationId) => {
   const removeMessage = useChatStore((state) => state.removeMessage);
   const setMessagesLoading = useChatStore((state) => state.setMessagesLoading);
   const setMessagesError = useChatStore((state) => state.setMessagesError);
+
+  const hasMessages = messages.length > 0;
 
   // ============================================
   // FETCH MESSAGES
@@ -56,7 +70,9 @@ const useMessages = (conversationId) => {
         setMessagesLoading(conversationId, true);
         setMessagesError(conversationId, null);
 
-        const data = await chatApi.fetchMessages(conversationId, {
+        console.log(`📥 [useMessages] Fetching page ${page} for:`, conversationId);
+
+        const data = await chatApi.getMessages(conversationId, {
           page,
           limit: 50,
         });
@@ -69,8 +85,10 @@ const useMessages = (conversationId) => {
 
         setCurrentPage(page);
         hasFetchedRef.current = true;
+        
+        console.log(`✅ [useMessages] Loaded ${data.messages.length} messages`);
       } catch (err) {
-        console.error('Failed to fetch messages:', err);
+        console.error('❌ [useMessages] Failed to fetch messages:', err);
         setMessagesError(conversationId, err.message || 'Failed to load messages');
       } finally {
         setMessagesLoading(conversationId, false);
@@ -91,6 +109,7 @@ const useMessages = (conversationId) => {
 
   const loadMore = useCallback(() => {
     if (loading || !hasMore) return;
+    console.log(`📄 [useMessages] Loading more, page:`, currentPage + 1);
     fetchMessages(currentPage + 1);
   }, [loading, hasMore, currentPage, fetchMessages]);
 
@@ -113,14 +132,12 @@ const useMessages = (conversationId) => {
     
     if (!socket || !conversationId) return;
 
-    console.log('🔌 [Messages] Joining conversation room:', conversationId);
+    console.log('🔌 [useMessages] Joining conversation room:', conversationId);
 
-    // ✅ Join conversation room (for typing indicators)
     socket.emit('join_conversation', { conversationId });
 
-    // Cleanup: Leave room
     return () => {
-      console.log('🔌 [Messages] Leaving conversation room:', conversationId);
+      console.log('🔌 [useMessages] Leaving conversation room:', conversationId);
       socket.emit('leave_conversation', { conversationId });
     };
   }, [conversationId]);
@@ -134,58 +151,86 @@ const useMessages = (conversationId) => {
     
     if (!socket || !conversationId) return;
 
-    console.log('🔌 [Messages] Setting up listeners for:', conversationId);
+    console.log('🔌 [useMessages] Setting up listeners for:', conversationId);
 
-    // Handler: New message (from socketEmitter)
+    // 🔥 FIX: Correct data structure + Ignore own messages
     const handleMessageReceived = (data) => {
-      const { conversationId: msgConvId, message } = data;
+      console.log('🔥 [DEBUG] message_received event:', data);
 
-      if (msgConvId !== conversationId) return;
+      // Backend emits: { message: {...}, conversationUpdate: {...} }
+      const { message, conversationUpdate } = data;
 
-      console.log('📩 [Messages] New message:', message._id);
+      if (!message) {
+        console.error('❌ [useMessages] No message in event data');
+        return;
+      }
+
+      // Check if message is for this conversation
+      if (message.conversation !== conversationId) {
+        console.log('⚠️ [useMessages] Message for different conversation');
+        return;
+      }
+
+      // 🔥 FIX: Ignore messages from current user (already added when sending)
+      if (currentUser && message.sender?.uid === currentUser.uid) {
+        console.log('⚠️ [useMessages] Ignoring own message (already added):', message.messageId);
+        return;
+      }
+
+      console.log('✅ [useMessages] New message received:', {
+        messageId: message.messageId,
+        from: message.sender?.nickname,
+        content: message.content
+      });
 
       addMessage(conversationId, message);
       setTimeout(() => scrollToBottom(), 100);
     };
 
-    // Handler: Message edited (from socketEmitter)
+    // 🔥 FIX: Correct data structure
     const handleMessageEdited = (data) => {
-      const { conversationId: msgConvId, message } = data;
+      console.log('🔥 [DEBUG] message_edited event:', data);
 
-      if (msgConvId !== conversationId) return;
+      const { message, conversationId: msgConvId } = data;
 
-      console.log('✏️ [Messages] Message edited:', message._id);
+      if (!message || msgConvId !== conversationId) return;
 
-      updateMessage(conversationId, message._id, {
+      console.log('✏️ [useMessages] Message edited:', message.messageId);
+
+      updateMessage(conversationId, message.messageId, {
         content: message.content,
         editedAt: message.editedAt,
       });
     };
 
-    // Handler: Message deleted (from socketEmitter)
+    // 🔥 FIX: Correct data structure
     const handleMessageDeleted = (data) => {
-      const { conversationId: msgConvId, messageId } = data;
+      console.log('🔥 [DEBUG] message_deleted event:', data);
+
+      const { messageId, conversationId: msgConvId } = data;
 
       if (msgConvId !== conversationId) return;
 
-      console.log('🗑️ [Messages] Message deleted:', messageId);
+      console.log('🗑️ [useMessages] Message deleted:', messageId);
 
       removeMessage(conversationId, messageId);
     };
 
-    // Subscribe to socket events
     socket.on('message_received', handleMessageReceived);
     socket.on('message_edited', handleMessageEdited);
     socket.on('message_deleted', handleMessageDeleted);
 
-    // Cleanup
+    console.log('✅ [useMessages] All listeners registered');
+
     return () => {
+      console.log('🧹 [useMessages] Cleaning up listeners');
       socket.off('message_received', handleMessageReceived);
       socket.off('message_edited', handleMessageEdited);
       socket.off('message_deleted', handleMessageDeleted);
     };
   }, [
     conversationId,
+    currentUser, // 🔥 NEW: Add currentUser to dependencies
     addMessage,
     updateMessage,
     removeMessage,
@@ -193,33 +238,35 @@ const useMessages = (conversationId) => {
   ]);
 
   // ============================================
-  // INITIAL FETCH
+  // INITIAL FETCH (only when conversationId changes)
   // ============================================
 
   useEffect(() => {
-    hasFetchedRef.current = false;
-    setCurrentPage(1);
-
     if (conversationId) {
+      hasFetchedRef.current = false;
+      setCurrentPage(1);
       fetchMessages(1);
     }
-  }, [conversationId, fetchMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   // ============================================
-  // AUTO SCROLL ON MOUNT
+  // AUTO SCROLL ON MOUNT (only after initial fetch)
   // ============================================
 
   useEffect(() => {
-    if (messages.length > 0 && hasFetchedRef.current) {
-      scrollToBottom(false);
+    if (hasMessages && hasFetchedRef.current) {
+      setTimeout(() => scrollToBottom(false), 100);
     }
-  }, [messages.length, scrollToBottom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   return {
     messages,
     loading,
     hasMore,
     error,
+    hasMessages,
     loadMore,
     scrollToBottom,
     messagesEndRef,

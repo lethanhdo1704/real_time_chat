@@ -5,15 +5,16 @@ import ConversationItem from "../Chat/ConversationItem";
 import useChatStore from "../../store/chatStore";
 import useFriendStore from "../../store/friendStore";
 import useFriendActions from "../../hooks/useFriendActions";
+import { checkConversation } from "../../services/chatApi";
 
 /**
- * FriendList Component - ✅ UPDATED TO MATCH NEW STRUCTURE
+ * FriendList Component - ✅ UPDATED WITH CHECK CONVERSATION API
  * 
- * Changes:
- * - Dùng useFriendActions hook
- * - Removed fetchFriends from store (không tồn tại trong friendStore.js mới)
- * - Dùng loadFriendsData từ useFriendActions
- * - Socket tự động sync qua useFriendSocket
+ * New Flow:
+ * 1. User clicks friend
+ * 2. Call BE API to check if conversation exists
+ * 3. If exists → Navigate to /friends/:conversationId
+ * 4. If not exists → Lazy mode (call onSelectFriend)
  */
 export default function FriendList({ currentUser, onSelectFriend }) {
   const { t } = useTranslation("friendFeature");
@@ -36,7 +37,7 @@ export default function FriendList({ currentUser, onSelectFriend }) {
   }, [conversationsOrder, conversationsMap]);
 
   // ============================================
-  // GET ACTIONS FROM HOOK - ✅ NEW
+  // GET ACTIONS FROM HOOK
   // ============================================
   
   const {
@@ -44,15 +45,6 @@ export default function FriendList({ currentUser, onSelectFriend }) {
     error,
     loadFriendsData
   } = useFriendActions();
-
-  // ============================================
-  // NO FETCH ON MOUNT - ✅ UPDATED
-  // Data is loaded centrally by useInitFriends in App/Home
-  // This component just reads from store
-  // ============================================
-  
-  // REMOVED: useEffect that calls loadFriendsData()
-  // Reason: Central loading prevents 429 rate limit errors
 
   // ============================================
   // HELPER: GET CONVERSATION FOR FRIEND
@@ -97,22 +89,67 @@ export default function FriendList({ currentUser, onSelectFriend }) {
   }, [friends, getConversationForFriend]);
 
   // ============================================
-  // HANDLE FRIEND SELECTION
+  // 🔥 NEW: HANDLE FRIEND SELECTION WITH API CHECK
   // ============================================
 
-  const handleSelectFriend = useCallback((friend) => {
-    if (onSelectFriend) {
-      onSelectFriend({
-        uid: friend.uid,
-        _id: friend._id,
-        nickname: friend.nickname,
-        avatar: friend.avatar,
-      });
+  const handleSelectFriend = useCallback(async (friend) => {
+    try {
+      console.log('🔍 [FriendList] Checking conversation with friend:', friend.uid);
+
+      // 🔥 STEP 1: Call backend to check if conversation exists
+      const result = await checkConversation(friend.uid);
+
+      console.log('✅ [FriendList] Check result:', result);
+
+      if (result.exists && result.conversationId) {
+        // 🔥 CASE A: Conversation exists → Navigate directly
+        console.log('📍 [FriendList] Conversation exists, navigating to:', result.conversationId);
+        
+        // Call parent handler with conversation info
+        if (onSelectFriend) {
+          onSelectFriend({
+            ...friend,
+            conversationId: result.conversationId,
+            conversationExists: true,
+          });
+        }
+      } else {
+        // 🔥 CASE B: No conversation → Lazy mode
+        console.log('💤 [FriendList] No conversation, entering lazy mode');
+        
+        // Call parent handler with friend info only
+        if (onSelectFriend) {
+          onSelectFriend({
+            uid: friend.uid,
+            _id: friend._id,
+            nickname: friend.nickname,
+            avatar: friend.avatar,
+            fullName: friend.fullName,
+            status: friend.status,
+            conversationExists: false,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ [FriendList] Failed to check conversation:', error);
+      
+      // Fallback: Use lazy mode on error
+      if (onSelectFriend) {
+        onSelectFriend({
+          uid: friend.uid,
+          _id: friend._id,
+          nickname: friend.nickname,
+          avatar: friend.avatar,
+          fullName: friend.fullName,
+          status: friend.status,
+          conversationExists: false,
+        });
+      }
     }
   }, [onSelectFriend]);
 
   // ============================================
-  // MANUAL RETRY HANDLER - ✅ UPDATED
+  // MANUAL RETRY HANDLER
   // ============================================
 
   const handleRetry = useCallback(() => {

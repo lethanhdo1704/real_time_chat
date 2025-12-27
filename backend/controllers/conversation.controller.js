@@ -3,6 +3,56 @@ import conversationService from "../services/conversation.service.js";
 
 class ConversationController {
   /**
+   * 🔥 NEW: Check if conversation exists with a friend
+   * GET /api/conversations/check/:friendId
+   * 
+   * Purpose: FE cần biết có conversation hay chưa khi user click friend
+   * - Nếu có → Navigate to /friends/:conversationId
+   * - Nếu chưa → Lazy mode (empty chat UI)
+   * 
+   * @param {string} friendId - Friend's uid (not _id)
+   * @returns {Object} { exists: boolean, conversationId: string|null }
+   */
+  async checkConversation(req, res, next) {
+    try {
+      const { friendId } = req.params;
+
+      // Validation
+      if (!friendId) {
+        return res.status(400).json({
+          success: false,
+          message: 'friendId is required'
+        });
+      }
+
+      console.log('🔍 [ConversationController] Checking conversation:', {
+        userId: req.user.uid,
+        friendId
+      });
+
+      // Call service to check
+      const result = await conversationService.checkConversation(
+        req.user.uid,
+        friendId
+      );
+
+      console.log('✅ [ConversationController] Check result:', {
+        exists: result.exists,
+        conversationId: result.conversationId
+      });
+
+      // Return result
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('❌ [ConversationController] checkConversation error:', error.message);
+      next(error);
+    }
+  }
+
+  /**
    * Create private conversation (1-1 chat)
    * POST /api/conversations/private
    */
@@ -20,7 +70,7 @@ class ConversationController {
       console.log('🔨 [ConversationController] Creating private chat with:', friendUid);
       
       const result = await conversationService.createPrivate(
-        req.user.id,
+        req.user.uid,
         friendUid
       );
 
@@ -61,7 +111,7 @@ class ConversationController {
       console.log('🔨 [ConversationController] Creating group:', name);
       
       const result = await conversationService.createGroup(
-        req.user.id,
+        req.user.uid,
         name,
         memberUids
       );
@@ -86,10 +136,10 @@ class ConversationController {
     try {
       const { limit = 20, offset = 0 } = req.query;
 
-      console.log('📥 [ConversationController] Getting conversations for user:', req.user.id);
+      console.log('📥 [ConversationController] Getting conversations for user:', req.user.uid);
       
       const conversations = await conversationService.getUserConversations(
-        req.user.id,
+        req.user.uid,
         parseInt(limit, 10),
         parseInt(offset, 10)
       );
@@ -118,7 +168,7 @@ class ConversationController {
       
       const detail = await conversationService.getConversationDetail(
         conversationId,
-        req.user.id
+        req.user.uid
       );
 
       console.log('✅ [ConversationController] Detail retrieved');
@@ -129,6 +179,30 @@ class ConversationController {
       });
     } catch (error) {
       console.error('❌ [ConversationController] getConversationDetail error:', error.message);
+      next(error);
+    }
+  }
+
+  /**
+   * Mark conversation as read
+   * POST /api/conversations/:conversationId/read
+   */
+  async markAsRead(req, res, next) {
+    try {
+      const { conversationId } = req.params;
+
+      console.log('✅ [ConversationController] Marking as read:', conversationId, 'for user:', req.user.uid);
+      
+      await conversationService.markAsRead(conversationId, req.user.uid);
+
+      console.log('✅ [ConversationController] Marked as read successfully');
+
+      res.json({
+        success: true,
+        message: 'Conversation marked as read'
+      });
+    } catch (error) {
+      console.error('❌ [ConversationController] markAsRead error:', error.message);
       next(error);
     }
   }
@@ -145,7 +219,7 @@ class ConversationController {
       
       const result = await conversationService.leaveGroup(
         conversationId,
-        req.user.id
+        req.user.uid
       );
 
       console.log('✅ [ConversationController] User left group');
@@ -180,7 +254,7 @@ class ConversationController {
       
       const result = await conversationService.addMembers(
         conversationId,
-        req.user.id,
+        req.user.uid,
         memberUids
       );
 
@@ -208,7 +282,7 @@ class ConversationController {
       
       const result = await conversationService.removeMember(
         conversationId,
-        req.user.id,
+        req.user.uid,
         memberUid
       );
 

@@ -219,7 +219,7 @@ export default function ChatInput({
             ${
               !text.trim() || disabled || sending
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
-                : "bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 hover:shadow-lg active:scale-95"
+                : "bg-linear-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 hover:shadow-lg active:scale-95"
             }
           `}
         >

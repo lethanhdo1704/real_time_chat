@@ -29,7 +29,7 @@ export default function ChatHeader({
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {/* Avatar with Status */}
           <div className="relative shrink-0">
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden ring-2 ring-gray-100">
+            <div className="w-11 h-11 rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden ring-2 ring-gray-100">
               {receiverAvatar ? (
                 <img
                   src={receiverAvatar}

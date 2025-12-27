@@ -7,35 +7,39 @@ import * as chatApi from "../services/chatApi";
 /**
  * useHomeChat Hook
  * 
- * Manages conversations for Home page
- * Uses Zustand store for state management
- * Provides methods to load, update, and select conversations
+ * 🔥 FIXED: Proper reactivity with useMemo and store subscription
+ * Now sidebar WILL update when store changes
  */
 export function useHomeChat() {
   const { token, user } = useContext(AuthContext);
 
   // ============================================
-  // GET STATE FROM ZUSTAND STORE (FIXED SELECTOR)
+  // 🔥 FIX: Subscribe to BOTH conversationsOrder AND conversations Map
   // ============================================
 
-  // ✅ Get primitives separately (Maps and arrays are stable references)
-  const conversationsMap = useChatStore((state) => state.conversations);
   const conversationsOrder = useChatStore((state) => state.conversationsOrder);
-  
-  // ✅ Convert to array using useMemo (only re-compute when order/map changes)
-  const conversations = useMemo(() => {
-    return conversationsOrder
-      .map((id) => conversationsMap.get(id))
-      .filter(Boolean);
-  }, [conversationsOrder, conversationsMap]);
-  
+  const conversationsMap = useChatStore((state) => state.conversations); // 🔥 ADD THIS
   const loading = useChatStore((state) => state.loadingConversations);
   const error = useChatStore((state) => state.conversationsError);
   const activeConversationId = useChatStore((state) => state.activeConversationId);
-  
-  // ✅ Get selected conversation using useMemo
+
+  // ============================================
+  // 🔥 FIX: Use useMemo with proper dependencies
+  // ============================================
+
+  // Convert to array with useMemo (recomputes when order or map changes)
+  const conversations = useMemo(() => {
+    console.log('🔄 [useHomeChat] Recomputing conversations array');
+    return conversationsOrder
+      .map((id) => conversationsMap.get(id))
+      .filter(Boolean);
+  }, [conversationsOrder, conversationsMap]); // 🔥 Depend on BOTH
+
+  // Get selected conversation with useMemo
   const selectedConversation = useMemo(() => {
-    return activeConversationId ? conversationsMap.get(activeConversationId) : null;
+    return activeConversationId
+      ? conversationsMap.get(activeConversationId)
+      : null;
   }, [activeConversationId, conversationsMap]);
 
   // ============================================
@@ -87,23 +91,42 @@ export function useHomeChat() {
   // ============================================
 
   /**
-   * Update conversation from socket event
-   * Backend sends full conversation update with unreadCount
+   * 🔥 FIXED: Update conversation from socket event
    */
   const updateConversationFromSocket = useCallback((conversationId, conversationUpdate) => {
     console.log('🔄 [useHomeChat] Updating from socket:', {
       conversationId,
-      unreadCount: conversationUpdate.unreadCount,
-      lastMessage: conversationUpdate.lastMessage?.content?.substring(0, 20)
+      unreadCount: conversationUpdate?.unreadCount,
+      lastMessage: conversationUpdate?.lastMessage?.content?.substring(0, 20)
     });
 
-    updateConversation(conversationId, {
-      lastMessage: conversationUpdate.lastMessage,
-      lastMessageAt: conversationUpdate.lastMessage?.createdAt,
-      unreadCount: conversationUpdate.unreadCount,
-      lastSeenMessage: conversationUpdate.lastSeenMessage,
-    });
-  }, [updateConversation]);
+    if (!conversationUpdate) {
+      console.warn('⚠️ [useHomeChat] No conversationUpdate provided');
+      return;
+    }
+
+    // 🔥 Check if conversation exists in store
+    const existingConv = useChatStore.getState().conversations.get(conversationId);
+    
+    if (existingConv) {
+      // Update existing conversation
+      updateConversation(conversationId, {
+        lastMessage: conversationUpdate.lastMessage,
+        lastMessageAt: conversationUpdate.lastMessage?.createdAt || conversationUpdate.lastMessageAt,
+        unreadCount: conversationUpdate.unreadCount,
+        lastSeenMessage: conversationUpdate.lastSeenMessage,
+      });
+      console.log('✅ [useHomeChat] Updated existing conversation');
+    } else {
+      // Add new conversation if it doesn't exist
+      console.log('🆕 [useHomeChat] Adding new conversation from socket');
+      addConversationToStore({
+        _id: conversationId,
+        conversationId,
+        ...conversationUpdate,
+      });
+    }
+  }, [updateConversation, addConversationToStore]);
 
   // ============================================
   // MARK AS READ
@@ -111,7 +134,6 @@ export function useHomeChat() {
 
   /**
    * Mark conversation as read
-   * Resets unread count and notifies backend
    */
   const markConversationAsRead = useCallback(async (conversationId) => {
     if (!conversationId) return;
@@ -126,7 +148,6 @@ export function useHomeChat() {
       await chatApi.markConversationAsRead(conversationId);
     } catch (err) {
       console.error('❌ Error marking as read:', err);
-      // Could revert optimistic update here if needed
     }
   }, [resetUnreadCount]);
 
@@ -155,7 +176,6 @@ export function useHomeChat() {
 
   /**
    * Add new conversation to store
-   * Used when creating new private conversation
    */
   const addConversation = useCallback((newConversation) => {
     console.log('➕ [useHomeChat] Adding conversation:', newConversation._id);
@@ -163,12 +183,23 @@ export function useHomeChat() {
   }, [addConversationToStore]);
 
   // ============================================
-  // LOAD ON MOUNT
+  // LOAD ON MOUNT (only once)
   // ============================================
 
   useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+    if (token && user) {
+      loadConversations();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, user]); // Only depend on token and user
+
+  // 🔥 DEBUG: Log when conversations change
+  useEffect(() => {
+    console.log('🔄 [useHomeChat] Conversations changed:', {
+      count: conversations.length,
+      ids: conversations.map(c => c.conversationId || c._id)
+    });
+  }, [conversations]);
 
   // ============================================
   // RETURN

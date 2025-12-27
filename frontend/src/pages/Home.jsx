@@ -1,3 +1,4 @@
+// frontend/src/pages/Home.jsx
 import { useContext, useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -8,10 +9,17 @@ import { useFriendRequestCount } from "../hooks/useFriendRequestCount";
 import { useHomeChat } from "../hooks/useHomeChat";
 import { useCopyToast } from "../hooks/useCopyToast";
 import { useGlobalSocket } from "../hooks/useGlobalSocket";
-import conversationService from "../services/api";
-// ❌ REMOVED: import { connectSocket } from "../socket";
-import useInitFriends from '../hooks/useInitFriends';
+import useInitFriends from "../hooks/useInitFriends";
+import useChatStore from "../store/chatStore";
+import useFriendStore from "../store/friendStore";
+import useRestoreChatFromUrl from "../hooks/chat/useRestoreChatFromUrl";
 
+/**
+ * Home Component
+ *
+ * ✅ FIXED: Use handleSelectConversation to properly set store state
+ * Best practice: Reuse existing hook instead of direct store manipulation
+ */
 export default function Home() {
   const { t } = useTranslation("home");
   const { user, logout, loading, token } = useContext(AuthContext);
@@ -19,10 +27,11 @@ export default function Home() {
   const navigate = useNavigate();
   const { conversationId } = useParams();
   const location = useLocation();
-  
-  const { count: requestCount, setCount: setRequestCount } = useFriendRequestCount(user);
+  useRestoreChatFromUrl();
+  const { count: requestCount, setCount: setRequestCount } =
+    useFriendRequestCount(user);
   const { showToast, triggerToast, hideToast } = useCopyToast(2000);
-  
+
   const {
     conversations,
     loading: loadingConversations,
@@ -34,63 +43,67 @@ export default function Home() {
     addConversation,
   } = useHomeChat();
 
-  const activeTab = location.pathname.split('/')[1] || 'friends';
+  const activeTab = location.pathname.split("/")[1] || "friends";
+  const activeConversationId = useChatStore(
+    (state) => state.activeConversationId
+  );
+  const activeFriend = useChatStore((state) => state.activeFriend);
+  const friends = useFriendStore((state) => state.friends);
 
-  // ✅ CHUẨN: Stable callback
-  const handleGlobalMessage = useCallback((data) => {
-    console.log('🏠 [Home] Global message received:', {
-      conversationId: data.conversationId,
-      from: data.message.sender?.nickname,
-      unreadCount: data.conversationUpdate?.unreadCount
-    });
+  // ============================================
+  // SET CURRENT USER IN STORE
+  // ============================================
 
-    updateConversationFromSocket(
-      data.conversationId,
-      data.conversationUpdate
-    );
-  }, [updateConversationFromSocket]);
+  useEffect(() => {
+    if (user) {
+      // Set current user in chat store
+      useChatStore.getState().setCurrentUser(user);
+      console.log("👤 [Home] Current user set:", user.uid);
+    } else {
+      // 🔥 Clear stores when no user (edge case protection)
+      console.log("🧹 [Home] No user, clearing stores...");
+      useChatStore.getState().resetStore();
+      useFriendStore.getState().reset();
+    }
+  }, [user]);
 
-  // ✅ CHUẨN: Hook tự động đăng ký/gỡ listener
+  // ============================================
+  // GLOBAL MESSAGE HANDLER
+  // ============================================
+
+  const handleGlobalMessage = useCallback(
+    (data) => {
+      console.log("🏠 [Home] Global message received:", {
+        conversationId: data.conversationId,
+        from: data.message.sender?.nickname,
+        unreadCount: data.conversationUpdate?.unreadCount,
+      });
+
+      updateConversationFromSocket(
+        data.conversationId,
+        data.conversationUpdate
+      );
+    },
+    [updateConversationFromSocket]
+  );
+
   useGlobalSocket({
-    onMessageReceived: handleGlobalMessage
+    onMessageReceived: handleGlobalMessage,
   });
 
-  // ✅ CHUẨN: Auto-select conversation from URL
-  useEffect(() => {
-    if (!conversationId) {
-      if (selectedConversation) {
-        handleSelectConversation(null);
-      }
-      return;
-    }
+  // ============================================
+  // REDIRECT IF NOT LOGGED IN
+  // ============================================
 
-    if (conversations.length === 0) return;
-
-    const currentConvId = selectedConversation?.conversationId;
-    if (currentConvId === conversationId) return;
-
-    const conversation = conversations.find(
-      c => c.conversationId === conversationId || c._id === conversationId
-    );
-    
-    if (conversation) {
-      handleSelectConversation(conversation);
-    }
-  }, [conversationId, conversations, selectedConversation, handleSelectConversation]);
-
-  // ❌ REMOVED - Socket connection được quản lý bởi SocketContext
-  // useEffect(() => {
-  //   if (user && token) {
-  //     connectSocket();
-  //   }
-  // }, [user, token]);
-
-  // ✅ CHUẨN: Redirect nếu chưa đăng nhập
   useEffect(() => {
     if (!loading && !user) {
       navigate("/login");
     }
   }, [user, loading, navigate]);
+
+  // ============================================
+  // LOADING STATE
+  // ============================================
 
   if (loading) {
     return (
@@ -105,34 +118,122 @@ export default function Home() {
 
   if (!user) return null;
 
-  const handleSelectConversationWithRoute = useCallback((conversation) => {
-    if (!conversation) return;
-    const tab = conversation.type === 'group' ? 'groups' : 'friends';
-    const convId = conversation.conversationId || conversation._id;
-    navigate(`/${tab}/${convId}`);
-  }, [navigate]);
+  // ============================================
+  // 🔥 HANDLERS - BEST PRACTICE VERSION
+  // ============================================
 
-  const handleSelectFriend = async (friendInfo) => {
-    try {
-      const friendUid = friendInfo.uid || friendInfo._id;
-      const conversation = await conversationService.createPrivateConversation(
-        friendUid,
-        token
-      );
+  /**
+   * Handle selecting existing conversation from sidebar
+   */
+  const handleSelectConversationWithRoute = useCallback(
+    (conversation) => {
+      if (!conversation) return;
 
-      addConversation(conversation);
-      navigate(`/friends/${conversation.conversationId}`);
-      
-    } catch (error) {
-      console.error("Error creating conversation:", error);
-      alert(`Error: ${error.message}`);
-    }
-  };
+      // Clear activeFriend when selecting EXISTING conversation
+      useChatStore.getState().setActiveFriend(null);
+
+      const tab = conversation.type === "group" ? "groups" : "friends";
+      const convId = conversation.conversationId || conversation._id;
+      navigate(`/${tab}/${convId}`);
+    },
+    [navigate]
+  );
+
+  /**
+   * 🔥 BEST PRACTICE: Handle friend selection using handleSelectConversation hook
+   * This ensures proper store state management and marks conversation as read
+   */
+  const handleSelectFriend = useCallback(
+    (friendInfo) => {
+      console.log("👤 [Home] Friend selected:", {
+        nickname: friendInfo.nickname || friendInfo.uid,
+        conversationExists: friendInfo.conversationExists,
+        conversationId: friendInfo.conversationId,
+      });
+
+      if (friendInfo.conversationExists && friendInfo.conversationId) {
+        // 🔥 CASE A: Conversation exists → Use handleSelectConversation
+        console.log(
+          "✅ [Home] Navigating to existing conversation:",
+          friendInfo.conversationId
+        );
+
+        // Try to find conversation in store
+        const conversation = conversations.find(
+          (c) => (c.conversationId || c._id) === friendInfo.conversationId
+        );
+
+        if (conversation) {
+          // ✅ Use existing hook (handles setActiveConversation + markAsRead)
+          console.log(
+            "📋 [Home] Found conversation in store, using handleSelectConversation"
+          );
+          handleSelectConversation(conversation);
+        } else {
+          // ✅ Create placeholder conversation object
+          console.log("🧩 [Home] Creating placeholder conversation");
+          handleSelectConversation({
+            _id: friendInfo.conversationId,
+            conversationId: friendInfo.conversationId,
+            type: "private",
+            friend: {
+              uid: friendInfo.uid,
+              _id: friendInfo._id,
+              nickname: friendInfo.nickname,
+              avatar: friendInfo.avatar,
+              fullName: friendInfo.fullName,
+              status: friendInfo.status,
+            },
+            unreadCount: 0,
+          });
+        }
+
+        // Set activeFriend as fallback for ChatWindow header
+        useChatStore.getState().setActiveFriend({
+          uid: friendInfo.uid,
+          _id: friendInfo._id,
+          nickname: friendInfo.nickname,
+          avatar: friendInfo.avatar,
+          fullName: friendInfo.fullName,
+          status: friendInfo.status,
+        });
+
+        // Navigate to conversation route
+        navigate(`/friends/${friendInfo.conversationId}`);
+      } else {
+        // 🔥 CASE B: No conversation → Lazy mode
+        console.log("💤 [Home] Entering lazy mode (no conversation yet)");
+
+        // Set activeFriend for lazy mode
+        useChatStore.getState().setActiveFriend({
+          uid: friendInfo.uid,
+          _id: friendInfo._id,
+          nickname: friendInfo.nickname,
+          avatar: friendInfo.avatar,
+          fullName: friendInfo.fullName,
+          status: friendInfo.status,
+        });
+
+        // Clear conversation ID (important for lazy mode)
+        handleSelectConversation(null);
+
+        // Stay on /friends route (no conversationId)
+        if (location.pathname !== "/friends") {
+          navigate("/friends");
+        }
+      }
+    },
+    [navigate, location, conversations, handleSelectConversation]
+  );
+
+  // ============================================
+  // RENDER
+  // ============================================
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
-      <CopyToast 
-        show={showToast} 
+      <CopyToast
+        show={showToast}
         onClose={hideToast}
         message={t("home.toast.copiedUID")}
       />
@@ -155,14 +256,7 @@ export default function Home() {
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {selectedConversation ? (
-          <ChatWindow
-            conversation={selectedConversation}
-            onMessageRead={() => markConversationAsRead(selectedConversation.conversationId)}
-          />
-        ) : (
-          <HomeEmptyChat />
-        )}
+        <ChatWindow />
       </div>
     </div>
   );

@@ -26,25 +26,20 @@ import {
   updateConversationLastMessage,
   updateConversationAfterDeletion,
 } from "./conversation.helper.js";
-import socketEmitter from "./socket.emitter.js";
+import socketEmitter from "../socketEmitter.service.js";
 
 class MessageService {
   /**
-   * Inject socket emitter (called from socket/index.js)
-   */
-  setSocketEmitter(io) {
-    socketEmitter.setIO(io);
-    console.log("✅ SocketEmitter injected into MessageService");
-  }
-
-  /**
    * 🔥 SEND MESSAGE (CORE FUNCTION)
+   * 
+   * ✅ FIXED: Remove transaction for development (standalone MongoDB)
+   * ⚠️ TODO: Add transaction back in production with replica set
    */
   async sendMessage({
     conversationId,
     senderId,
     content,
-    clientMessageId, // 🔥 NEW: From frontend
+    clientMessageId,
     type = "text",
     replyTo = null,
     attachments = [],
@@ -53,18 +48,15 @@ class MessageService {
       throw new Error("Invalid conversationId");
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-      // 1️⃣ Verify access
+      // 1️⃣ Verify access (without session)
       const { conversation, member } = await verifyConversationAccess(
         conversationId,
         senderId,
-        session
+        null // No session
       );
 
-      // 2️⃣ Create message
+      // 2️⃣ Create message (without session)
       const message = await createMessage({
         conversationId,
         senderId,
@@ -73,7 +65,7 @@ class MessageService {
         type,
         replyTo,
         attachments,
-        session,
+        session: null, // No session
       });
 
       // 3️⃣ Update conversation's lastMessage
@@ -81,16 +73,14 @@ class MessageService {
         conversationId,
         message._id,
         message.createdAt,
-        session
+        null // No session
       );
 
       // 4️⃣ Update sender's read status (unread = 0)
-      await updateSenderRead(conversationId, senderId, message._id, session);
+      await updateSenderRead(conversationId, senderId, message._id, null);
 
       // 5️⃣ Increment unread for others
-      await incrementUnreadForOthers(conversationId, senderId, session);
-
-      await session.commitTransaction();
+      await incrementUnreadForOthers(conversationId, senderId, null);
 
       // 6️⃣ Format response
       const messageResponse = formatMessageResponse(message);
@@ -107,10 +97,8 @@ class MessageService {
 
       return { message: messageResponse };
     } catch (error) {
-      await session.abortTransaction();
+      console.error("❌ [MessageService] sendMessage error:", error);
       throw error;
-    } finally {
-      session.endSession();
     }
   }
 
@@ -324,17 +312,16 @@ class MessageService {
 
   /**
    * Delete message (soft delete)
+   * 
+   * ✅ FIXED: Remove transaction for development
    */
   async deleteMessage(messageId, userId) {
     if (!isValidObjectId(messageId)) {
       throw new Error("Invalid messageId");
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-      const message = await Message.findById(messageId).session(session);
+      const message = await Message.findById(messageId);
       if (!message) {
         throw new Error("Message not found");
       }
@@ -344,13 +331,13 @@ class MessageService {
       // Soft delete
       message.deletedAt = new Date();
       message.deletedBy = userId;
-      await message.save({ session });
+      await message.save();
 
       // Update conversation's lastMessage if needed
       const prevMessage = await updateConversationAfterDeletion(
         message.conversation,
         messageId,
-        session
+        null // No session
       );
 
       let memberUpdates = {};
@@ -360,9 +347,7 @@ class MessageService {
         const members = await ConversationMember.find({
           conversation: message.conversation,
           leftAt: null,
-        })
-          .session(session)
-          .lean();
+        }).lean();
 
         members.forEach((member) => {
           memberUpdates[member.user.toString()] = {
@@ -378,8 +363,6 @@ class MessageService {
         });
       }
 
-      await session.commitTransaction();
-
       // Emit socket event
       socketEmitter.emitMessageDeleted(
         message.conversation.toString(),
@@ -393,10 +376,8 @@ class MessageService {
         conversationId: message.conversation.toString(),
       };
     } catch (error) {
-      await session.abortTransaction();
+      console.error("❌ [MessageService] deleteMessage error:", error);
       throw error;
-    } finally {
-      session.endSession();
     }
   }
 }

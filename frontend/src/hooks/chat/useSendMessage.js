@@ -1,6 +1,7 @@
 // frontend/src/hooks/chat/useSendMessage.js
 import { useState, useCallback } from 'react';
 import { useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import useChatStore from '../../store/chatStore';
 import chatApi from '../../services/chatApi';
@@ -8,40 +9,25 @@ import chatApi from '../../services/chatApi';
 /**
  * useSendMessage Hook
  * 
- * ✅ SUPPORTS LAZY CONVERSATION CREATION:
- * - Can send message even if conversationId is null
- * - Backend creates conversation on first message
- * - Updates local state with new conversationId
- * 
- * ✅ OPTIMISTIC UI WITH clientMessageId:
- * - Generates stable clientMessageId (not tempId)
- * - Backend confirms with same clientMessageId
- * - Prevents duplicates on retry
- * 
- * @returns {Object} { sendMessage, retryMessage, sending, error }
+ * ✅ FINAL FIX (v2):
+ * - SET activeConversation IMMEDIATELY after creating new conversation
+ * - SET activeFriend to null to exit lazy mode
+ * - THEN navigate (UI will already be in correct state)
  */
 const useSendMessage = () => {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
 
   const addOptimisticMessage = useChatStore((state) => state.addOptimisticMessage);
   const confirmOptimisticMessage = useChatStore((state) => state.confirmOptimisticMessage);
   const removeOptimisticMessage = useChatStore((state) => state.removeOptimisticMessage);
-  const setCurrentConversation = useChatStore((state) => state.setCurrentConversation);
+  const addConversation = useChatStore((state) => state.addConversation);
+  const setActiveConversation = useChatStore((state) => state.setActiveConversation);
+  const setActiveFriend = useChatStore((state) => state.setActiveFriend);
+  const ensureConversationMessages = useChatStore((state) => state.ensureConversationMessages);
 
-  /**
-   * Send a message
-   * 
-   * @param {string|null} conversationId - Conversation ID (null for first message)
-   * @param {string} recipientId - Recipient UID (required if conversationId is null)
-   * @param {Object} messageData - Message data
-   * @param {string} messageData.content - Message content
-   * @param {string} [messageData.type='text'] - Message type
-   * @param {string} [messageData.replyTo] - Message ID being replied to
-   * @param {Array} [messageData.attachments] - Array of attachments
-   * @returns {Promise<Object>} { message, conversation } or null
-   */
   const sendMessage = useCallback(
     async (conversationId, recipientId, { content, type = 'text', replyTo, attachments }) => {
       // Validation
@@ -60,16 +46,14 @@ const useSendMessage = () => {
         return null;
       }
 
-      // 🔥 Generate STABLE clientMessageId (includes user.uid)
+      // Generate STABLE clientMessageId
       const clientMessageId = `${user.uid}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      // Use conversationId or 'pending' for optimistic message
       const tempConversationId = conversationId || 'pending';
 
       // Create optimistic message
       const optimisticMessage = {
-        messageId: clientMessageId, // 🔥 Use clientMessageId as temporary messageId
-        clientMessageId, // 🔥 Store for backend confirmation
+        messageId: clientMessageId,
+        clientMessageId,
         conversation: tempConversationId,
         sender: {
           uid: user.uid,
@@ -98,12 +82,12 @@ const useSendMessage = () => {
           clientMessageId,
         });
 
-        // 🔥 Call API with clientMessageId
+        // Call API with clientMessageId
         const response = await chatApi.sendMessage({
-          conversationId, // null or actual ID
-          recipientId, // required if conversationId is null
+          conversationId,
+          recipientId,
           content: content.trim(),
-          clientMessageId, // 🔥 Send clientMessageId to backend
+          clientMessageId,
           type,
           replyTo,
           attachments,
@@ -117,25 +101,42 @@ const useSendMessage = () => {
           conversationCreated: !!newConversation,
         });
 
-        // If conversation was just created, update store
+        // 🔥 FIX: If conversation was just created
         if (newConversation && !conversationId) {
           console.log('🆕 New conversation created:', newConversation._id);
-          setCurrentConversation(newConversation);
-
-          // 🔥 Move message from 'pending' to actual conversationId
+          
           const actualConversationId = newConversation._id;
           
-          // Remove from 'pending'
+          // 1️⃣ Add conversation to store
+          addConversation(newConversation);
+          
+          // 2️⃣ Ensure messages array exists
+          ensureConversationMessages(actualConversationId);
+          
+          // 3️⃣ Move message from 'pending' to actual conversationId
           removeOptimisticMessage(clientMessageId, 'pending');
           
-          // Confirm in actual conversation
+          // 4️⃣ Confirm in actual conversation
           confirmOptimisticMessage(actualConversationId, clientMessageId, {
             ...realMessage,
             conversation: actualConversationId,
             _status: 'sent',
           });
+          
+          // 🔥 5️⃣ SET STORE STATE BEFORE NAVIGATE
+          console.log('🎯 Setting active conversation:', actualConversationId);
+          setActiveConversation(actualConversationId);
+          setActiveFriend(null); // Clear lazy mode
+          
+          // 6️⃣ Navigate (UI already in correct state)
+          setTimeout(() => {
+            const tab = newConversation.type === 'group' ? 'groups' : 'friends';
+            navigate(`/${tab}/${actualConversationId}`, { replace: true });
+            console.log('🔄 Navigated to new conversation:', actualConversationId);
+          }, 50);
+          
         } else {
-          // 🔥 Confirm optimistic message by clientMessageId
+          // Existing conversation - just confirm
           confirmOptimisticMessage(tempConversationId, clientMessageId, {
             ...realMessage,
             _status: 'sent',
@@ -150,7 +151,7 @@ const useSendMessage = () => {
       } catch (err) {
         console.error('❌ Failed to send message:', err);
 
-        // Mark as failed (keep in UI with retry option)
+        // Mark as failed
         confirmOptimisticMessage(tempConversationId, clientMessageId, {
           ...optimisticMessage,
           _status: 'failed',
@@ -168,20 +169,17 @@ const useSendMessage = () => {
     },
     [
       user,
+      navigate,
       addOptimisticMessage,
       confirmOptimisticMessage,
       removeOptimisticMessage,
-      setCurrentConversation,
+      addConversation,
+      setActiveConversation,
+      setActiveFriend,
+      ensureConversationMessages,
     ]
   );
 
-  /**
-   * Retry failed message
-   * 🔥 Removes failed message and resends with NEW clientMessageId
-   * 
-   * @param {string} failedClientMessageId - Failed message's clientMessageId
-   * @param {Object} messageData - Original message data
-   */
   const retryMessage = useCallback(
     async (failedClientMessageId, messageData) => {
       const { conversationId, recipientId, content, type, replyTo, attachments } = messageData;
@@ -192,7 +190,7 @@ const useSendMessage = () => {
       const convId = conversationId || 'pending';
       removeOptimisticMessage(failedClientMessageId, convId);
 
-      // Resend (will generate NEW clientMessageId)
+      // Resend
       return sendMessage(conversationId, recipientId, {
         content,
         type,

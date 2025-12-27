@@ -15,13 +15,13 @@ export function sanitizeContent(content) {
 
 /**
  * Create message with sanitization
- * ✅ Now supports clientMessageId for optimistic UI
+ * ✅ FIXED: Proper message creation without session
  */
 export async function createMessage({
   conversationId,
   senderId,
   content,
-  clientMessageId, // 🔥 NEW: From frontend
+  clientMessageId,
   type = "text",
   replyTo = null,
   attachments = [],
@@ -29,7 +29,7 @@ export async function createMessage({
 }) {
   const sanitizedContent = sanitizeContent(content);
 
-  // 🔥 Check if clientMessageId already exists (prevent duplicates)
+  // Check if clientMessageId already exists (prevent duplicates)
   if (clientMessageId) {
     const existing = await Message.findByClientId(clientMessageId);
     if (existing) {
@@ -42,22 +42,35 @@ export async function createMessage({
     conversation: conversationId,
     sender: senderId,
     content: sanitizedContent,
-    clientMessageId, // 🔥 Save client ID
+    clientMessageId,
     type,
     replyTo,
     attachments,
   };
 
-  const messages = session
-    ? await Message.create([messageData], { session })
-    : await Message.create([messageData]);
+  // ✅ FIX: Create message properly based on session
+  let message;
+  if (session) {
+    // With session, must use array syntax
+    const messages = await Message.create([messageData], { session });
+    message = messages[0];
+  } else {
+    // Without session, create single document
+    message = await Message.create(messageData);
+  }
 
-  const message = messages[0];
+  // Validate message was created with _id
+  if (!message._id) {
+    console.error('❌ Message created without _id:', message);
+    throw new Error('Message creation failed - no _id');
+  }
+
+  console.log('✅ Message created with _id:', message._id);
 
   // Populate sender data
   await message.populate("sender", "uid nickname avatar");
 
-  // 🔥 Populate replyTo with sender info
+  // Populate replyTo with sender info
   if (message.replyTo) {
     await message.populate({
       path: "replyTo",
@@ -74,13 +87,13 @@ export async function createMessage({
 
 /**
  * Format message for response
- * ✅ Now includes clientMessageId
+ * ✅ Includes clientMessageId for optimistic UI
  */
 export function formatMessageResponse(message) {
   return {
-    messageId: message._id,
-    clientMessageId: message.clientMessageId || null, // 🔥 Include clientMessageId
-    conversation: message.conversation,
+    messageId: message._id.toString(), // 🔥 FIX: Convert ObjectId to string
+    clientMessageId: message.clientMessageId || null,
+    conversation: message.conversation.toString(), // 🔥 FIX: Convert to string
     sender: message.sender
       ? {
           uid: message.sender.uid,
@@ -92,7 +105,7 @@ export function formatMessageResponse(message) {
     type: message.type,
     replyTo: message.replyTo
       ? {
-          messageId: message.replyTo._id,
+          messageId: message.replyTo._id.toString(), // 🔥 FIX: Convert to string
           content: message.replyTo.content,
           sender: message.replyTo.sender
             ? {

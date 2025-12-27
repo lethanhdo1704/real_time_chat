@@ -6,6 +6,8 @@ import chatApi from '../../services/chatApi';
 /**
  * useMarkAsRead Hook
  * 
+ * ✅ FIXED: Use correct API function name
+ * 
  * Automatically marks conversation as read when:
  * - User opens conversation
  * - New message arrives in active conversation
@@ -47,15 +49,12 @@ const useMarkAsRead = (conversationId, isActive = true) => {
       resetUnreadCount(conversationId);
       lastMarkedRef.current = conversationId;
 
-      // Get last message ID
-      const lastMessageId = conversation.lastMessage?._id;
+      // 🔥 FIX: Use correct function name from chatApi
+      await chatApi.markConversationAsRead(conversationId);
 
-      // Call API
-      await chatApi.markAsRead(conversationId, lastMessageId);
-
-      console.log('✅ Marked conversation as read:', conversationId);
+      console.log('✅ [useMarkAsRead] Marked conversation as read:', conversationId);
     } catch (err) {
-      console.error('❌ Failed to mark as read:', err);
+      console.error('❌ [useMarkAsRead] Failed to mark as read:', err);
       // Note: We don't revert optimistic update
       // Backend will sync correct state via socket
     }
