@@ -320,40 +320,109 @@ const useChatStore = create((set, get) => ({
   },
   
   // ============================================
-  // ACTIONS - TYPING INDICATORS
+  // ACTIONS - TYPING INDICATORS (FIXED)
   // ============================================
   
-  addTypingUser: (conversationId, userUid) => {
+  addTypingUser: (conversationId, user) => {
+    console.log(`🟢 [Store] addTypingUser:`, {
+      conversationId,
+      user,
+      userId: typeof user === 'string' ? user : (user.uid || user._id)
+    });
+
     const typingMap = new Map(get().typingUsers);
     const usersSet = typingMap.get(conversationId) || new Set();
     
-    usersSet.add(userUid);
-    typingMap.set(conversationId, usersSet);
+    console.log(`🟢 [Store] Before add:`, {
+      size: usersSet.size,
+      users: Array.from(usersSet)
+    });
     
-    set({ typingUsers: typingMap });
+    // ✅ CRITICAL: Store user object, not just uid
+    // Clone Set to ensure React detects change
+    const newUsersSet = new Set(usersSet);
+    newUsersSet.add(user);
+    
+    const newTypingMap = new Map(typingMap);
+    newTypingMap.set(conversationId, newUsersSet);
+    
+    console.log(`🟢 [Store] After add:`, {
+      size: newUsersSet.size,
+      users: Array.from(newUsersSet)
+    });
+    
+    set({ typingUsers: newTypingMap });
   },
-  
-  removeTypingUser: (conversationId, userUid) => {
+
+  removeTypingUser: (conversationId, userId) => {
+    console.log(`🔴 [Store] removeTypingUser:`, {
+      conversationId,
+      userId,
+      type: typeof userId
+    });
+
     const typingMap = new Map(get().typingUsers);
     const usersSet = typingMap.get(conversationId);
     
-    if (!usersSet) return;
-    
-    usersSet.delete(userUid);
-    
-    if (usersSet.size === 0) {
-      typingMap.delete(conversationId);
-    } else {
-      typingMap.set(conversationId, usersSet);
+    if (!usersSet) {
+      console.log(`🔴 [Store] No users set for conversation ${conversationId}`);
+      return;
     }
     
-    set({ typingUsers: typingMap });
+    console.log(`🔴 [Store] Before remove:`, {
+      size: usersSet.size,
+      users: Array.from(usersSet)
+    });
+    
+    // ✅ CRITICAL FIX: Find and delete by comparing uid
+    // Clone Set to ensure React detects change
+    const newUsersSet = new Set(usersSet);
+    let removed = false;
+    
+    for (const user of newUsersSet) {
+      const userIdToCheck = typeof user === 'string' ? user : (user.uid || user._id);
+      
+      if (userIdToCheck === userId) {
+        newUsersSet.delete(user); // Delete the OBJECT, not the string
+        removed = true;
+        console.log(`🔴 [Store] ✅ Found and removed:`, user);
+        break;
+      }
+    }
+    
+    if (!removed) {
+      console.log(`🔴 [Store] ❌ User ${userId} NOT FOUND!`, {
+        lookingFor: userId,
+        available: Array.from(newUsersSet).map(u => 
+          typeof u === 'string' ? u : (u.uid || u._id)
+        )
+      });
+      return; // Don't update state if nothing changed
+    }
+    
+    console.log(`🔴 [Store] After remove:`, {
+      size: newUsersSet.size,
+      users: Array.from(newUsersSet)
+    });
+    
+    const newTypingMap = new Map(typingMap);
+    
+    if (newUsersSet.size === 0) {
+      newTypingMap.delete(conversationId);
+      console.log(`🔴 [Store] Deleted empty set for ${conversationId}`);
+    } else {
+      newTypingMap.set(conversationId, newUsersSet);
+    }
+    
+    set({ typingUsers: newTypingMap });
   },
-  
+
   clearTypingUsers: (conversationId) => {
-    const typingMap = new Map(get().typingUsers);
-    typingMap.delete(conversationId);
-    set({ typingUsers: typingMap });
+    console.log(`🧹 [Store] clearTypingUsers:`, conversationId);
+    
+    const newTypingMap = new Map(get().typingUsers);
+    newTypingMap.delete(conversationId);
+    set({ typingUsers: newTypingMap });
   },
 }));
 

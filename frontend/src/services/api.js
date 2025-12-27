@@ -13,7 +13,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
  */
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000, // 10 second timeout
+  timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -24,9 +24,7 @@ const api = axios.create({
 // ============================================
 api.interceptors.request.use(
   (config) => {
-    // Get token from storage (prioritize localStorage)
-    const token =
-      localStorage.getItem("token") || sessionStorage.getItem("token");
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -35,7 +33,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error("Request error:", error);
+    console.error("❌ [API] Request error:", error);
     return Promise.reject(error);
   }
 );
@@ -45,48 +43,54 @@ api.interceptors.request.use(
 // ============================================
 api.interceptors.response.use(
   (response) => {
-    // Return data directly for cleaner usage
     return response;
   },
   (error) => {
-    // Handle specific error cases
     if (error.response) {
       const { status, data } = error.response;
 
       switch (status) {
         case 401:
-          // Token expired or invalid
-          console.error("Unauthorized - token invalid/expired");
-          // Clear token
+          console.error("❌ [API] 401 Unauthorized");
           localStorage.removeItem("token");
           sessionStorage.removeItem("token");
-          // Redirect to login (optional - can handle in components)
-          if (window.location.pathname !== "/login") {
-            window.location.href = "/login";
+          
+          // Soft redirect với delay để tránh race condition
+          if (
+            window.location.pathname !== "/login" &&
+            !window.location.pathname.startsWith("/register") &&
+            !window.location.pathname.startsWith("/forgot")
+          ) {
+            setTimeout(() => {
+              const stillNoToken = !localStorage.getItem("token") && !sessionStorage.getItem("token");
+              if (stillNoToken) {
+                console.log("🚪 [API] Redirecting to /login");
+                window.location.href = "/login";
+              }
+            }, 100);
           }
           break;
 
         case 403:
-          console.error("Forbidden - insufficient permissions");
+          console.error("❌ [API] 403 Forbidden");
           break;
 
         case 404:
-          console.error("Resource not found");
+          console.error("❌ [API] 404 Not found");
           break;
 
         case 429:
-          console.error("Too many requests - rate limited");
+          console.error("❌ [API] 429 Rate limited");
           break;
 
         case 500:
-          console.error("Server error");
+          console.error("❌ [API] 500 Server error");
           break;
 
         default:
-          console.error(`API Error ${status}:`, data?.message || error.message);
+          console.error(`❌ [API] Error ${status}:`, data?.message || error.message);
       }
 
-      // Return normalized error
       return Promise.reject({
         status,
         message: data?.message || error.message,
@@ -94,9 +98,8 @@ api.interceptors.response.use(
       });
     }
 
-    // Network error or request setup error
     if (error.request) {
-      console.error("Network error - no response received");
+      console.error("❌ [API] Network error");
       return Promise.reject({
         status: 0,
         message: "Network error. Please check your connection.",
@@ -104,8 +107,7 @@ api.interceptors.response.use(
       });
     }
 
-    // Request setup error
-    console.error("Request setup error:", error.message);
+    console.error("❌ [API] Request setup error:", error.message);
     return Promise.reject({
       status: -1,
       message: error.message,

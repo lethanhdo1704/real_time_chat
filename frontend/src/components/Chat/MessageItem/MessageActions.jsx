@@ -56,7 +56,7 @@ export default function MessageActions({ isMe, isFailed, onReply, onCopy, onEdit
   const reactions = ['❤️', '😂', '😮', '😢', '😡', '👍'];
 
   return (
-    <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${isMe ? "mr-1" : "ml-1"} relative`}>
+    <div className={`flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 ${isMe ? "mr-1" : "ml-1"} relative`}>
       {/* Reaction Button */}
       <div className="relative">
         <button

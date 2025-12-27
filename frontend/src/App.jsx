@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
@@ -9,7 +10,6 @@ import NotFound from "./pages/NotFound";
 import ForgotPassword from "./pages/ForgotPassword";
 
 function App() {
-  
   return (
     <AuthProvider>
       <BrowserRouter>
@@ -28,7 +28,9 @@ function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<Navigate to="/friends" replace />} />
+                {/* ❌ REMOVED: <Route index element={<Navigate to="/friends" replace />} /> */}
+                {/* ✅ Root "/" redirect now handled inside Home.jsx */}
+                
                 <Route path="friends" element={null} />
                 <Route path="friends/:conversationId" element={null} />
                 <Route path="groups" element={null} />
@@ -45,4 +47,5 @@ function App() {
     </AuthProvider>
   );
 }
+
 export default App;
