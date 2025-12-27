@@ -138,10 +138,14 @@ export const useGlobalSocket = ({ onMessageReceived }) => {
   ]);
 
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+
     const socket = getSocket();
     
-    if (!socket || !user) {
-      console.warn('⚠️ [Global] Socket or user not available');
+    if (!socket || !socket.connected) {
+      console.log('⏳ [Global] Waiting for socket to connect...');
       return;
     }
 

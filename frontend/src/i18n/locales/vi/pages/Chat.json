@@ -23,5 +23,9 @@
     "objects": "Đồ vật",
     "symbols": "Ký hiệu",
     "flags": "Cờ"
+  },
+  "empty": {
+    "title": "Không có cuộc trò chuyện",
+    "subtitle": "Hãy nhắn tin để bắt đầu cuộc trò chuyện"
   }
 }

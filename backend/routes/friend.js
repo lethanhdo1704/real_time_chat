@@ -6,7 +6,7 @@ import friendService from "../services/friend.service.js";
 const router = express.Router();
 
 /**
- * Gửi lời mời kết bạn
+ * Gửi lời mời kết bạn0
  * POST /api/friends/request
  * body: { friendUid }
  */

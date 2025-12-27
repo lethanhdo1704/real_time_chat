@@ -23,5 +23,9 @@
     "objects": "Objects",
     "symbols": "Symbols",
     "flags": "Flags"
+  },
+  "empty": {
+    "title": "No chats yet",
+    "subtitle": "Send a message to start chatting"
   }
 }

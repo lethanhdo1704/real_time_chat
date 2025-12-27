@@ -7,15 +7,12 @@ import FriendList from "../FriendFeature/FriendList";
 import GroupList from "../FriendFeature/GroupList";
 
 /**
- * Sidebar Component
+ * Sidebar Component - Mobile-First Optimized (Pure Tailwind)
  * 
- * Main navigation sidebar with tabs:
- * - Friends (with conversation preview)
- * - Groups
- * - Friend Requests
- * - Add Friend
- * 
- * No longer needs conversation props - FriendList uses useConversations hook
+ * ✅ Better touch targets (min 44px)
+ * ✅ Improved visual hierarchy
+ * ✅ Smooth scrolling
+ * ✅ Premium mobile design
  */
 export default function Sidebar({
   user,
@@ -27,25 +24,32 @@ export default function Sidebar({
   updateRequestCount,
   onSelectFriend,
   onSelectConversation,
+  isMobile = false,
 }) {
   const { t } = useTranslation("home");
 
   return (
-    <div className="w-[320px] shrink-0 hidden lg:flex flex-col bg-white border-r border-gray-200 shadow-lg min-h-0">
-      {/* Header */}
-      <div className="p-5 border-b border-gray-200 bg-linear-to-r from-blue-500 to-indigo-600 shrink-0">
-        <div className="flex items-center justify-between">
+    <div className="w-full h-full flex flex-col bg-white shadow-2xl lg:shadow-xl lg:border-r border-gray-200">
+      {/* Header - Premium gradient design */}
+      <div className="p-5 lg:p-6 border-b border-gray-200 bg-linear-to-br from-blue-600 via-indigo-600 to-purple-600 shrink-0">
+        <div className="flex items-center justify-between gap-4">
+          {/* User info section */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Avatar with online status */}
             <div className="relative shrink-0">
-              <img
-                src={user.avatar || "https://i.pravatar.cc/40"}
-                alt="avatar"
-                className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-md"
-              />
-              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
+              <div className="w-14 h-14 rounded-2xl overflow-hidden ring-4 ring-white/30 shadow-xl">
+                <img
+                  src={user.avatar || "https://i.pravatar.cc/56"}
+                  alt="avatar"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 border-4 border-white rounded-full shadow-lg"></span>
             </div>
+
+            {/* User details */}
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-white truncate">
+              <p className="font-bold text-white truncate text-base mb-1">
                 {user.nickname}
               </p>
               <button
@@ -53,15 +57,21 @@ export default function Sidebar({
                   navigator.clipboard.writeText(user.uid);
                   handleCopyUID();
                 }}
-                className="flex items-center gap-1.5 text-xs text-blue-100 hover:text-white transition-colors group"
+                className="flex items-center gap-2 text-xs text-white/90 hover:text-white transition-colors group"
                 title={t("home.header.copyUID")}
+                style={{ 
+                  WebkitTapHighlightColor: 'transparent',
+                  minHeight: '32px'
+                }}
               >
-                <span className="font-medium text-blue-200">
+                <span className="font-medium opacity-80 hidden sm:inline">
                   {t("home.header.uidLabel")}
                 </span>
-                <span className="truncate max-w-32">{user.uid}</span>
+                <span className="truncate max-w-25 sm:max-w-35 bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-sm">
+                  {user.uid}
+                </span>
                 <svg
-                  className="w-3.5 h-3.5 shrink-0 opacity-100 transition-opacity"
+                  className="w-3.5 h-3.5 shrink-0 opacity-90 group-hover:scale-110 transition-transform"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -69,7 +79,7 @@ export default function Sidebar({
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
                     d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                   />
                 </svg>
@@ -77,13 +87,19 @@ export default function Sidebar({
             </div>
           </div>
 
+          {/* Logout button - Better touch target */}
           <button
             onClick={handleLogout}
-            className="p-2 rounded-lg hover:bg-white/20 transition-colors group shrink-0"
+            className="p-3 rounded-xl hover:bg-white/20 active:bg-white/30 transition-all duration-200 active:scale-95 group shrink-0 backdrop-blur-sm"
             title={t("home.header.logout")}
+            style={{ 
+              WebkitTapHighlightColor: 'transparent',
+              minWidth: '48px',
+              minHeight: '48px'
+            }}
           >
             <svg
-              className="w-5 h-5 text-white group-hover:text-red-200"
+              className="w-6 h-6 text-white group-hover:rotate-12 transition-transform duration-200"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -99,8 +115,8 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Vertical Menu Navigation */}
-      <div className="py-3 space-y-1 bg-gray-50 border-b border-gray-200 shrink-0">
+      {/* Navigation Tabs - Mobile optimized with better touch targets */}
+      <div className="py-3 px-3 space-y-1 bg-linear-to-b from-gray-50 to-white border-b border-gray-100 shrink-0">
         <SidebarItem
           active={activeTab === "friends"}
           onClick={() => setActiveTab("friends")}
@@ -187,9 +203,15 @@ export default function Sidebar({
         />
       </div>
 
-      {/* Content - Full Height */}
-      <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
-        {/* FRIENDS TAB - No longer needs conversation props */}
+      {/* Content Area - Optimized scrolling for mobile */}
+      <div 
+        className="flex-1 min-h-0 overflow-y-auto bg-gray-50"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain'
+        }}
+      >
+        {/* FRIENDS TAB */}
         {activeTab === "friends" && (
           <FriendList currentUser={user} onSelectFriend={onSelectFriend} />
         )}

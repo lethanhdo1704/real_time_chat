@@ -1,7 +1,8 @@
+// frontend/src/components/Chat/ChatEmptyState.jsx
 import { useTranslation } from "react-i18next";
 
 export default function ChatEmptyState() {
-  const { t } = useTranslation("chat");
+  const { t } = useTranslation("home");
 
   return (
     <div className="flex flex-col items-center justify-center h-full bg-linear-to-br from-gray-50 to-blue-50">

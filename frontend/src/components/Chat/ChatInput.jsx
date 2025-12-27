@@ -248,15 +248,6 @@ export default function ChatInput({
           )}
         </button>
       </div>
-
-      {/* Character count (optional) */}
-      {text.length > 0 && (
-        <div className="mt-2 text-right">
-          <span className={`text-xs ${text.length > 1000 ? "text-red-500" : "text-gray-400"}`}>
-            {text.length} / 2000
-          </span>
-        </div>
-      )}
     </div>
   );
 }
