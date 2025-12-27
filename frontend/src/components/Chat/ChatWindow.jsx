@@ -289,7 +289,7 @@ export default function ChatWindow() {
 
   if (loading && activeConversationId && !messages.length) {
     return (
-      <div className="flex flex-col h-full w-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="flex flex-col h-full w-full bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50">
         {/* Header with mobile spacing */}
         <div className="pt-16 lg:pt-0">
           <ChatHeader
@@ -320,7 +320,7 @@ export default function ChatWindow() {
   // ============================================
 
   return (
-    <div className="flex flex-col h-full w-full min-h-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="flex flex-col h-full w-full min-h-0 bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header - Mobile optimized padding */}
       <div className="pt-16 lg:pt-0">
         <ChatHeader
@@ -354,7 +354,7 @@ export default function ChatWindow() {
         {messages.length === 0 && displayInfo.isNewConversation && (
           <div className="flex items-center justify-center h-full px-4">
             <div className="text-center max-w-sm">
-              <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold mx-auto mb-5 overflow-hidden shadow-xl ring-4 ring-blue-100">
+              <div className="relative w-24 h-24 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold mx-auto mb-5 overflow-hidden shadow-xl ring-4 ring-blue-100">
                 {displayInfo.avatar ? (
                   <img
                     src={displayInfo.avatar}
@@ -380,7 +380,7 @@ export default function ChatWindow() {
         {messages.length === 0 && !displayInfo.isNewConversation && !loading && (
           <div className="flex items-center justify-center h-full px-4">
             <div className="text-center max-w-sm">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mx-auto mb-4">
+              <div className="w-20 h-20 rounded-full bg-linear-to-br from-gray-100 to-gray-200 flex items-center justify-center mx-auto mb-4">
                 <svg
                   className="w-10 h-10 text-gray-400"
                   fill="none"
@@ -422,7 +422,7 @@ export default function ChatWindow() {
             ref={typingIndicatorRef}
             className="flex items-start gap-3 mt-4 mb-2 animate-fadeIn"
           >
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-semibold overflow-hidden shrink-0 shadow-md">
+            <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-semibold overflow-hidden shrink-0 shadow-md">
               {typingUser.avatar ? (
                 <img
                   src={typingUser.avatar}
