@@ -1,7 +1,9 @@
 // frontend/src/components/Chat/MessageItem/MessageActions.jsx
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function MessageActions({ isMe, isFailed, onReply, onCopy, onEdit, onDelete, onForward, onReact }) {
+  const { t } = useTranslation("chat");
   const [showMenu, setShowMenu] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const menuRef = useRef(null);
@@ -58,11 +60,10 @@ export default function MessageActions({ isMe, isFailed, onReply, onCopy, onEdit
       {/* Reaction Button */}
       <div className="relative">
         <button
-          onMouseEnter={() => setShowReactions(true)}
           onClick={() => setShowReactions(!showReactions)}
           className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all active:scale-95 shadow-sm"
-          title="React"
-          aria-label="React to message"
+          title={t("actions.react") || "React"}
+          aria-label={t("actions.react") || "React to message"}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -73,8 +74,10 @@ export default function MessageActions({ isMe, isFailed, onReply, onCopy, onEdit
         {showReactions && (
           <div
             ref={reactionsRef}
-            className={`absolute ${isMe ? "right-0" : "left-0"} bottom-full mb-2 bg-white rounded-full shadow-xl border border-gray-200 px-2 py-1.5 flex gap-1 z-50 animate-scale-in`}
-            onMouseLeave={() => setShowReactions(false)}
+            className={`absolute ${isMe ? "right-0" : "left-0"} bottom-full mb-2 bg-white rounded-full shadow-xl border border-gray-200 px-2 py-1.5 flex gap-1 z-50`}
+            style={{
+              animation: 'scaleIn 0.15s ease-out'
+            }}
           >
             {reactions.map((emoji) => (
               <button
@@ -94,8 +97,8 @@ export default function MessageActions({ isMe, isFailed, onReply, onCopy, onEdit
       <button
         onClick={onReply}
         className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all active:scale-95 shadow-sm"
-        title="Reply"
-        aria-label="Reply to message"
+        title={t("actions.reply") || "Reply"}
+        aria-label={t("actions.reply") || "Reply to message"}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
@@ -107,8 +110,8 @@ export default function MessageActions({ isMe, isFailed, onReply, onCopy, onEdit
         ref={buttonRef}
         onClick={() => setShowMenu(!showMenu)}
         className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all active:scale-95 shadow-sm"
-        title="More options"
-        aria-label="More options"
+        title={t("actions.more") || "More options"}
+        aria-label={t("actions.more") || "More options"}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
@@ -119,19 +122,22 @@ export default function MessageActions({ isMe, isFailed, onReply, onCopy, onEdit
       {showMenu && (
         <div
           ref={menuRef}
-          className={`absolute ${isMe ? "right-0" : "left-0"} top-full mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-40 z-50 animate-scale-in`}
+          className={`absolute ${isMe ? "right-0" : "left-0"} bottom-full mb-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-40 z-50`}
+          style={{
+            animation: 'scaleIn 0.15s ease-out'
+          }}
         >
           {/* Copy */}
           <MenuItem
             icon={<CopyIcon />}
-            label="Copy"
+            label={t("actions.copy") || "Copy"}
             onClick={() => handleAction(onCopy)}
           />
 
           {/* Forward */}
           <MenuItem
             icon={<ForwardIcon />}
-            label="Forward"
+            label={t("actions.forward") || "Forward"}
             onClick={() => handleAction(onForward)}
           />
 
@@ -139,7 +145,7 @@ export default function MessageActions({ isMe, isFailed, onReply, onCopy, onEdit
           {isMe && !isFailed && (
             <MenuItem
               icon={<EditIcon />}
-              label="Edit"
+              label={t("actions.edit") || "Edit"}
               onClick={() => handleAction(onEdit)}
             />
           )}
@@ -151,7 +157,7 @@ export default function MessageActions({ isMe, isFailed, onReply, onCopy, onEdit
           {isMe && (
             <MenuItem
               icon={<DeleteIcon />}
-              label="Delete"
+              label={t("actions.delete") || "Delete"}
               onClick={() => handleAction(onDelete)}
               danger
             />
@@ -159,21 +165,23 @@ export default function MessageActions({ isMe, isFailed, onReply, onCopy, onEdit
         </div>
       )}
 
-      <style jsx>{`
-        @keyframes scale-in {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        .animate-scale-in {
-          animation: scale-in 0.15s ease-out;
-        }
-      `}</style>
+      {/* Global keyframes - chỉ cần định nghĩa 1 lần */}
+      {(showMenu || showReactions) && (
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            @keyframes scaleIn {
+              from {
+                opacity: 0;
+                transform: scale(0.95);
+              }
+              to {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+          `
+        }} />
+      )}
     </div>
   );
 }

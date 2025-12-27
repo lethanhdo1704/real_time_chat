@@ -27,5 +27,14 @@
   "empty": {
     "title": "Không có cuộc trò chuyện",
     "subtitle": "Hãy nhắn tin để bắt đầu cuộc trò chuyện"
+  },
+  "actions": {
+    "react": "Bày tỏ cảm xúc",
+    "reply": "Trả lời",
+    "more": "Tùy chọn khác",
+    "copy": "Sao chép",
+    "forward": "Chuyển tiếp",
+    "edit": "Chỉnh sửa",
+    "delete": "Xóa"
   }
 }

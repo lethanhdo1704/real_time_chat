@@ -27,5 +27,14 @@
   "empty": {
     "title": "No chats yet",
     "subtitle": "Send a message to start chatting"
+  },
+  "actions": {
+    "react": "React",
+    "reply": "Reply",
+    "more": "More options",
+    "copy": "Copy",
+    "forward": "Forward",
+    "edit": "Edit",
+    "delete": "Delete"
   }
 }
