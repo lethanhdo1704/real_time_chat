@@ -6,17 +6,32 @@ import { useTranslation } from "react-i18next";
 import MessageItem from "./MessageItem";
 
 /**
- * MessageList Component
+ * MessageList Component - FIXED LAYOUT
  * 
- * Displays messages grouped by date
- * Optimized with useMemo for grouping
- * Handles both private and group chats
+ * 🎯 Layout Strategy:
+ * ==================
+ * EVERY element gets the SAME wrapper:
+ * <div className="mx-auto w-full max-w-3xl px-4">
+ * 
+ * ✅ Benefits:
+ * - Date separators align perfectly
+ * - Messages align perfectly
+ * - Everything aligns with ChatInput
+ * - No overflow issues
+ * - Consistent spacing
+ * 
+ * 📐 Hierarchy:
+ * MessageList (no padding/margin)
+ *  └─ Date Group
+ *      ├─ Date Separator (wrapped in max-w-3xl px-4)
+ *      └─ Messages (each wrapped in max-w-3xl px-4)
  */
 export default function MessageList({
   messages,
   activeUser,
   isGroupChat,
   isPrivateChat,
+  onRetryMessage,
 }) {
   const { i18n } = useTranslation();
   const locale = i18n.language === "vi" ? vi : enUS;
@@ -24,7 +39,6 @@ export default function MessageList({
   // ============================================
   // GROUP MESSAGES BY DATE
   // ============================================
-
   const groupedMessages = useMemo(() => {
     const groups = [];
     let currentGroup = null;
@@ -32,7 +46,6 @@ export default function MessageList({
     messages.forEach((msg) => {
       const msgDate = new Date(msg.createdAt);
       
-      // Check if we need a new group
       if (!currentGroup || !isSameDay(currentGroup.date, msgDate)) {
         currentGroup = {
           date: msgDate,
@@ -50,7 +63,6 @@ export default function MessageList({
   // ============================================
   // FORMAT DATE SEPARATOR
   // ============================================
-
   const formatDateSeparator = (date) => {
     if (isToday(date)) {
       return i18n.language === "vi" ? "Hôm nay" : "Today";
@@ -64,55 +76,59 @@ export default function MessageList({
   // ============================================
   // RENDER
   // ============================================
-
   if (messages.length === 0) {
     return null;
   }
 
   return (
-    <div className="flex flex-col gap-1 w-full">
+    <div className="flex flex-col gap-1">
       {groupedMessages.map((group, groupIndex) => (
         <div key={groupIndex} className="flex flex-col gap-1">
-          {/* Date Separator */}
-          <div className="flex items-center justify-center my-4">
-            <div className="bg-white/80 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm border border-gray-200">
-              <span className="text-xs font-medium text-gray-600">
-                {formatDateSeparator(group.date)}
-              </span>
+          
+          {/* ✅ Date Separator - WRAPPED in max-w-3xl px-4 */}
+          <div className="mx-auto w-full max-w-3xl px-4">
+            <div className="flex items-center justify-center my-4">
+              <div className="bg-white/80 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm border border-gray-200">
+                <span className="text-xs font-medium text-gray-600">
+                  {formatDateSeparator(group.date)}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Messages in this date group */}
+          {/* ✅ Messages - EACH wrapped in max-w-3xl px-4 */}
           {group.messages.map((msg, msgIndex) => {
-            // Determine if message is from current user
             const isMe =
               msg.sender?.uid === activeUser?.uid ||
               msg.sender?.id === activeUser?.uid ||
               msg.sender?._id === activeUser?.uid ||
               msg.senderId === activeUser?.uid;
 
-            // Show sender info for group chat (first message in consecutive group)
             const showSender =
               isGroupChat &&
               !isMe &&
               (msgIndex === 0 ||
                 group.messages[msgIndex - 1].sender?.uid !== msg.sender?.uid);
 
-            // Check if next message is from same sender (for bubble grouping)
             const nextMessage = group.messages[msgIndex + 1];
             const isLastInGroup =
               !nextMessage || nextMessage.sender?.uid !== msg.sender?.uid;
 
             return (
-              <MessageItem
-                key={msg._id || `${msg.sender?.uid}-${msg.createdAt}-${msgIndex}`}
-                message={msg}
-                isMe={isMe}
-                isGroupChat={isGroupChat}
-                isPrivateChat={isPrivateChat}
-                showSender={showSender}
-                isLastInGroup={isLastInGroup}
-              />
+              <div 
+                key={msg._id || `${msg.sender?.uid}-${msg.createdAt}-${msgIndex}`} 
+                className="mx-auto w-full max-w-3xl px-4"
+              >
+                <MessageItem
+                  message={msg}
+                  isMe={isMe}
+                  isGroupChat={isGroupChat}
+                  isPrivateChat={isPrivateChat}
+                  showSender={showSender}
+                  isLastInGroup={isLastInGroup}
+                  onRetryMessage={onRetryMessage}
+                />
+              </div>
             );
           })}
         </div>
