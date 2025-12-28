@@ -8,6 +8,7 @@
     "sent": "Đã gửi"
   },
   "input": {
+    "startConversation": "Bắt đầu cuộc trò chuyện mới",
     "placeholder": "Nhập tin nhắn...",
     "selectEmoji": "Chọn emoji",
     "send": "Gửi"
@@ -24,9 +25,13 @@
     "symbols": "Ký hiệu",
     "flags": "Cờ"
   },
+  "loading": {
+    "more": "Đang tải thêm tin nhắn..."
+  },
   "empty": {
     "title": "Không có cuộc trò chuyện",
-    "subtitle": "Hãy nhắn tin để bắt đầu cuộc trò chuyện"
+    "subtitle": "Hãy nhắn tin để bắt đầu cuộc trò chuyện",
+    "newConversation": "Bắt đầu cuộc trò chuyện mới"
   },
   "actions": {
     "react": "Bày tỏ cảm xúc",

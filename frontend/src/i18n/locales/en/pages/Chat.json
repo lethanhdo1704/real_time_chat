@@ -8,6 +8,7 @@
     "sent": "Sent"
   },
   "input": {
+    "startConversation": "Start a new conversation",
     "placeholder": "Type a message...",
     "selectEmoji": "Select emoji",
     "send": "Send"
@@ -24,9 +25,13 @@
     "symbols": "Symbols",
     "flags": "Flags"
   },
+  "loading": {
+    "more": "Loading more messages..."
+  },
   "empty": {
-    "title": "No chats yet",
-    "subtitle": "Send a message to start chatting"
+    "title": "No messages yet",
+    "subtitle": "Start the conversation!",
+    "newConversation": "Start a new conversation"
   },
   "actions": {
     "react": "React",

@@ -1,17 +1,6 @@
 // frontend/src/components/Chat/ChatWindow/ChatWindowBody.jsx
-
 import MessageList from "../MessageList";
 
-/**
- * ChatWindowBody Component
- * 
- * ✅ FIXED: Scrollbar alignment với scrollbar-gutter: stable
- * ✅ Layout stable - content KHÔNG bị shift
- * ✅ Body & Input thẳng hàng hoàn hảo
- * ✅ Scrollbar visible (như ChatGPT)
- * 
- * Key: Sử dụng class "chat-scroll" với scrollbar-gutter: stable
- */
 export default function ChatWindowBody({
   messagesContainerRef,
   typingIndicatorRef,
