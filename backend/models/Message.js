@@ -19,8 +19,7 @@ const messageSchema = new Schema(
     // 🔥 CRITICAL: Client-generated ID for optimistic UI
     clientMessageId: {
       type: String,
-      index: true,
-      sparse: true, // Allow null but still index
+      default: null,
     },
 
     content: {

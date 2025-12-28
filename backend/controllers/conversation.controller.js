@@ -1,5 +1,5 @@
 // backend/controllers/conversation.controller.js
-import conversationService from "../services/conversation.service.js";
+import conversationService from "../services/conversation/index.js";
 
 class ConversationController {
   /**

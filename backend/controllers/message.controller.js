@@ -1,21 +1,10 @@
 // backend/controllers/message.controller.js
 import messageService from "../services/message/message.service.js";
-import conversationService from "../services/conversation.service.js";
+import conversationService from "../services/conversation/conversation.service.js";
 import Conversation from "../models/Conversation.js";
 import ConversationMember from "../models/ConversationMember.js";
 
 class MessageController {
-  /**
-   * Send message
-   * POST /api/messages
-   *
-   * ✅ SUPPORTS LAZY CONVERSATION:
-   * - If conversationId provided → send to existing conversation
-   * - If conversationId is null BUT recipientId provided → create conversation first
-   * 
-   * ✅ CRITICAL: Do NOT emit socket here
-   * Service already handles socket emission
-   */
   async sendMessage(req, res, next) {
     try {
       const {

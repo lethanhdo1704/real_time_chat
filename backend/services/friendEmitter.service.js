@@ -1,10 +1,6 @@
 // backend/services/friendEmitter.service.js
 import { EventEmitter } from 'events';
 
-/**
- * Friend Event Emitter
- * Bridge giữa business logic và socket
- */
 class FriendEmitter extends EventEmitter {
   constructor() {
     super();

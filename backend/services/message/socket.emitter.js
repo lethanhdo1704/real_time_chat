@@ -1,53 +1,65 @@
 // backend/services/message/socket.emitter.js
 
-/**
- * Socket Emitter Wrapper
- * Handles all socket emissions for message events
- */
 class SocketEmitter {
   constructor() {
     this.io = null;
   }
 
-  /**
-   * Set socket.io instance
-   */
   setIO(io) {
     this.io = io;
     console.log("✅ Socket.IO instance set in SocketEmitter");
   }
 
   /**
-   * Emit new message to conversation room
+   * ✅ FIXED: Emit new message with proper structure
    */
   emitNewMessage(conversationId, message, memberUpdates) {
     if (!this.io) return;
 
     console.log(`📤 [Socket] Emitting new message to conversation: ${conversationId}`);
 
-    // Emit to each member with their specific unread count
+    // ✅ Emit to each member with their specific unread count
     Object.keys(memberUpdates).forEach((userId) => {
-      this.io.to(`user:${userId}`).emit("message_received", {
-        message,
-        unreadCount: memberUpdates[userId].unreadCount,
-        conversationId,
+      const updateData = {
+        conversationId,  // ✅ Already at top level - GOOD!
+        message: {
+          ...message,
+          conversation: conversationId  // ✅ Also add inside message for safety
+        },
+        conversationUpdate: {
+          conversationId,  // ✅ Duplicate for extra safety
+          lastMessage: {
+            content: message.content,
+            createdAt: message.createdAt,
+            sender: message.sender
+          },
+          lastMessageAt: message.createdAt,
+          unreadCount: memberUpdates[userId].unreadCount
+        }
+      };
+
+      console.log(`📤 [Socket] Emitting to user:${userId}:`, {
+        conversationId: updateData.conversationId,
+        hasMessage: !!updateData.message,
+        hasUpdate: !!updateData.conversationUpdate
       });
+
+      this.io.to(`user:${userId}`).emit("message_received", updateData);
     });
   }
 
   /**
-   * Emit message read event
+   * ✅ FIXED: Emit message read with proper structure
    */
   emitMessageRead(conversationId, readByUserId, memberIds) {
     if (!this.io) return;
 
     console.log(`👁️  [Socket] Emitting message_read for conversation: ${conversationId}`);
 
-    // Emit to other members
     memberIds.forEach((memberId) => {
       if (memberId !== readByUserId) {
         this.io.to(`user:${memberId}`).emit("message_read", {
-          conversationId,
+          conversationId,  // ✅ Add conversationId
           readBy: readByUserId,
           timestamp: new Date(),
         });
@@ -56,7 +68,7 @@ class SocketEmitter {
   }
 
   /**
-   * Emit message edited event
+   * ✅ FIXED: Emit message edited with conversationId
    */
   emitMessageEdited(conversationId, message) {
     if (!this.io) return;
@@ -64,42 +76,41 @@ class SocketEmitter {
     console.log(`✏️  [Socket] Emitting message_edited for conversation: ${conversationId}`);
 
     this.io.to(conversationId).emit("message_edited", {
+      conversationId,  // ✅ Add this
       message,
-      conversationId,
     });
   }
 
   /**
-   * Emit message deleted event
+   * ✅ FIXED: Emit message deleted with proper structure
    */
   emitMessageDeleted(conversationId, messageId, deletedBy, memberUpdates) {
     if (!this.io) return;
 
     console.log(`🗑️  [Socket] Emitting message_deleted for conversation: ${conversationId}`);
 
-    // If memberUpdates exist (lastMessage changed)
     if (Object.keys(memberUpdates).length > 0) {
       Object.keys(memberUpdates).forEach((userId) => {
         this.io.to(`user:${userId}`).emit("message_deleted", {
-          conversationId,
+          conversationId,  // ✅ Keep at top level
           messageId,
           deletedBy,
-          ...memberUpdates[userId], // lastMessage, unreadCount
+          conversationUpdate: {  // ✅ Wrap in conversationUpdate
+            conversationId,
+            lastMessage: memberUpdates[userId].lastMessage,
+            unreadCount: memberUpdates[userId].unreadCount
+          }
         });
       });
     } else {
-      // Simple deletion without lastMessage change
       this.io.to(conversationId).emit("message_deleted", {
-        conversationId,
+        conversationId,  // ✅ Add this
         messageId,
         deletedBy,
       });
     }
   }
 
-  /**
-   * Emit conversation created (for new conversations)
-   */
   emitConversationCreated(conversation, memberIds) {
     if (!this.io) return;
 

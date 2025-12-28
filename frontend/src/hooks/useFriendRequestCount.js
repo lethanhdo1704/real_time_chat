@@ -37,19 +37,6 @@ export function useFriendRequestCount(user) {
     return friendRequests.length;
   }, [friendRequests.length]);
 
-  // ============================================
-  // FETCH ON MOUNT - ✅ REMOVED
-  // Store will be loaded by a single source (e.g., App.jsx or Home.jsx)
-  // This hook only reads the count, no fetching
-  // ============================================
-  
-  // REMOVED: useEffect that calls loadFriendsData()
-  // Reason: Multiple components calling this hook were causing 429 errors
-
-  // ============================================
-  // RETURN
-  // ============================================
-
   return {
     count,
     loading,
