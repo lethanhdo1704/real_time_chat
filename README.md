@@ -477,7 +477,7 @@ npm start
 
 For issues, questions, or suggestions:
 - Open an issue on GitHub
-- Contact: [your-email@example.com]
+- Contact: [realtimechatotp@gmail.com]
 
 ---
 
