@@ -18,20 +18,27 @@ const useFriendStore = create(
         error: null,
         lastFetchTime: null,
         isFetching: false,
+        unseenCount: 0, // 🔥 NEW
 
         // ============================================
         // ACTIONS - SET DATA
         // ============================================
         
-        setFriendsData: (data) => set({
-          friends: data.friends || [],
-          friendRequests: data.requests || [],
-          sentRequests: data.sentRequests || [],
-          loading: false,
-          error: null,
-          lastFetchTime: Date.now(),
-          isFetching: false,
-        }),
+        setFriendsData: (data) => {
+          // 🔥 Tính unseen count từ requests
+          const unseenCount = (data.requests || []).filter(r => !r.seenAt).length;
+          
+          set({
+            friends: data.friends || [],
+            friendRequests: data.requests || [],
+            sentRequests: data.sentRequests || [],
+            loading: false,
+            error: null,
+            lastFetchTime: Date.now(),
+            isFetching: false,
+            unseenCount, // 🔥 NEW
+          });
+        },
 
         setLoading: (loading) => set({ loading }),
         setError: (error) => set({ error, isFetching: false }),
@@ -55,16 +62,34 @@ const useFriendStore = create(
           if (state.friendRequests.some(r => r.uid === request.uid)) {
             return state;
           }
+          
+          // 🔥 Tăng unseenCount nếu request chưa seen
+          const newUnseenCount = !request.seenAt ? state.unseenCount + 1 : state.unseenCount;
+          
           return {
-            friendRequests: [...state.friendRequests, request]
+            friendRequests: [...state.friendRequests, request],
+            unseenCount: newUnseenCount
           };
         }),
 
-        removeFriendRequest: (uid) => set((state) => ({
-          friendRequests: state.friendRequests.filter(r => r.uid !== uid)
-        })),
+        removeFriendRequest: (uid) => set((state) => {
+          const removedRequest = state.friendRequests.find(r => r.uid === uid);
+          
+          // 🔥 Giảm unseenCount nếu request chưa seen
+          const newUnseenCount = removedRequest && !removedRequest.seenAt 
+            ? Math.max(0, state.unseenCount - 1) 
+            : state.unseenCount;
+          
+          return {
+            friendRequests: state.friendRequests.filter(r => r.uid !== uid),
+            unseenCount: newUnseenCount
+          };
+        }),
 
-        clearFriendRequests: () => set({ friendRequests: [] }),
+        clearFriendRequests: () => set({ 
+          friendRequests: [],
+          unseenCount: 0 // 🔥 Reset unseenCount
+        }),
 
         // ============================================
         // SENT REQUEST ACTIONS
@@ -110,12 +135,22 @@ const useFriendStore = create(
         // COMBINED OPERATIONS
         // ============================================
         
-        acceptFriendRequest: (uid, friendData) => set((state) => ({
-          friendRequests: state.friendRequests.filter(r => r.uid !== uid),
-          friends: state.friends.some(f => f.uid === uid) 
-            ? state.friends 
-            : [...state.friends, friendData]
-        })),
+        acceptFriendRequest: (uid, friendData) => set((state) => {
+          const acceptedRequest = state.friendRequests.find(r => r.uid === uid);
+          
+          // 🔥 Giảm unseenCount nếu request chưa seen
+          const newUnseenCount = acceptedRequest && !acceptedRequest.seenAt
+            ? Math.max(0, state.unseenCount - 1)
+            : state.unseenCount;
+          
+          return {
+            friendRequests: state.friendRequests.filter(r => r.uid !== uid),
+            friends: state.friends.some(f => f.uid === uid) 
+              ? state.friends 
+              : [...state.friends, friendData],
+            unseenCount: newUnseenCount
+          };
+        }),
 
         sendFriendRequest: (request) => set((state) => ({
           sentRequests: state.sentRequests.some(r => r.uid === request.uid)
@@ -124,10 +159,52 @@ const useFriendStore = create(
         })),
 
         // ============================================
+        // 🔥 NEW: SEEN TRACKING ACTIONS
+        // ============================================
+        
+        /**
+         * Đánh dấu một request đã xem
+         */
+        markRequestAsSeen: (requestId) => set((state) => {
+          const request = state.friendRequests.find(r => r._id === requestId);
+          
+          // Nếu đã seen rồi thì không làm gì
+          if (!request || request.seenAt) {
+            return state;
+          }
+          
+          return {
+            friendRequests: state.friendRequests.map(r =>
+              r._id === requestId ? { ...r, seenAt: new Date() } : r
+            ),
+            unseenCount: Math.max(0, state.unseenCount - 1)
+          };
+        }),
+
+        /**
+         * Đánh dấu tất cả requests đã xem
+         */
+        markAllRequestsAsSeen: () => set((state) => ({
+          friendRequests: state.friendRequests.map(r => ({
+            ...r,
+            seenAt: r.seenAt || new Date()
+          })),
+          unseenCount: 0
+        })),
+
+        /**
+         * Set unseenCount từ API
+         */
+        setUnseenCount: (count) => set({ unseenCount: count }),
+
+        // ============================================
         // GETTERS
         // ============================================
         
         getFriendRequestCount: () => get().friendRequests.length,
+
+        // 🔥 NEW: Get unseen request count
+        getUnseenRequestCount: () => get().unseenCount,
 
         isFriend: (uid) => get().friends.some(f => f.uid === uid),
 
@@ -164,6 +241,7 @@ const useFriendStore = create(
           error: null,
           lastFetchTime: null,
           isFetching: false,
+          unseenCount: 0, // 🔥 NEW
         })
       }),
       {
@@ -173,6 +251,7 @@ const useFriendStore = create(
           friendRequests: state.friendRequests,
           sentRequests: state.sentRequests,
           lastFetchTime: state.lastFetchTime,
+          unseenCount: state.unseenCount, // 🔥 NEW - persist unseenCount
         }),
       }
     ),

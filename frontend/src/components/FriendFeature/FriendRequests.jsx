@@ -3,14 +3,15 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import useFriendStore from "../../store/friendStore";
 import useFriendActions from "../../hooks/useFriendActions";
+import friendService from "../../services/friendService"; // 🔥 NEW
 
 /**
- * FriendRequests Component - ✅ UPDATED TO MATCH NEW STRUCTURE
+ * FriendRequests Component - ✅ UPDATED WITH SEEN TRACKING
  * 
  * Changes:
  * - Dùng useFriendActions hook thay vì gọi store actions trực tiếp
  * - Dùng friendRequests thay vì requests (theo friendStore.js)
- * - Removed fetchFriends (dùng loadFriendsData từ useFriendActions)
+ * - Auto mark all as seen when component mounts
  * - Socket tự động sync qua useFriendSocket
  */
 export default function FriendRequests({ currentUser, onUpdateCount }) {
@@ -20,8 +21,9 @@ export default function FriendRequests({ currentUser, onUpdateCount }) {
   // GET STATE FROM STORE - ✅ UPDATED
   // ============================================
 
-  const friendRequests = useFriendStore((state) => state.friendRequests); // ✅ friendRequests instead of requests
+  const friendRequests = useFriendStore((state) => state.friendRequests);
   const friends = useFriendStore((state) => state.friends);
+  const markAllRequestsAsSeen = useFriendStore((state) => state.markAllRequestsAsSeen); // 🔥 NEW
   
   // ============================================
   // GET ACTIONS FROM HOOK - ✅ NEW
@@ -36,13 +38,36 @@ export default function FriendRequests({ currentUser, onUpdateCount }) {
   } = useFriendActions();
 
   // ============================================
-  // NO FETCH ON MOUNT - ✅ UPDATED
-  // Data is loaded centrally by useInitFriends in App/Home
-  // This component just reads from store
+  // 🔥 NEW: AUTO MARK AS SEEN WHEN VIEWING
   // ============================================
   
-  // REMOVED: useEffect that calls loadFriendsData()
-  // Reason: Central loading prevents 429 rate limit errors
+  useEffect(() => {
+    // Chỉ mark khi có unseen requests
+    const unseenRequests = friendRequests.filter(r => !r.seenAt);
+    
+    if (unseenRequests.length === 0) {
+      return;
+    }
+
+    console.log(`👁️ Marking ${unseenRequests.length} requests as seen...`);
+
+    // Delay nhỏ để đảm bảo user thực sự xem
+    const timer = setTimeout(async () => {
+      try {
+        // Call API to mark all as seen
+        await friendService.markAllRequestsAsSeen();
+        
+        // Update local store
+        markAllRequestsAsSeen();
+        
+        console.log('✅ All requests marked as seen');
+      } catch (error) {
+        console.error('❌ Failed to mark requests as seen:', error);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [friendRequests, markAllRequestsAsSeen]);
 
   // ============================================
   // UPDATE PARENT COUNT

@@ -7,19 +7,21 @@ export const SocketContext = createContext(null);
 
 export const SocketProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
+  const [socket, setSocket] = useState(null); // 🔥 NEW: Track socket instance
   const [isConnected, setIsConnected] = useState(false);
-  const hasInitialized = useRef(false); // 🔥 FIX: Track initialization
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
-    // 🔥 FIX 1: User có token → Connect
+    // 🔥 User có token → Connect
     if (user && token) {
-      // 🔥 FIX 2: Chỉ connect 1 lần duy nhất
+      // 🔥 Chỉ connect 1 lần duy nhất
       if (!hasInitialized.current) {
         console.log('🔌 Connecting socket for user:', user.uid);
         
-        const socket = connectSocket(token);
+        const socketInstance = connectSocket(token);
+        setSocket(socketInstance); // 🔥 NEW: Update state
         hasInitialized.current = true;
 
         const handleConnect = () => {
@@ -32,28 +34,45 @@ export const SocketProvider = ({ children }) => {
           setIsConnected(false);
         };
 
-        socket.on('connect', handleConnect);
-        socket.on('disconnect', handleDisconnect);
+        socketInstance.on('connect', handleConnect);
+        socketInstance.on('disconnect', handleDisconnect);
 
-        // 🔥 FIX 3: Cleanup chỉ gỡ listener, KHÔNG disconnect
+        // 🔥 Check if already connected
+        if (socketInstance.connected) {
+          console.log('✅ Socket already connected');
+          setIsConnected(true);
+        }
+
+        // 🔥 Cleanup chỉ gỡ listener, KHÔNG disconnect
         return () => {
-          socket.off('connect', handleConnect);
-          socket.off('disconnect', handleDisconnect);
+          socketInstance.off('connect', handleConnect);
+          socketInstance.off('disconnect', handleDisconnect);
         };
       }
     }
 
-    // 🔥 FIX 4: User logout → Disconnect thật sự
+    // 🔥 User logout → Disconnect thật sự
     if (!user && hasInitialized.current) {
       console.log('👋 User logged out, disconnecting socket');
       disconnectSocket();
+      setSocket(null); // 🔥 NEW: Clear socket state
       hasInitialized.current = false;
       setIsConnected(false);
     }
   }, [user]);
 
+  // 🔥 NEW: Debug state changes
+  useEffect(() => {
+    console.log('🔍 [SocketContext] State:', {
+      hasSocket: !!socket,
+      isConnected,
+      socketId: socket?.id,
+      socketConnected: socket?.connected
+    });
+  }, [socket, isConnected]);
+
   return (
-    <SocketContext.Provider value={{ isConnected }}>
+    <SocketContext.Provider value={{ socket, isConnected }}> {/* 🔥 FIXED: Export socket */}
       {children}
     </SocketContext.Provider>
   );

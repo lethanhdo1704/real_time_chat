@@ -41,6 +41,13 @@ class FriendEmitter extends EventEmitter {
   emitUnfriended(data) {
     this.emit('friend:unfriended', data);
   }
+
+  /**
+   * 🔥 NEW: Emit khi lời mời được đánh dấu đã xem
+   */
+  emitRequestSeen(data) {
+    this.emit('friend:request_seen', data);
+  }
 }
 
 // Singleton instance
@@ -52,7 +59,8 @@ export const FRIEND_EVENTS = {
   REQUEST_ACCEPTED: 'friend:request_accepted',
   REQUEST_REJECTED: 'friend:request_rejected',
   REQUEST_CANCELLED: 'friend:request_cancelled',
-  UNFRIENDED: 'friend:unfriended'
+  UNFRIENDED: 'friend:unfriended',
+  REQUEST_SEEN: 'friend:request_seen' // 🔥 NEW
 };
 
 export default friendEmitter;

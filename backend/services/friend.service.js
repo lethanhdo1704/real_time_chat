@@ -301,6 +301,7 @@ class FriendService {
       uid: doc.user.uid,
       nickname: doc.user.nickname,
       avatar: doc.user.avatar,
+      seenAt: doc.seenAt, // 🔥 Thêm seenAt
     }));
 
     // Lời mời đã gửi
@@ -352,6 +353,80 @@ class FriendService {
     } else {
       return { status: "request_received" };
     }
+  }
+
+  /**
+   * 🔥 NEW: Đánh dấu một lời mời đã xem
+   */
+  async markRequestAsSeen(userId, requestId) {
+    userId = this.toObjectId(userId);
+    requestId = this.toObjectId(requestId);
+
+    // Tìm và kiểm tra quyền (chỉ người nhận mới được mark as seen)
+    const friendRequest = await Friend.findOne({
+      _id: requestId,
+      friend: userId,
+      status: "pending"
+    });
+
+    if (!friendRequest) {
+      const error = new Error("Không tìm thấy lời mời kết bạn");
+      error.code = "REQUEST_NOT_FOUND";
+      throw error;
+    }
+
+    // Update seenAt
+    friendRequest.seenAt = new Date();
+    await friendRequest.save();
+
+    // Lấy thông tin người gửi và người nhận
+    const sender = await User.findById(friendRequest.user).select("uid");
+    const receiver = await User.findById(userId).select("uid");
+
+    // ✅ Emit socket event cho người gửi
+    friendEmitter.emitRequestSeen({
+      requestId: friendRequest._id,
+      senderUid: sender.uid,
+      receiverUid: receiver.uid,
+      seenAt: friendRequest.seenAt
+    });
+
+    return { seenAt: friendRequest.seenAt };
+  }
+
+  /**
+   * 🔥 NEW: Đánh dấu tất cả lời mời đã xem
+   */
+  async markAllRequestsAsSeen(userId) {
+    userId = this.toObjectId(userId);
+
+    const result = await Friend.updateMany(
+      {
+        friend: userId,
+        status: "pending",
+        seenAt: null
+      },
+      {
+        $set: { seenAt: new Date() }
+      }
+    );
+
+    return { updatedCount: result.modifiedCount };
+  }
+
+  /**
+   * 🔥 NEW: Lấy số lượng lời mời chưa xem
+   */
+  async getUnseenRequestCount(userId) {
+    userId = this.toObjectId(userId);
+
+    const count = await Friend.countDocuments({
+      friend: userId,
+      status: "pending",
+      seenAt: null
+    });
+
+    return count;
   }
 }
 

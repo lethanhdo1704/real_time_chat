@@ -5,6 +5,7 @@ import AddFriend from "../FriendFeature/AddFriend";
 import FriendRequests from "../FriendFeature/FriendRequests";
 import FriendList from "../FriendFeature/FriendList";
 import GroupList from "../FriendFeature/GroupList";
+import useFriendStore from "../../store/friendStore"; // 🔥 NEW
 
 /**
  * Sidebar Component - Mobile-First Optimized (Pure Tailwind)
@@ -13,12 +14,13 @@ import GroupList from "../FriendFeature/GroupList";
  * ✅ Improved visual hierarchy
  * ✅ Smooth scrolling
  * ✅ Premium mobile design
+ * 🔥 NEW: Auto-sync unseen count from store
  */
 export default function Sidebar({
   user,
   activeTab,
   setActiveTab,
-  requestCount,
+  requestCount, // Deprecated - keeping for backward compatibility
   handleLogout,
   handleCopyUID,
   updateRequestCount,
@@ -27,6 +29,9 @@ export default function Sidebar({
   isMobile = false,
 }) {
   const { t } = useTranslation("home");
+  
+  // 🔥 NEW: Get unseen count from store
+  const unseenCount = useFriendStore((state) => state.unseenCount);
 
   return (
     <div className="w-full h-full flex flex-col bg-white shadow-2xl lg:shadow-xl lg:border-r border-gray-200">
@@ -178,7 +183,7 @@ export default function Sidebar({
             </svg>
           }
           label={t("home.tabs.requests")}
-          badge={requestCount}
+          badge={unseenCount} // 🔥 NEW: Use unseenCount from store instead of requestCount
         />
 
         <SidebarItem

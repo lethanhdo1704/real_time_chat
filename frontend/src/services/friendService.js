@@ -91,6 +91,49 @@ const friendService = {
       console.error('Error fetching friend status:', error);
       throw error.response?.data || error;
     }
+  },
+
+  // ============================================
+  // 🔥 NEW: SEEN TRACKING
+  // ============================================
+
+  /**
+   * Đánh dấu một lời mời đã xem
+   */
+  async markRequestAsSeen(requestId) {
+    try {
+      const response = await api.patch(`/friends/requests/${requestId}/seen`);
+      return response.data; // { success, seenAt }
+    } catch (error) {
+      console.error('Error marking request as seen:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
+   * Đánh dấu tất cả lời mời đã xem
+   */
+  async markAllRequestsAsSeen() {
+    try {
+      const response = await api.patch('/friends/requests/seen-all');
+      return response.data; // { success, updatedCount }
+    } catch (error) {
+      console.error('Error marking all requests as seen:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
+   * Lấy số lượng lời mời chưa xem
+   */
+  async getUnseenRequestCount() {
+    try {
+      const response = await api.get('/friends/requests/unseen-count');
+      return response.data; // { success, count }
+    } catch (error) {
+      console.error('Error fetching unseen count:', error);
+      throw error.response?.data || error;
+    }
   }
 };
 

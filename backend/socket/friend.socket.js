@@ -86,5 +86,19 @@ export default function setupFriendSocket(io) {
     });
   });
 
+  // ============================================
+  // 6️⃣ 🔥 NEW: REQUEST SEEN
+  // ============================================
+  friendEmitter.on(FRIEND_EVENTS.REQUEST_SEEN, (data) => {
+    console.log(`[FRIEND] ${data.receiverUid} đã xem lời mời từ ${data.senderUid}`);
+    
+    // Emit cho người gửi - để họ biết lời mời đã được xem
+    io.to(`user:${data.senderUid}`).emit("friend_request_seen", {
+      requestId: data.requestId,
+      seenAt: data.seenAt,
+      receiverUid: data.receiverUid
+    });
+  });
+
   console.log('✅ Friend socket handlers ready');
 }

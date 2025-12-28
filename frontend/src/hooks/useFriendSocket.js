@@ -1,23 +1,25 @@
 // frontend/src/hooks/useFriendSocket.js
-import { useEffect, useCallback } from 'react';
-import { getSocket } from '../services/socketService';
+import { useEffect, useCallback, useContext } from 'react';
+import { SocketContext } from '../context/SocketContext'; // 🔥 Use context instead
 import useFriendStore from '../store/friendStore';
 
 /**
  * Hook để handle tất cả friend socket events
  * 
- * NHIỆM VỤ:
- * - Đăng ký listeners khi component mount
- * - Gỡ listeners khi component unmount
- * - Update store khi nhận events
+ * 🔥 FIXES:
+ * - Sử dụng SocketContext để đảm bảo socket đã sẵn sàng
+ * - Re-register listeners khi socket reconnect
  */
 export default function useFriendSocket() {
+  const { socket, isConnected } = useContext(SocketContext); // 🔥 Get from context
+  
   const { 
     addFriendRequest, 
     removeFriendRequest,
     addFriend,
     removeFriend,
     removeSentRequest,
+    markRequestAsSeen,
   } = useFriendStore();
 
   // ============================================
@@ -25,14 +27,15 @@ export default function useFriendSocket() {
   // ============================================
   
   const handleFriendRequestReceived = useCallback((data) => {
-    console.log('📩 Friend request received:', data);
+    console.log('📩 [useFriendSocket] Friend request received:', data);
     
     addFriendRequest({
       _id: data.requestId,
       uid: data.uid,
       nickname: data.nickname,
       avatar: data.avatar,
-      timestamp: data.timestamp
+      timestamp: data.timestamp,
+      seenAt: null
     });
 
     // Optional: Browser notification
@@ -45,7 +48,7 @@ export default function useFriendSocket() {
   }, [addFriendRequest]);
 
   const handleFriendRequestAccepted = useCallback((data) => {
-    console.log('✅ Friend request accepted:', data);
+    console.log('✅ [useFriendSocket] Friend request accepted:', data);
     
     removeSentRequest(data.uid);
     addFriend({
@@ -57,7 +60,7 @@ export default function useFriendSocket() {
   }, [removeSentRequest, addFriend]);
 
   const handleFriendAdded = useCallback((data) => {
-    console.log('👥 Friend added:', data);
+    console.log('👥 [useFriendSocket] Friend added:', data);
     
     removeFriendRequest(data.uid);
     addFriend({
@@ -69,60 +72,80 @@ export default function useFriendSocket() {
   }, [removeFriendRequest, addFriend]);
 
   const handleFriendRequestRejected = useCallback((data) => {
-    console.log('❌ Friend request rejected:', data);
+    console.log('❌ [useFriendSocket] Friend request rejected:', data);
     removeSentRequest(data.uid);
   }, [removeSentRequest]);
 
   const handleFriendRequestCancelled = useCallback((data) => {
-    console.log('🚫 Friend request cancelled:', data);
+    console.log('🚫 [useFriendSocket] Friend request cancelled:', data);
     removeFriendRequest(data.uid);
   }, [removeFriendRequest]);
 
   const handleFriendRemoved = useCallback((data) => {
-    console.log('💔 Friend removed:', data);
+    console.log('💔 [useFriendSocket] Friend removed:', data);
     removeFriend(data.uid);
   }, [removeFriend]);
 
+  const handleFriendRequestSeen = useCallback((data) => {
+    console.log('👁️ [useFriendSocket] Friend request seen:', data);
+    markRequestAsSeen(data.requestId);
+  }, [markRequestAsSeen]);
+
   // ============================================
-  // SOCKET LISTENERS SETUP - ✅ Simplified
+  // 🔥 SOCKET LISTENERS - Wait for connection
   // ============================================
   
   useEffect(() => {
-    const socket = getSocket();
-    
-    // ✅ Đơn giản: Nếu không có socket thì return
-    if (!socket) {
-      console.log('⏳ Socket not ready yet');
+    // 🔥 Wait for both socket AND connection
+    if (!socket || !isConnected) {
+      console.log('⏳ [useFriendSocket] Waiting for socket connection...', { socket: !!socket, isConnected });
       return;
     }
 
-    console.log('🔌 Setting up friend socket listeners');
+    console.log('🔌 [useFriendSocket] Registering friend socket listeners');
 
-    // ✅ Đăng ký listeners
+    // Register all listeners
     socket.on('friend_request_received', handleFriendRequestReceived);
     socket.on('friend_request_accepted', handleFriendRequestAccepted);
     socket.on('friend_added', handleFriendAdded);
     socket.on('friend_request_rejected', handleFriendRequestRejected);
     socket.on('friend_request_cancelled', handleFriendRequestCancelled);
     socket.on('friend_removed', handleFriendRemoved);
+    socket.on('friend_request_seen', handleFriendRequestSeen);
+    
+    console.log('✅ [useFriendSocket] All friend listeners registered successfully');
 
-    // ✅ Cleanup
+    // 🔥 DEBUG: Catch all socket events (remove in production)
+    const debugHandler = (eventName, ...args) => {
+      if (eventName.startsWith('friend_')) {
+        console.log(`🔔 [Socket Debug] Event: ${eventName}`, args);
+      }
+    };
+    socket.onAny(debugHandler);
+
+    // Cleanup
     return () => {
-      console.log('🔌 Cleaning up friend socket listeners');
+      console.log('🧹 [useFriendSocket] Cleaning up friend listeners');
+      
       socket.off('friend_request_received', handleFriendRequestReceived);
       socket.off('friend_request_accepted', handleFriendRequestAccepted);
       socket.off('friend_added', handleFriendAdded);
       socket.off('friend_request_rejected', handleFriendRequestRejected);
       socket.off('friend_request_cancelled', handleFriendRequestCancelled);
       socket.off('friend_removed', handleFriendRemoved);
+      socket.off('friend_request_seen', handleFriendRequestSeen);
+      socket.offAny(debugHandler);
     };
   }, [
+    socket,
+    isConnected, // 🔥 Re-register when connection state changes
     handleFriendRequestReceived,
     handleFriendRequestAccepted,
     handleFriendAdded,
     handleFriendRequestRejected,
     handleFriendRequestCancelled,
-    handleFriendRemoved
+    handleFriendRemoved,
+    handleFriendRequestSeen
   ]);
 
   return null;
