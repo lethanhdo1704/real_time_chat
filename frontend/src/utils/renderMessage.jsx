@@ -16,9 +16,7 @@ const softenLongUnbrokenText = (text, limit = 30) => {
 export const renderMessage = (text) => {
   if (!text) return null;
 
-  // ⭐ RẤT QUAN TRỌNG
   const safeText = softenLongUnbrokenText(text);
-
   const parts = safeText.split(URL_SPLIT_REGEX);
 
   return parts.map((part, index) => {
@@ -29,7 +27,13 @@ export const renderMessage = (text) => {
           href={part}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline hover:text-blue-200 wrap-break-word"
+          className="
+            underline
+            hover:text-blue-200
+            break-all
+            whitespace-pre-wrap
+            max-w-full
+          "
           onClick={(e) => e.stopPropagation()}
         >
           {part}
@@ -37,6 +41,13 @@ export const renderMessage = (text) => {
       );
     }
 
-    return <span key={index}>{part}</span>;
+    return (
+      <span
+        key={index}
+        className="break-all whitespace-pre-wrap"
+      >
+        {part}
+      </span>
+    );
   });
 };

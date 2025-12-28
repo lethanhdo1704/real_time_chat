@@ -68,13 +68,13 @@ export default function BottomNavigation({
                 
                 {/* Badge for notifications */}
                 {tab.badge > 0 && (
-                  <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-2 -right-2 min-w-4.5 h-4.5 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                     {tab.badge > 99 ? '99+' : tab.badge}
                   </span>
                 )}
               </div>
               
-              <span className="text-[11px] mt-1 font-medium truncate max-w-[60px]">
+              <span className="text-[11px] mt-1 font-medium truncate max-w-15">
                 {tab.label}
               </span>
             </button>

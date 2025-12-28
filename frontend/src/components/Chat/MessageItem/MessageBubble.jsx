@@ -26,7 +26,7 @@ export default function MessageBubble({
 
   return (
     <div className={`inline-flex flex-col rounded-2xl ${getBubbleCorner()} px-3 py-2 sm:px-4 sm:py-2.5 transition-all duration-200 ${getBubbleColor()}`}>
-      <div className={isBig ? "text-4xl leading-none" : "text-[14px] sm:text-[15px] leading-[1.4] whitespace-pre-wrap "}>
+      <div className={isBig ? "text-4xl leading-none" : "text-[14px] sm:text-[15px] leading-[1.4] whitespace-pre-wrap wrap-break-word"}>
         {renderMessage(messageText)}
       </div>
       

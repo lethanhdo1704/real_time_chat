@@ -47,7 +47,7 @@ export default function ContextPanel({
   return (
     <div className="w-full md:w-80 bg-white border-r border-gray-200 flex flex-col shrink-0 h-full">
       {/* Header with User Info */}
-      <div className="p-4 border-b border-gray-200 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 shrink-0">
+      <div className="p-4 border-b border-gray-200 bg-linear-to-br from-blue-600 via-indigo-600 to-purple-600 shrink-0">
         {/* User Avatar & Name */}
         <div className="flex items-center gap-3 mb-3">
           <div className="relative shrink-0">

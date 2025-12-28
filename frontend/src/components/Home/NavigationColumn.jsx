@@ -73,7 +73,7 @@ export default function NavigationColumn({
           {item.badge > 0 && (
             <span 
               className={`
-                absolute -top-1 -right-1 min-w-[20px] h-5 px-1
+                absolute -top-1 -right-1 min-w-5 h-5 px-1
                 text-[10px] font-bold flex items-center justify-center
                 rounded-full border-2 border-white shadow-md
                 ${activeTab === item.id 
