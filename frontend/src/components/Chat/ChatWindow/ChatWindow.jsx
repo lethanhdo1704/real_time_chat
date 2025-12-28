@@ -1,23 +1,27 @@
-// frontend/src/components/Chat/ChatWindow/ChatWindow.jsx
+// frontend/src/components/Chat/ChatWindow/ChatWindow.jsx - RESPONSIVE
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate, useLocation } from "react-router-dom";
 import useChatWindowLogic from "../../../hooks/chat/useChatWindowLogic.js";
-import ChatWindowHeader from "./ChatWindowHeader.jsx";
+import ChatHeader from "../ChatHeader.jsx";
 import ChatWindowBody from "./ChatWindowBody.jsx";
 import ChatInput from "../ChatInput.jsx";
 import ChatEmptyState from "../ChatEmptyState.jsx";
 
 /**
- * ChatWindow Component - Main Container (NO LOGIC)
+ * ChatWindow Component - Main Container
  * 
  * Responsibilities:
  * - Layout structure
  * - Compose child components
  * - Pass data from hook to children
+ * - Mobile responsive with back navigation
  */
 export default function ChatWindow() {
   const { t } = useTranslation("chat");
-  const inputRef = useRef(null);  // 🔥 Ref to ChatInput
+  const inputRef = useRef(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // ============================================
   // ALL LOGIC IN CUSTOM HOOK
@@ -49,6 +53,18 @@ export default function ChatWindow() {
   } = useChatWindowLogic();
 
   // ============================================
+  // MOBILE BACK HANDLER
+  // ============================================
+  const handleBackClick = () => {
+    // Extract current tab from path (friends, groups, etc.)
+    const pathParts = location.pathname.split("/");
+    const currentTab = pathParts[1] || "friends";
+    
+    // Navigate back to list view (without conversation ID)
+    navigate(`/${currentTab}`);
+  };
+
+  // ============================================
   // FOCUS INPUT HANDLER
   // ============================================
   const focusInput = () => {
@@ -68,13 +84,13 @@ export default function ChatWindow() {
   if (loading && !messages.length) {
     return (
       <div className="flex flex-col h-full w-full bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <div className="pt-16 lg:pt-0">
-          <ChatWindowHeader
-            receiverName={displayInfo.name}
-            receiverAvatar={displayInfo.avatar}
-            isTyping={false}
-          />
-        </div>
+        <ChatHeader
+          receiverName={displayInfo.name}
+          receiverAvatar={displayInfo.avatar}
+          isTyping={false}
+          showBackButton={true}
+          onBackClick={handleBackClick}
+        />
 
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="text-center">
@@ -97,14 +113,14 @@ export default function ChatWindow() {
   return (
     <div className="flex flex-col h-full w-full min-h-0 bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header */}
-      <div className="pt-16 lg:pt-0">
-        <ChatWindowHeader
-          receiverName={displayInfo.name}
-          receiverAvatar={displayInfo.avatar}
-          isTyping={!!typingUser}
-          typingUserName={typingUser?.nickname || typingUser?.fullName}
-        />
-      </div>
+      <ChatHeader
+        receiverName={displayInfo.name}
+        receiverAvatar={displayInfo.avatar}
+        isTyping={!!typingUser}
+        typingUserName={typingUser?.nickname || typingUser?.fullName}
+        showBackButton={true}
+        onBackClick={handleBackClick}
+      />
 
       {/* Body: Messages + Typing + Empty States */}
       <ChatWindowBody

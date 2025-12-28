@@ -15,6 +15,9 @@
       "requests": "Requests",
       "add": "Add Friend"
     },
+    "search": {
+      "placeholder": "Search..."
+    },
     "welcome": {
       "title": "Welcome to Chat",
       "subtitle": "Select a friend or group to start chatting",

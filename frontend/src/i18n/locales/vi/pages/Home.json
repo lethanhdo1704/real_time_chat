@@ -15,6 +15,9 @@
       "requests": "Lời mời",
       "add": "Thêm bạn"
     },
+    "search": {
+      "placeholder": "Tìm kiếm..."
+    },
     "welcome": {
       "title": "Chào mừng đến với Chat",
       "subtitle": "Chọn một người bạn hoặc nhóm để bắt đầu trò chuyện",
