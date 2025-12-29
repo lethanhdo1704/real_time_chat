@@ -10,6 +10,7 @@ import * as chatApi from "../../services/chatApi";
  * ✅ Handle non-existent conversations gracefully
  * ✅ Merge updates properly
  * ✅ Better logging
+ * ✅ exitConversation() for mobile back navigation
  */
 export const createConversationSlice = (set, get) => ({
   // ============================================
@@ -273,6 +274,40 @@ export const createConversationSlice = (set, get) => ({
       friend?.nickname || friend?.uid
     );
     set({ activeFriend: friend });
+  },
+
+  // ============================================
+  // 🔥 NEW: EXIT CONVERSATION (for mobile back)
+  // ============================================
+  
+  /**
+   * Exit current conversation and clear active state
+   * Used when user clicks back button on mobile
+   * 
+   * This ensures:
+   * - activeConversationId becomes null
+   * - activeFriend becomes null
+   * - hasActiveConversation in Home.jsx becomes false
+   * - Mobile shows ContextPanel instead of ChatWindow
+   */
+  exitConversation: () => {
+    const state = get();
+    const previousConversationId = state.activeConversationId;
+    
+    console.log("🚪 [conversationSlice] exitConversation:", previousConversationId);
+    
+    // Mark conversation as left (allows re-joining later)
+    if (previousConversationId && state.markConversationLeft) {
+      state.markConversationLeft(previousConversationId);
+    }
+    
+    // Clear active state
+    set({
+      activeConversationId: null,
+      activeFriend: null,
+    });
+    
+    console.log("✅ [conversationSlice] Conversation exited, state cleared");
   },
 
   // ============================================

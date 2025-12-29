@@ -209,6 +209,12 @@ export default function Home() {
     navigate("/login");
   }, [logout, navigate]);
 
+  // Handler for mobile back button
+  const handleMobileBack = useCallback(() => {
+    // Navigate back to the current tab root (without conversation)
+    navigate(`/${activeTab}`);
+  }, [navigate, activeTab]);
+
   // ============================================
   // RENDER
   // ============================================
@@ -262,6 +268,7 @@ export default function Home() {
             onSelectFriend={handleSelectFriend}
             onSelectConversation={handleSelectConversationWithRoute}
             onUpdateRequestCount={setRequestCount}
+            onBack={handleMobileBack}
           />
         </div>
       )}

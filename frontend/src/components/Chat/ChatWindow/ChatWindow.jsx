@@ -7,6 +7,7 @@ import ChatHeader from "../ChatHeader.jsx";
 import ChatWindowBody from "./ChatWindowBody.jsx";
 import ChatInput from "../ChatInput.jsx";
 import ChatEmptyState from "../ChatEmptyState.jsx";
+import useChatStore from "../../../store/chat/chatStore.js";
 
 /**
  * ChatWindow Component - Main Container
@@ -59,7 +60,12 @@ export default function ChatWindow() {
     const pathParts = location.pathname.split("/");
     const currentTab = pathParts[1] || "friends";
     
-    // Navigate back to list view (without conversation ID)
+    // 🔥 EXIT CONVERSATION: Clear active state in store
+    // This makes hasActiveConversation = false in Home.jsx
+    // → Mobile will show ContextPanel instead of ChatWindow
+    useChatStore.getState().exitConversation();
+    
+    // Navigate back to control panel (list view)
     navigate(`/${currentTab}`);
   };
 
