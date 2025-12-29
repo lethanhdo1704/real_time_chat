@@ -21,13 +21,22 @@ export default function ConversationItem({
   const locale = i18n.language === "vi" ? vi : enUS;
 
   // ============================================
+  // GET USER INITIALS
+  // ============================================
+
+  const getUserInitials = (name) => {
+    if (!name) return "?";
+    return name.trim()[0].toUpperCase();
+  };
+
+  // ============================================
   // GET DISPLAY INFO
   // ============================================
 
   const getDisplayInfo = () => {
     if (conversation?.type === "group") {
       return {
-        avatar: conversation.avatar || "https://i.pravatar.cc/40",
+        avatar: conversation.avatar || null,
         name: conversation.name || "Group Chat",
       };
     }
@@ -35,14 +44,14 @@ export default function ConversationItem({
     // Private chat - use friend info
     if (friend) {
       return {
-        avatar: friend.avatar || "https://i.pravatar.cc/40",
+        avatar: friend.avatar || null,
         name: friend.nickname || friend.uid,
       };
     }
 
     // Fallback
     return {
-      avatar: "https://i.pravatar.cc/40",
+      avatar: null,
       name: "Unknown",
     };
   };
@@ -164,11 +173,11 @@ export default function ConversationItem({
     >
       {/* Avatar with Status */}
       <div className="relative shrink-0">
-        <img
-          src={avatar}
-          alt={name}
+        <div
           className={`
-            w-14 h-14 rounded-full object-cover transition-all
+            w-14 h-14 rounded-full bg-linear-to-br from-blue-400 to-purple-500 
+            flex items-center justify-center text-white font-semibold text-lg
+            overflow-hidden transition-all
             ${
               isActive
                 ? "ring-4 ring-white shadow-xl"
@@ -177,7 +186,17 @@ export default function ConversationItem({
                 : "ring-2 ring-gray-100 group-hover:ring-gray-200"
             }
           `}
-        />
+        >
+          {avatar ? (
+            <img
+              src={avatar}
+              alt={name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            getUserInitials(name)
+          )}
+        </div>
 
         {/* Online Status Indicator */}
         <span
