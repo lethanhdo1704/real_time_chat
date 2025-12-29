@@ -7,6 +7,8 @@ import EmojiPicker from "./EmojiPicker";
  * ChatInput Component - Flexbox Layout
  * 
  * ✅ FIXED: Removed <style jsx> - moved to index.css
+ * ✅ Emoji picker closes when clicking emoji button or outside
+ * ✅ FIXED: Emoji insertion doesn't lose typed text
  */
 const ChatInput = forwardRef(({ 
   onSendMessage, 
@@ -22,6 +24,7 @@ const ChatInput = forwardRef(({
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const emojiButtonRef = useRef(null);
 
   // ============================================
   // EXPOSE FOCUS METHOD TO PARENT
@@ -71,7 +74,7 @@ const ChatInput = forwardRef(({
   }, [disabled, sending]);
 
   // ============================================
-  // EMOJI PICKER
+  // EMOJI PICKER - 🔥 FIXED: Use ref to get current text value
   // ============================================
   const handleEmojiClick = useCallback((emojiObject) => {
     const textarea = textareaRef.current;
@@ -80,7 +83,10 @@ const ChatInput = forwardRef(({
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const emoji = emojiObject.emoji;
-    const newText = text.substring(0, start) + emoji + text.substring(end);
+    
+    // 🔥 Get current value from textarea directly instead of stale state
+    const currentText = textarea.value;
+    const newText = currentText.substring(0, start) + emoji + currentText.substring(end);
 
     setText(newText);
 
@@ -93,8 +99,15 @@ const ChatInput = forwardRef(({
       textarea.style.height = Math.min(textarea.scrollHeight, 180) + "px";
     }, 0);
 
-    setShowEmojiPicker(false);
-  }, [text]);
+    // Keep picker open for multiple emoji selections
+  }, []); // 🔥 Remove 'text' dependency - use textarea.value instead
+
+  // ============================================
+  // TOGGLE EMOJI PICKER
+  // ============================================
+  const toggleEmojiPicker = useCallback(() => {
+    setShowEmojiPicker(prev => !prev);
+  }, []);
 
   // ============================================
   // IMAGE UPLOAD
@@ -202,6 +215,7 @@ const ChatInput = forwardRef(({
             show={showEmojiPicker}
             onClose={() => setShowEmojiPicker(false)}
             onEmojiClick={handleEmojiClick}
+            emojiButtonRef={emojiButtonRef}
           />
 
           {/* Input Shell */}
@@ -285,8 +299,9 @@ const ChatInput = forwardRef(({
             <div className="flex shrink-0 items-center gap-1">
               {/* Emoji Button */}
               <button
+                ref={emojiButtonRef}
                 type="button"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                onClick={toggleEmojiPicker}
                 disabled={disabled || sending}
                 className={`
                   flex h-9 w-9 
