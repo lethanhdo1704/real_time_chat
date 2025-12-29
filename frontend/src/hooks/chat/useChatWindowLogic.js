@@ -1,6 +1,6 @@
 // frontend/src/hooks/chat/useChatWindowLogic.js
 import { useMemo } from "react";
-import useChatStore from "../../store/chatStore.js";
+import useChatStore from "../../store/chat/chatStore.js";
 import useMessages from "./useMessages.js";
 import useSendMessage from "./useSendMessage.js";
 import useTyping from "./useTyping.js";

@@ -1,7 +1,7 @@
 // frontend/src/hooks/chat/useTyping.js
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSocket } from '../../services/socketService';
-import useChatStore from '../../store/chatStore';
+import useChatStore from '../../store/chat/chatStore';
 
 /**
  * useTyping Hook - Fixed Race Condition

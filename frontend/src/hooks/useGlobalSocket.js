@@ -2,7 +2,7 @@
 import { useEffect, useContext, useCallback } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { getSocket } from "../services/socketService";
-import useChatStore from "../store/chatStore";
+import useChatStore from "../store/chat/chatStore";
 
 /**
  * Global socket listener for sidebar updates

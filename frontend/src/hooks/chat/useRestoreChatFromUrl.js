@@ -1,7 +1,7 @@
 // frontend/src/hooks/chat/useRestoreChatFromUrl.js
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
-import useChatStore from "../../store/chatStore";
+import useChatStore from "../../store/chat/chatStore";
 import api from "../../services/api";
 
 export default function useRestoreChatFromUrl() {

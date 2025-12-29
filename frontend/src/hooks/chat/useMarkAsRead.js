@@ -1,6 +1,6 @@
 // frontend/src/hooks/chat/useMarkAsRead.js
 import { useCallback, useEffect, useRef } from 'react';
-import useChatStore from '../../store/chatStore';
+import useChatStore from '../../store/chat/chatStore';
 import chatApi from '../../services/chatApi';
 
 /**

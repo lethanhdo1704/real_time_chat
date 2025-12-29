@@ -11,7 +11,7 @@ import { useFriendRequestCount } from "../hooks/useFriendRequestCount";
 import { useHomeChat } from "../hooks/useHomeChat";
 import { useGlobalSocket } from "../hooks/useGlobalSocket";
 import useInitFriends from "../hooks/useInitFriends";
-import useChatStore from "../store/chatStore";
+import useChatStore from "../store/chat/chatStore";
 import useFriendStore from "../store/friendStore";
 import useRestoreChatFromUrl from "../hooks/chat/useRestoreChatFromUrl";
 

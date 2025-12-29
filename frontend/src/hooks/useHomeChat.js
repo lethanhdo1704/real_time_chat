@@ -2,7 +2,7 @@
 import { useEffect, useCallback, useContext, useMemo, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { getSocket } from "../services/socketService";
-import useChatStore from "../store/chatStore";
+import useChatStore from "../store/chat/chatStore";
 import * as chatApi from "../services/chatApi";
 
 /**

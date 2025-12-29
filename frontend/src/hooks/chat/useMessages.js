@@ -1,7 +1,7 @@
 // frontend/src/hooks/chat/useMessages.js
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { getSocket } from '../../services/socketService';
-import useChatStore from '../../store/chatStore';
+import useChatStore from '../../store/chat/chatStore';
 import chatApi from '../../services/chatApi';
 
 /**
