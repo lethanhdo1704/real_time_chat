@@ -4,7 +4,8 @@
     "header": {
       "logout": "Logout",
       "copyUID": "Copy UID",
-      "uidLabel": "UID:"
+      "uidLabel": "UID:",
+      "settings": "Settings"
     },
     "toast": {
       "copiedUID": "UID copied!"

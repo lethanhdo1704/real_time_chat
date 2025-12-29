@@ -11,7 +11,8 @@
     "startConversation": "Start a new conversation",
     "placeholder": "Type a message...",
     "selectEmoji": "Select emoji",
-    "send": "Send"
+    "send": "Send",
+    "uploadImage": "Upload Image"
   },
   "emoji": {
     "search": "Search emoji...",

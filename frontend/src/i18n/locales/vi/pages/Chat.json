@@ -11,7 +11,8 @@
     "startConversation": "Bắt đầu cuộc trò chuyện mới",
     "placeholder": "Nhập tin nhắn...",
     "selectEmoji": "Chọn emoji",
-    "send": "Gửi"
+    "send": "Gửi",
+    "uploadImage": "Tải ảnh lên"
   },
   "emoji": {
     "search": "Tìm emoji...",

@@ -4,7 +4,8 @@
     "header": {
       "logout": "Đăng xuất",
       "copyUID": "Sao chép UID",
-      "uidLabel": "UID:"
+      "uidLabel": "UID:",
+      "settings": "Cài đặt"
     },
     "toast": {
       "copiedUID": "Đã sao chép UID!"
