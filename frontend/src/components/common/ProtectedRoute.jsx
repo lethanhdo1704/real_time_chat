@@ -5,18 +5,25 @@ import { Navigate } from "react-router-dom";
 
 /**
  * ProtectedRoute - Single source of truth for auth protection
- * 
+ *
  * ✅ Waits for loading to complete
  * ✅ Redirects to /login if no user
- * ✅ Prevents race conditions
+ * ✅ No h-screen (mobile-safe)
  */
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useContext(AuthContext);
 
-  // ⏳ Still loading user from token - WAIT
+  // ⏳ Still loading user from token
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div
+        className="
+          flex items-center justify-center
+          bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50
+          h-[calc(var(--vh,1vh)*100)]
+          supports-[height:100dvh]:h-dvh
+        "
+      >
         <div className="text-center">
           <div className="relative w-16 h-16 mx-auto mb-6">
             <div className="absolute inset-0 rounded-full border-4 border-blue-200"></div>
@@ -28,13 +35,11 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  // 🚫 No user after loading - redirect to login
+  // 🚫 Not authenticated
   if (!user) {
-    console.log('🔒 [ProtectedRoute] No user, redirecting to /login');
     return <Navigate to="/login" replace />;
   }
 
-  // ✅ User authenticated - render children
-  console.log('✅ [ProtectedRoute] User authenticated:', user.uid);
+  // ✅ Authenticated
   return children;
 }

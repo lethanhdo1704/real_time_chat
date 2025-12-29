@@ -8,13 +8,15 @@ import { useTranslation } from "react-i18next";
  * ✅ Badge notifications
  * ✅ Settings button at bottom
  * ✅ Mobile optimized (min 48px touch targets)
+ * ✅ Scrollable when content overflows
+ * ✅ Logout always visible
  */
 export default function NavigationColumn({ 
   activeTab, 
   onTabChange,
-  unseenRequestCount = 0, // 🔥 Use unseenCount from store
+  unseenRequestCount = 0,
   onLogout,
-  onSettings // 🔥 NEW: Settings handler
+  onSettings
 }) {
   const { t } = useTranslation("home");
 
@@ -35,7 +37,7 @@ export default function NavigationColumn({
       id: 'requests', 
       icon: RequestsIcon, 
       label: t("home.tabs.requests"),
-      badge: unseenRequestCount // 🔥 Show unseen count
+      badge: unseenRequestCount
     },
     { 
       id: 'add', 
@@ -46,81 +48,83 @@ export default function NavigationColumn({
   ];
 
   return (
-    <div className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 shrink-0">
-      {/* Navigation Items */}
-      {navItems.map(item => (
+    <div className="w-16 bg-white border-r border-gray-200 flex flex-col shrink-0 h-full">
+      {/* Scrollable Navigation Items */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 flex flex-col items-center min-h-0">
+        {navItems.map(item => (
+          <button
+            key={item.id}
+            onClick={() => onTabChange(item.id)}
+            className={`
+              relative w-12 h-12 rounded-xl flex items-center justify-center mb-2 shrink-0
+              transition-all duration-200
+              ${activeTab === item.id 
+                ? 'bg-blue-600 text-white shadow-md' 
+                : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+              }
+            `}
+            style={{ 
+              minWidth: '48px',
+              minHeight: '48px',
+              WebkitTapHighlightColor: 'transparent'
+            }}
+            title={item.label}
+            aria-label={item.label}
+          >
+            <item.icon className="w-6 h-6" />
+            
+            {/* Badge */}
+            {item.badge > 0 && (
+              <span 
+                className={`
+                  absolute -top-1 -right-1 min-w-5 h-5 px-1
+                  text-[10px] font-bold flex items-center justify-center
+                  rounded-full border-2 border-white shadow-md
+                  ${activeTab === item.id 
+                    ? 'bg-white text-blue-600' 
+                    : 'bg-red-500 text-white animate-pulse'
+                  }
+                `}
+              >
+                {item.badge > 99 ? '99+' : item.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      
+      {/* Fixed Bottom Actions - ALWAYS VISIBLE */}
+      <div className="flex flex-col items-center py-4 border-t border-gray-200 shrink-0">
+        {/* Settings Button */}
         <button
-          key={item.id}
-          onClick={() => onTabChange(item.id)}
-          className={`
-            relative w-12 h-12 rounded-xl flex items-center justify-center mb-2
-            transition-all duration-200
-            ${activeTab === item.id 
-              ? 'bg-blue-600 text-white shadow-md' 
-              : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
-            }
-          `}
+          onClick={onSettings}
+          className="w-12 h-12 rounded-xl flex items-center justify-center mb-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
           style={{ 
             minWidth: '48px',
             minHeight: '48px',
             WebkitTapHighlightColor: 'transparent'
           }}
-          title={item.label}
-          aria-label={item.label}
+          title={t("home.header.settings") || "Settings"}
+          aria-label={t("home.header.settings") || "Settings"}
         >
-          <item.icon className="w-6 h-6" />
-          
-          {/* Badge */}
-          {item.badge > 0 && (
-            <span 
-              className={`
-                absolute -top-1 -right-1 min-w-5 h-5 px-1
-                text-[10px] font-bold flex items-center justify-center
-                rounded-full border-2 border-white shadow-md
-                ${activeTab === item.id 
-                  ? 'bg-white text-blue-600' 
-                  : 'bg-red-500 text-white animate-pulse'
-                }
-              `}
-            >
-              {item.badge > 99 ? '99+' : item.badge}
-            </span>
-          )}
+          <SettingsIcon className="w-6 h-6" />
         </button>
-      ))}
-      
-      {/* Spacer */}
-      <div className="flex-1" />
-      
-      {/* Settings Button */}
-      <button
-        onClick={onSettings}
-        className="w-12 h-12 rounded-xl flex items-center justify-center mb-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
-        style={{ 
-          minWidth: '48px',
-          minHeight: '48px',
-          WebkitTapHighlightColor: 'transparent'
-        }}
-        title={t("home.header.settings") || "Settings"}
-        aria-label={t("home.header.settings") || "Settings"}
-      >
-        <SettingsIcon className="w-6 h-6" />
-      </button>
-      
-      {/* Logout Button */}
-      <button
-        onClick={onLogout}
-        className="w-12 h-12 rounded-xl flex items-center justify-center text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
-        style={{ 
-          minWidth: '48px',
-          minHeight: '48px',
-          WebkitTapHighlightColor: 'transparent'
-        }}
-        title={t("home.header.logout")}
-        aria-label={t("home.header.logout")}
-      >
-        <LogoutIcon className="w-6 h-6" />
-      </button>
+        
+        {/* Logout Button */}
+        <button
+          onClick={onLogout}
+          className="w-12 h-12 rounded-xl flex items-center justify-center text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
+          style={{ 
+            minWidth: '48px',
+            minHeight: '48px',
+            WebkitTapHighlightColor: 'transparent'
+          }}
+          title={t("home.header.logout")}
+          aria-label={t("home.header.logout")}
+        >
+          <LogoutIcon className="w-6 h-6" />
+        </button>
+      </div>
     </div>
   );
 }

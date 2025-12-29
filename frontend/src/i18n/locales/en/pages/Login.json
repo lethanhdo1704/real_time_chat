@@ -14,7 +14,7 @@
     "email": "Email",
     "emailPlaceholder": "example@email.com",
     "password": "Password",
-    "passwordPlaceholder": "Your password",
+    "passwordPlaceholder": "Password",
     "rememberMe": "Remember me",
     "forgotPassword": "Forgot password?",
     "loginButton": "Login",

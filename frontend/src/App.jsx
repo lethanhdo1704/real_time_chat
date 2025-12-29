@@ -1,7 +1,9 @@
 // frontend/src/App.jsx
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
+import { setViewportHeight } from "./utils/setViewportHeight";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
@@ -10,11 +12,30 @@ import NotFound from "./pages/NotFound";
 import ForgotPassword from "./pages/ForgotPassword";
 
 function App() {
+  // ============================================
+  // SETUP VIEWPORT HEIGHT - MỘT LẦN CHO TOÀN APP
+  // ============================================
+  useEffect(() => {
+    setViewportHeight();
+    
+    window.addEventListener("resize", setViewportHeight);
+    window.addEventListener("orientationchange", setViewportHeight);
+    
+    return () => {
+      window.removeEventListener("resize", setViewportHeight);
+      window.removeEventListener("orientationchange", setViewportHeight);
+    };
+  }, []);
+
   return (
     <AuthProvider>
       <BrowserRouter>
         <SocketProvider>
-          <div className="h-screen w-screen">
+          <div className="
+            h-[calc(var(--vh,1vh)*100)]
+            supports-[height:100dvh]:h-dvh
+            w-screen
+          ">
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />

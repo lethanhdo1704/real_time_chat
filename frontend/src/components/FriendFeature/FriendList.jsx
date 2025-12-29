@@ -220,23 +220,23 @@ export default function FriendList({ currentUser, onSelectFriend }) {
     );
   }
 
-  return (
-    <div className="space-y-0">
-      {sortedFriends.map((friend) => {
-        const conversation = getConversationForFriend(friend.uid);
-        const isActive = conversation?._id === activeConversationId;
+ return (
+  <div className="flex flex-col flex-1 bg-white">
+    {sortedFriends.map((friend) => {
+      const conversation = getConversationForFriend(friend.uid);
+      const isActive = conversation?._id === activeConversationId;
 
-        return (
-          <ConversationItem
-            key={friend._id || friend.uid}
-            conversation={conversation}
-            friend={friend}
-            isActive={isActive}
-            currentUserId={currentUser?.uid}
-            onClick={() => handleSelectFriend(friend)}
-          />
-        );
-      })}
-    </div>
-  );
+      return (
+        <ConversationItem
+          key={friend._id || friend.uid}
+          conversation={conversation}
+          friend={friend}
+          isActive={isActive}
+          currentUserId={currentUser?.uid}
+          onClick={() => handleSelectFriend(friend)}
+        />
+      );
+    })}
+  </div>
+);
 }

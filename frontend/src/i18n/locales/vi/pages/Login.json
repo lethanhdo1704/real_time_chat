@@ -14,7 +14,7 @@
     "email": "Email",
     "emailPlaceholder": "example@email.com",
     "password": "Mật khẩu",
-    "passwordPlaceholder": "Mật khẩu của bạn",
+    "passwordPlaceholder": "Mật khẩu",
     "rememberMe": "Ghi nhớ đăng nhập",
     "forgotPassword": "Quên mật khẩu?",
     "loginButton": "Đăng nhập",

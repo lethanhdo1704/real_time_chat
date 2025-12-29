@@ -1,4 +1,4 @@
-// frontend/src/components/Home/ContextPanel.jsx - MOBILE RESPONSIVE
+// frontend/src/components/Home/ContextPanel.jsx - FULL i18n SUPPORT
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import FriendList from "../FriendFeature/FriendList";
@@ -7,18 +7,6 @@ import AddFriend from "../FriendFeature/AddFriend";
 import GroupList from "../FriendFeature/GroupList";
 import CopyToast from "./CopyToast";
 
-/**
- * ContextPanel Component - Responsive Panel
- * 
- * Desktop (≥ 768px): Fixed width 320px (Column 2)
- * Mobile (< 768px): Full width, no fixed width constraint
- * 
- * Content modes:
- * - friends: FriendList
- * - groups: GroupList
- * - requests: FriendRequests
- * - add: AddFriend
- */
 export default function ContextPanel({ 
   activeTab,
   user,
@@ -37,7 +25,6 @@ export default function ContextPanel({
     e.preventDefault();
     e.stopPropagation();
     
-    // Fallback method for copying
     const textArea = document.createElement("textarea");
     textArea.value = user.uid;
     textArea.style.position = "fixed";
@@ -66,10 +53,10 @@ export default function ContextPanel({
   
   const getHeaderTitle = () => {
     switch(activeTab) {
-      case 'friends': return t("home.tabs.friends") || "Bạn bè";
-      case 'groups': return t("home.tabs.groups") || "Nhóm";
-      case 'requests': return t("home.tabs.requests") || "Lời mời";
-      case 'add': return t("home.tabs.add") || "Thêm bạn";
+      case 'friends': return t("home.tabs.friends");
+      case 'groups': return t("home.tabs.groups");
+      case 'requests': return t("home.tabs.requests");
+      case 'add': return t("home.tabs.add");
       default: return '';
     }
   };
@@ -89,63 +76,69 @@ export default function ContextPanel({
 
   return (
     <>
-      <div className="w-full md:w-80 bg-white border-r border-gray-200 flex flex-col shrink-0 h-full">
-        {/* Header with User Info */}
-        <div className="p-4 border-b border-gray-200 shrink-0" style={{
-          background: 'linear-gradient(to bottom right, rgb(37, 99, 235), rgb(79, 70, 229), rgb(147, 51, 234))'
-        }}>
-          {/* User Avatar & Name */}
-          <div className="flex items-center gap-3 mb-3">
-            {/* Avatar with Status */}
-            <div className="relative shrink-0">
-              <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden ring-2 ring-white/30 shadow-lg">
-                {user.avatar ? (
-                  <img
-                    src={user.avatar}
-                    alt={user.nickname}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  getUserInitials(user.nickname)
-                )}
+      <div className="w-full md:w-80 bg-white md:border-r border-gray-200 flex flex-col h-full min-h-0 shrink-0">
+        
+        {/* Header with User Info - Full width gradient */}
+        <div 
+          className="w-full border-b border-gray-200 shrink-0" 
+          style={{
+            background: 'linear-gradient(to right bottom, rgb(37, 99, 235), rgb(79, 70, 229), rgb(147, 51, 234))'
+          }}
+        >
+          <div className="px-4 py-4">
+            {/* User Avatar & Name */}
+            <div className="flex items-center gap-3 mb-3">
+              {/* Avatar with Status */}
+              <div className="relative shrink-0">
+                <div className="w-14 h-14 rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden ring-2 ring-white/30 shadow-lg">
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.nickname}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    getUserInitials(user.nickname)
+                  )}
+                </div>
+                <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></span>
               </div>
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></span>
-            </div>
-            
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-white truncate text-sm">
-                {user.nickname}
-              </p>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-white/80 truncate">
-                  UID: {user.uid}
+              
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-white truncate text-sm">
+                  {user.nickname}
                 </p>
-                <button
-                  onClick={handleCopyUID}
-                  type="button"
-                  className="shrink-0 bg-white/20 hover:bg-white/30 active:bg-white/40 p-1.5 rounded transition-all cursor-pointer"
-                  title="Copy UID"
-                >
-                  <CopyIcon className="w-4 h-4 text-white" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-white/80 truncate">
+                    {t("home.header.uidLabel")} {user.uid}
+                  </p>
+                  <button
+                    onClick={handleCopyUID}
+                    type="button"
+                    className="shrink-0 bg-white/20 hover:bg-white/30 active:bg-white/40 p-1.5 rounded transition-all cursor-pointer"
+                    title={t("home.header.copyUID")}
+                  >
+                    <CopyIcon className="w-4 h-4 text-white" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Tab Title */}
-          <h2 className="text-white text-lg font-bold">
-            {getHeaderTitle()}
-          </h2>
+            {/* Tab Title */}
+            <h2 className="text-white text-lg font-bold">
+              {getHeaderTitle()}
+            </h2>
+          </div>
         </div>
 
-        {/* Search Bar (only for friends/groups/requests) */}
+        {/* Search Bar */}
         {activeTab !== 'add' && (
-          <div className="p-4 border-b border-gray-200 shrink-0">
+          <div className="px-4 py-4 border-b border-gray-200 shrink-0 bg-white">
             <div className="relative">
               <SearchIcon className="absolute left-3 top-2.5 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder={t("home.search.placeholder") || "Tìm kiếm..."}
+                placeholder={t("home.search.placeholder")}
                 className="w-full bg-gray-100 text-gray-900 pl-10 pr-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 border-none"
               />
             </div>
@@ -154,7 +147,7 @@ export default function ContextPanel({
 
         {/* Content Area - Scrollable */}
         <div 
-          className="flex-1 overflow-y-auto bg-gray-50"
+          className="flex-1 min-h-0 overflow-y-auto bg-white"
           style={{
             WebkitOverflowScrolling: 'touch',
             overscrollBehavior: 'contain'
@@ -168,27 +161,21 @@ export default function ContextPanel({
           )}
           
           {activeTab === 'groups' && (
-            <div className="p-4">
-              <GroupList 
-                currentUser={user} 
-                setCurrentRoom={onSelectConversation} 
-              />
-            </div>
+            <GroupList 
+              currentUser={user} 
+              setCurrentRoom={onSelectConversation} 
+            />
           )}
           
           {activeTab === 'requests' && (
-            <div className="p-4">
-              <FriendRequests
-                currentUser={user}
-                onUpdateCount={onUpdateRequestCount}
-              />
-            </div>
+            <FriendRequests
+              currentUser={user}
+              onUpdateCount={onUpdateRequestCount}
+            />
           )}
           
           {activeTab === 'add' && (
-            <div className="p-4">
-              <AddFriend currentUser={user} />
-            </div>
+            <AddFriend currentUser={user} />
           )}
         </div>
       </div>
@@ -197,7 +184,7 @@ export default function ContextPanel({
       <CopyToast
         show={showCopyToast}
         onClose={() => setShowCopyToast(false)}
-        message={t("home.copied") || "Đã sao chép UID"}
+        message={t("home.toast.copiedUID")}
       />
     </>
   );

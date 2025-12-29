@@ -1,6 +1,27 @@
 /* frontend/src/styles/index.css */
 @import "tailwindcss";
 
+/* ============================================
+   MOBILE VIEWPORT HEIGHT FIX
+   ============================================ */
+
+/* CSS Variable cho viewport height - fallback cho browser cũ */
+:root {
+  --vh: 1vh;
+}
+
+/* ❌ XÓA ĐOẠN NÀY - NÓ CONFLICT VỚI DVH FIX
+@supports (-webkit-touch-callout: none) {
+  .h-screen {
+    height: -webkit-fill-available;
+  }
+}
+*/
+
+/* ============================================
+   CHAT SCROLL STYLING
+   ============================================ */
+
 .chat-scroll {
   scrollbar-gutter: stable; /* QUAN TRỌNG */
 }
@@ -23,26 +44,36 @@
   background: rgba(0, 0, 0, 0.4);
 }
 
-/* Textarea scrollbar */
+/* ============================================
+   TEXTAREA SCROLLBAR
+   ============================================ */
+
 .chat-input-textarea {
   scrollbar-width: thin;
-  scrollbar-color: #CBD5E0 transparent;
+  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
 }
 
 .chat-input-textarea::-webkit-scrollbar {
   width: 6px;
 }
 
+.chat-input-textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .chat-input-textarea::-webkit-scrollbar-thumb {
-  background: #CBD5E0;
+  background-color: rgba(156, 163, 175, 0.3);
   border-radius: 3px;
+}
+
+.chat-input-textarea::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.5);
 }
 
 /* ============================================
    SAFE AREA SUPPORT FOR MOBILE NOTCH
    ============================================ */
 
-/* Safe area bottom padding for iPhone notch */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -59,7 +90,6 @@
   padding-right: env(safe-area-inset-right);
 }
 
-/* Combined safe areas */
 .p-safe {
   padding-top: env(safe-area-inset-top);
   padding-right: env(safe-area-inset-right);
@@ -83,44 +113,6 @@
 }
 
 /* ============================================
-   CHAT INPUT TEXTAREA FIXES
-   ============================================ */
-
-.chat-input-textarea {
-  /* Remove default textarea scrollbar styling */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
-}
-
-.chat-input-textarea::-webkit-scrollbar {
-  width: 6px;
-}
-
-.chat-input-textarea::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-input-textarea::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.3);
-  border-radius: 3px;
-}
-
-.chat-input-textarea::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(156, 163, 175, 0.5);
-}
-
-/* ============================================
-   MOBILE VIEWPORT HEIGHT FIX
-   ============================================ */
-
-/* Fix for mobile browsers address bar */
-@supports (-webkit-touch-callout: none) {
-  .h-screen {
-    height: -webkit-fill-available;
-  }
-}
-
-/* ============================================
    SMOOTH TRANSITIONS
    ============================================ */
 
@@ -135,6 +127,10 @@
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 300ms;
 }
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
 
 @keyframes slide-in {
   from {
