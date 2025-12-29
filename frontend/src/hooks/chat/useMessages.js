@@ -1,27 +1,29 @@
-// frontend/src/hooks/chat/useMessages.js
+// frontend/src/hooks/chat/useMessages.js - CURSOR-BASED PAGINATION
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { getSocket } from '../../services/socketService';
 import useChatStore from '../../store/chat/chatStore';
 import chatApi from '../../services/chatApi';
 
 /**
- * useMessages Hook
+ * useMessages Hook - CURSOR-BASED PAGINATION
  * 
- * ✅ FIXED: Correct event data structure
- * ✅ FIXED: Ignore own messages to prevent double add
- * Backend emits: { message: {...}, conversationUpdate: {...} }
+ * ✅ Không dùng page số nữa
+ * ✅ Dùng oldestMessageId làm cursor
+ * ✅ KHÔNG BAO GIỜ TRÙNG
+ * ✅ Store-level lock (hasJoinedConversation)
+ * ✅ Socket checks inside effect (not in deps)
  */
 
-// ✅ Shared empty array reference (prevent new [] on every render)
 const EMPTY_ARRAY = [];
 
 const useMessages = (conversationId) => {
-  const [currentPage, setCurrentPage] = useState(1);
   const hasFetchedRef = useRef(false);
   const messagesEndRef = useRef(null);
+  
+  // 🔥 CURSOR-BASED: Track oldest message ID (thay vì page)
+  const oldestMessageIdRef = useRef(null);
 
   // ============================================
-  // ✅ STABLE SELECTORS
+  // STABLE SELECTORS
   // ============================================
 
   const messages = useChatStore((state) => {
@@ -44,74 +46,104 @@ const useMessages = (conversationId) => {
     return state.messagesError.get(conversationId);
   });
 
-  // Get current user (for checking own messages)
-  const currentUser = useChatStore((state) => state.currentUser);
-
-  // Get actions (these are stable)
-  const setMessages = useChatStore((state) => state.setMessages);
-  const prependMessages = useChatStore((state) => state.prependMessages);
-  const addMessage = useChatStore((state) => state.addMessage);
-  const updateMessage = useChatStore((state) => state.updateMessage);
-  const removeMessage = useChatStore((state) => state.removeMessage);
-  const setMessagesLoading = useChatStore((state) => state.setMessagesLoading);
-  const setMessagesError = useChatStore((state) => state.setMessagesError);
-
   const hasMessages = messages.length > 0;
 
   // ============================================
-  // FETCH MESSAGES
+  // FETCH MESSAGES (CURSOR-BASED)
   // ============================================
 
   const fetchMessages = useCallback(
-    async (page = 1) => {
+    async (isInitial = false) => {
       if (!conversationId) return;
 
+      // 🔥 Nếu không phải initial load và không có cursor → skip
+      if (!isInitial && !oldestMessageIdRef.current) {
+        console.log('⏭️ [useMessages] No cursor available, skipping');
+        return;
+      }
+
       try {
+        const { setMessagesLoading, setMessagesError, setMessages, prependMessages } = 
+          useChatStore.getState();
+
         setMessagesLoading(conversationId, true);
         setMessagesError(conversationId, null);
 
-        console.log(`📥 [useMessages] Fetching page ${page} for:`, conversationId);
+        // 🔥 CURSOR-BASED: Gửi 'before' thay vì 'page'
+        const params = { limit: 50 };
+        if (!isInitial && oldestMessageIdRef.current) {
+          params.before = oldestMessageIdRef.current;
+        }
 
-        const data = await chatApi.getMessages(conversationId, {
-          page,
-          limit: 50,
+        console.log('📥 [useMessages] Fetching messages:', {
+          conversationId,
+          isInitial,
+          before: params.before || 'none',
+          limit: params.limit,
         });
 
-        if (page === 1) {
+        const data = await chatApi.getMessages(conversationId, params);
+
+        // 🔥 DEBUG: Log API response
+        console.log('📦 [useMessages] API returned:', {
+          messagesCount: data.messages.length,
+          hasMore: data.hasMore,
+          firstMessageId: data.messages[0]?.messageId || data.messages[0]?._id,
+          lastMessageId: data.messages[data.messages.length - 1]?.messageId || data.messages[data.messages.length - 1]?._id,
+        });
+
+        // 🔥 CRITICAL: Nếu không có messages mới → dừng lại
+        if (data.messages.length === 0) {
+          console.log('⏹️ [useMessages] No more messages');
+          setMessagesLoading(conversationId, false);
+          const { setHasMoreMessages } = useChatStore.getState();
+          setHasMoreMessages(conversationId, false);
+          return;
+        }
+
+        // 🔥 UPDATE CURSOR: Lấy message CŨ NHẤT làm cursor cho lần sau
+        const oldestMessage = data.messages[0]; // messages đã được reverse ở backend
+        oldestMessageIdRef.current = oldestMessage?.messageId || oldestMessage?._id;
+
+        console.log('🔖 [useMessages] Updated cursor:', oldestMessageIdRef.current);
+
+        if (isInitial) {
           setMessages(conversationId, data.messages, data.hasMore);
         } else {
           prependMessages(conversationId, data.messages, data.hasMore);
         }
 
-        setCurrentPage(page);
         hasFetchedRef.current = true;
         
         console.log(`✅ [useMessages] Loaded ${data.messages.length} messages`);
+        
+        return data;
       } catch (err) {
         console.error('❌ [useMessages] Failed to fetch messages:', err);
+        
+        const { setMessagesError } = useChatStore.getState();
         setMessagesError(conversationId, err.message || 'Failed to load messages');
       } finally {
+        const { setMessagesLoading } = useChatStore.getState();
         setMessagesLoading(conversationId, false);
       }
     },
-    [
-      conversationId,
-      setMessages,
-      prependMessages,
-      setMessagesLoading,
-      setMessagesError,
-    ]
+    [conversationId]
   );
 
   // ============================================
-  // LOAD MORE (PAGINATION)
+  // LOAD MORE (CURSOR-BASED)
   // ============================================
 
   const loadMore = useCallback(() => {
-    if (loading || !hasMore) return;
-    console.log(`📄 [useMessages] Loading more, page:`, currentPage + 1);
-    fetchMessages(currentPage + 1);
-  }, [loading, hasMore, currentPage, fetchMessages]);
+    if (loading || !hasMore) {
+      console.log('⏭️ [useMessages] Skip loadMore:', { loading, hasMore });
+      return;
+    }
+
+    console.log('📄 [useMessages] Loading more messages...');
+    fetchMessages(false); // false = not initial load
+  }, [loading, hasMore, fetchMessages]);
 
   // ============================================
   // SCROLL TO BOTTOM
@@ -124,142 +156,148 @@ const useMessages = (conversationId) => {
   }, []);
 
   // ============================================
-  // JOIN/LEAVE CONVERSATION ROOM
+  // 🔥 SINGLE EFFECT - STORE-LEVEL LOCK
   // ============================================
 
   useEffect(() => {
-    const socket = getSocket();
+    // Guard: no conversationId
+    if (!conversationId) {
+      return;
+    }
+
+    // 🔥 STORE-LEVEL LOCK: Check if already joined
+    const { hasJoinedConversation, markConversationJoined } = useChatStore.getState();
     
-    if (!socket || !conversationId) return;
+    if (hasJoinedConversation(conversationId)) {
+      console.log('⏭️ [useMessages] Already joined at store level, skip');
+      return;
+    }
 
-    console.log('🔌 [useMessages] Joining conversation room:', conversationId);
+    console.log('🔌 [useMessages] Initializing conversation:', conversationId);
 
-    socket.emit('join_conversation', { conversationId });
+    // 🔥 MARK AS JOINED IMMEDIATELY (before async operations)
+    markConversationJoined(conversationId);
 
-    return () => {
-      console.log('🔌 [useMessages] Leaving conversation room:', conversationId);
-      socket.emit('leave_conversation', { conversationId });
+    // Get socket inside effect (not from deps)
+    const getSocketSafe = async () => {
+      const { getSocket } = await import('../../services/socketService');
+      return getSocket();
     };
-  }, [conversationId]);
 
-  // ============================================
-  // SOCKET EVENT LISTENERS
-  // ============================================
+    let socket = null;
+    let cleanup = null;
 
-  useEffect(() => {
-    const socket = getSocket();
-    
-    if (!socket || !conversationId) return;
+    const initialize = async () => {
+      socket = await getSocketSafe();
 
-    console.log('🔌 [useMessages] Setting up listeners for:', conversationId);
-
-    // 🔥 FIX: Correct data structure + Ignore own messages
-    const handleMessageReceived = (data) => {
-      console.log('🔥 [DEBUG] message_received event:', data);
-
-      // Backend emits: { message: {...}, conversationUpdate: {...} }
-      const { message, conversationUpdate } = data;
-
-      if (!message) {
-        console.error('❌ [useMessages] No message in event data');
+      if (!socket) {
+        console.warn('⚠️ [useMessages] Socket not available');
         return;
       }
 
-      // Check if message is for this conversation
-      if (message.conversation !== conversationId) {
-        console.log('⚠️ [useMessages] Message for different conversation');
-        return;
-      }
+      // 1. Join room
+      console.log('🔌 [useMessages] Joining room:', conversationId);
+      socket.emit('join_conversation', { conversationId });
 
-      // 🔥 FIX: Ignore messages from current user (already added when sending)
-      if (currentUser && message.sender?.uid === currentUser.uid) {
-        console.log('⚠️ [useMessages] Ignoring own message (already added):', message.messageId);
-        return;
-      }
+      // 2. Setup listeners
+      console.log('🔌 [useMessages] Setting up listeners');
 
-      console.log('✅ [useMessages] New message received:', {
-        messageId: message.messageId,
-        from: message.sender?.nickname,
-        content: message.content
-      });
+      const handleMessageReceived = (data) => {
+        const { message } = data;
 
-      addMessage(conversationId, message);
-      setTimeout(() => scrollToBottom(), 100);
-    };
+        if (!message) return;
 
-    // 🔥 FIX: Correct data structure
-    const handleMessageEdited = (data) => {
-      console.log('🔥 [DEBUG] message_edited event:', data);
+        const messageConvId = message.conversation || message.conversationId;
+        if (!messageConvId || messageConvId !== conversationId) return;
 
-      const { message, conversationId: msgConvId } = data;
+        const { currentUser, addMessage } = useChatStore.getState();
 
-      if (!message || msgConvId !== conversationId) return;
+        // Ignore own messages
+        if (currentUser && message.sender?.uid === currentUser.uid) {
+          console.log('⚠️ [useMessages] Ignoring own message:', message.messageId);
+          return;
+        }
 
-      console.log('✏️ [useMessages] Message edited:', message.messageId);
+        console.log('✅ [useMessages] New message received:', message.messageId);
 
-      updateMessage(conversationId, message.messageId, {
-        content: message.content,
-        editedAt: message.editedAt,
-      });
-    };
+        addMessage(conversationId, message);
+        setTimeout(() => scrollToBottom(), 100);
+      };
 
-    // 🔥 FIX: Correct data structure
-    const handleMessageDeleted = (data) => {
-      console.log('🔥 [DEBUG] message_deleted event:', data);
+      const handleMessageEdited = (data) => {
+        const { message } = data;
+        if (!message) return;
 
-      const { messageId, conversationId: msgConvId } = data;
+        const messageConvId = 
+          data.conversationId || 
+          message.conversation || 
+          message.conversationId;
 
-      if (msgConvId !== conversationId) return;
+        if (!messageConvId || messageConvId !== conversationId) return;
 
-      console.log('🗑️ [useMessages] Message deleted:', messageId);
+        console.log('✏️ [useMessages] Message edited:', message.messageId);
 
-      removeMessage(conversationId, messageId);
-    };
+        const { updateMessage } = useChatStore.getState();
+        updateMessage(conversationId, message.messageId, {
+          content: message.content,
+          editedAt: message.editedAt,
+        });
+      };
 
-    socket.on('message_received', handleMessageReceived);
-    socket.on('message_edited', handleMessageEdited);
-    socket.on('message_deleted', handleMessageDeleted);
+      const handleMessageDeleted = (data) => {
+        const { messageId, message } = data;
+        if (!messageId) return;
 
-    console.log('✅ [useMessages] All listeners registered');
+        const messageConvId = 
+          data.conversationId || 
+          message?.conversation || 
+          message?.conversationId;
 
-    return () => {
-      console.log('🧹 [useMessages] Cleaning up listeners');
-      socket.off('message_received', handleMessageReceived);
-      socket.off('message_edited', handleMessageEdited);
-      socket.off('message_deleted', handleMessageDeleted);
-    };
-  }, [
-    conversationId,
-    currentUser, // 🔥 NEW: Add currentUser to dependencies
-    addMessage,
-    updateMessage,
-    removeMessage,
-    scrollToBottom,
-  ]);
+        if (!messageConvId || messageConvId !== conversationId) return;
 
-  // ============================================
-  // INITIAL FETCH (only when conversationId changes)
-  // ============================================
+        console.log('🗑️ [useMessages] Message deleted:', messageId);
 
-  useEffect(() => {
-    if (conversationId) {
+        const { removeMessage } = useChatStore.getState();
+        removeMessage(conversationId, messageId);
+      };
+
+      socket.on('message_received', handleMessageReceived);
+      socket.on('message_edited', handleMessageEdited);
+      socket.on('message_deleted', handleMessageDeleted);
+
+      console.log('✅ [useMessages] All listeners registered');
+
+      // 3. Fetch initial messages
       hasFetchedRef.current = false;
-      setCurrentPage(1);
-      fetchMessages(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
+      oldestMessageIdRef.current = null; // 🔥 Reset cursor for new conversation
+      fetchMessages(true); // true = initial load
+
+      // Cleanup function
+      cleanup = () => {
+        console.log('🧹 [useMessages] Cleaning up conversation:', conversationId);
+        
+        if (socket) {
+          socket.emit('leave_conversation', { conversationId });
+          socket.off('message_received', handleMessageReceived);
+          socket.off('message_edited', handleMessageEdited);
+          socket.off('message_deleted', handleMessageDeleted);
+        }
+      };
+    };
+
+    initialize();
+
+    // Return cleanup
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [conversationId, fetchMessages, scrollToBottom]);
 
   // ============================================
-  // AUTO SCROLL ON MOUNT (only after initial fetch)
+  // 🔥 AUTO SCROLL - REMOVED
+  // useChatScroll đã xử lý auto-scroll rồi
+  // Effect này gây conflict → BỎ HOÀN TOÀN
   // ============================================
-
-  useEffect(() => {
-    if (hasMessages && hasFetchedRef.current) {
-      setTimeout(() => scrollToBottom(false), 100);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
 
   return {
     messages,

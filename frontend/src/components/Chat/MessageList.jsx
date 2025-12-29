@@ -5,27 +5,6 @@ import { vi, enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import MessageItem from "./MessageItem";
 
-/**
- * MessageList Component - FIXED LAYOUT
- * 
- * 🎯 Layout Strategy:
- * ==================
- * EVERY element gets the SAME wrapper:
- * <div className="mx-auto w-full max-w-3xl px-4">
- * 
- * ✅ Benefits:
- * - Date separators align perfectly
- * - Messages align perfectly
- * - Everything aligns with ChatInput
- * - No overflow issues
- * - Consistent spacing
- * 
- * 📐 Hierarchy:
- * MessageList (no padding/margin)
- *  └─ Date Group
- *      ├─ Date Separator (wrapped in max-w-3xl px-4)
- *      └─ Messages (each wrapped in max-w-3xl px-4)
- */
 export default function MessageList({
   messages,
   activeUser,

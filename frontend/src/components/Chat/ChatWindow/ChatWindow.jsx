@@ -46,8 +46,7 @@ export default function ChatWindow() {
     handleSendMessage,
     handleTypingChange,
     handleRetryMessage,
-    handleFocusInput,
-    
+        
     // User
     currentUser,
   } = useChatWindowLogic();

@@ -147,9 +147,10 @@ console.log("✅ Chat socket handlers ready");
 // ==========================
 // START SERVER
 // ==========================
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log("\n" + "=".repeat(50));
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🌐 Network: http://192.168.1.2:${PORT}`);
   console.log(`🌍 Environment: ${config.nodeEnv}`);
   console.log(`🔌 Socket.IO ready`);
   console.log(`💬 Chat system ready`);

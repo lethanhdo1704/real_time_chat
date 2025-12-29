@@ -103,13 +103,21 @@ class MessageService {
   }
 
   /**
-   * Get messages with pagination
+   * 🔥 GET MESSAGES - CURSOR-BASED PAGINATION (CHUẨN)
+   * 
+   * ✅ Query dựa trên createdAt, không dùng page
+   * ✅ before = messageId → lấy tin CŨ HƠN tin đó
+   * ✅ Fetch limit + 1 để check hasMore
+   * ✅ KHÔNG BAO GIỜ TRÙNG
    */
-  async getMessages(conversationId, userId, before = null, limit = 50) {
+  async getMessages(conversationId, userId, options = {}) {
+    const { before = null, limit = 50 } = options;
+
     if (!isValidObjectId(conversationId)) {
       throw new Error("Invalid conversationId");
     }
 
+    // Verify membership
     const isMember = await ConversationMember.isActiveMember(
       conversationId,
       userId
@@ -118,25 +126,57 @@ class MessageService {
       throw new Error("Not a member");
     }
 
+    // ✅ Build query
     const query = {
       conversation: conversationId,
       deletedAt: null,
     };
 
+    // ✅ CURSOR-BASED: Nếu có 'before', chỉ lấy tin CŨ HƠN tin đó
     if (before && isValidObjectId(before)) {
-      query._id = { $lt: new mongoose.Types.ObjectId(before) };
+      const beforeMessage = await Message.findById(before).lean();
+      
+      if (beforeMessage) {
+        query.createdAt = { $lt: beforeMessage.createdAt };
+      } else {
+        console.warn("⚠️ [MessageService] beforeMessage not found:", before);
+      }
     }
 
+    console.log("🔍 [MessageService] Query:", {
+      conversationId,
+      before: before || "none",
+      limit,
+      hasCreatedAtFilter: !!query.createdAt,
+    });
+
+    // ✅ Fetch limit + 1 để check hasMore
     const messages = await Message.find(query)
-      .sort({ _id: -1 })
-      .limit(limit)
+      .sort({ createdAt: -1 }) // Mới nhất trước
+      .limit(parseInt(limit) + 1)
       .populate("sender", "uid nickname avatar")
       .populate("replyTo", "content sender")
       .lean();
 
+    // ✅ Check hasMore
+    const hasMore = messages.length > parseInt(limit);
+    const finalMessages = hasMore ? messages.slice(0, parseInt(limit)) : messages;
+
+    console.log("✅ [MessageService] Result:", {
+      fetched: messages.length,
+      returned: finalMessages.length,
+      hasMore,
+      firstCreatedAt: finalMessages[0]?.createdAt,
+      lastCreatedAt: finalMessages[finalMessages.length - 1]?.createdAt,
+      firstMessageId: finalMessages[0]?._id,
+      lastMessageId: finalMessages[finalMessages.length - 1]?._id,
+    });
+
+    // ✅ Reverse để trả về theo thứ tự cũ → mới (như chat)
     return {
-      messages: messages.map(formatMessageResponse),
-      hasMore: messages.length === limit,
+      messages: finalMessages.reverse().map(formatMessageResponse),
+      hasMore,
+      oldestMessageId: finalMessages[0]?._id || null, // Message cũ nhất (để làm cursor cho lần sau)
     };
   }
 

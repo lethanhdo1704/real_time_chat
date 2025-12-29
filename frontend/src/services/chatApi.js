@@ -95,28 +95,48 @@ export const markConversationAsRead = async (conversationId) => {
 // ============================================
 
 /**
- * Get messages for a conversation (with pagination)
+ * Get messages for a conversation (CURSOR-BASED PAGINATION)
+ * 
+ * ✅ KHÔNG dùng page nữa
+ * ✅ Dùng 'before' (messageId) làm cursor
+ * ✅ KHÔNG BAO GIỜ TRÙNG
+ * 
  * @param {string} conversationId - Conversation ID
- * @param {Object} params - Query params (page, limit, before)
- * @returns {Promise<Object>} Messages data with pagination info
+ * @param {Object} params - Query params { before?, limit? }
+ * @returns {Promise<Object>} { messages, hasMore, oldestMessageId }
  */
 export const getMessages = async (conversationId, params = {}) => {
-  const { page = 1, limit = 50, before } = params;
+  const { before, limit = 50 } = params;
   
+  // ✅ Build query params - CHỈ gửi before và limit
   const queryParams = new URLSearchParams({
-    page: page.toString(),
     limit: limit.toString(),
   });
   
+  // ✅ Thêm 'before' nếu có (cursor)
   if (before) {
     queryParams.append("before", before);
   }
+  
+  console.log('🌐 [chatApi] GET /messages:', {
+    conversationId,
+    before: before || 'none',
+    limit,
+  });
   
   const response = await api.get(
     `/messages/${conversationId}?${queryParams.toString()}`
   );
   
-  return unwrapResponse(response);
+  const data = unwrapResponse(response);
+  
+  console.log('✅ [chatApi] Received:', {
+    count: data.messages?.length || 0,
+    hasMore: data.hasMore,
+    oldestMessageId: data.oldestMessageId,
+  });
+  
+  return data; // { messages, hasMore, oldestMessageId }
 };
 
 /**

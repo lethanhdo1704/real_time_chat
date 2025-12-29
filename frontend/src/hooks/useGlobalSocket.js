@@ -1,24 +1,21 @@
 // frontend/src/hooks/useGlobalSocket.js
-import { useEffect, useContext, useCallback } from "react";
+import { useEffect, useContext, useCallback, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { getSocket } from "../services/socketService";
 import useChatStore from "../store/chat/chatStore";
 
 /**
- * Global socket listener for sidebar updates
- * Listens to message_received events for ALL conversations
+ * Global socket listener for sidebar updates - PRODUCTION READY
  * 
- * 🔥 FIXES:
- * 1. Auto-switch to conversation when in lazy mode
- * 2. Update conversation in sidebar when new message arrives (even if not active)
- * 3. Add message to store for ALL conversations (for badge counts)
- * 
- * @param {Function} onMessageReceived - Callback(data) với data = { conversationId, message, conversationUpdate }
+ * ✅ FIXED: Listener registered ONCE per userId (no continuous cleanup/re-register)
+ * ✅ FIXED: Normalize data with conversationId before callback
+ * ✅ FIXED: Auto-switch from lazy mode
  */
 export const useGlobalSocket = ({ onMessageReceived }) => {
   const { user } = useContext(AuthContext);
+  const registeredRef = useRef(false); // 🔥 NEW: Prevent re-registration
   
-  // 🔥 Get store state & actions
+  // Get store state & actions
   const activeConversationId = useChatStore((state) => state.activeConversationId);
   const activeFriend = useChatStore((state) => state.activeFriend);
   const conversations = useChatStore((state) => state.conversations);
@@ -30,12 +27,11 @@ export const useGlobalSocket = ({ onMessageReceived }) => {
   const updateConversation = useChatStore((state) => state.updateConversation);
   const addConversation = useChatStore((state) => state.addConversation);
 
+  // 🔥 STABLE HANDLER: Won't change on every render
   const handleGlobalMessage = useCallback((data) => {
-    // 🔥 FIX: Handle both backend formats
     let { conversationId, message, conversationUpdate } = data;
     
-    // Format 1: { conversationId, message, conversationUpdate }
-    // Format 2: { message: { conversation: '...' }, conversationUpdate }
+    // Extract conversationId from message if not present
     if (!conversationId && message?.conversation) {
       conversationId = message.conversation;
       console.log('🔧 [Global] Extracted conversationId from message:', conversationId);
@@ -46,57 +42,62 @@ export const useGlobalSocket = ({ onMessageReceived }) => {
       return;
     }
     
+    const normalizedData = {
+      conversationId,
+      message,
+      conversationUpdate,
+    };
+    
     const isOwnMessage = message.sender?.uid === user?.uid;
     
     console.log('🌍 [Global] Message received:', {
       conversationId,
       from: message.sender?.nickname,
       isOwnMessage,
-      unreadCount: conversationUpdate?.unreadCount,
-      currentActive: activeConversationId,
-      inLazyMode: !activeConversationId && !!activeFriend
     });
 
+    // Get current state at time of handling
+    const currentActiveConvId = useChatStore.getState().activeConversationId;
+    const currentActiveFriend = useChatStore.getState().activeFriend;
+    const currentConversations = useChatStore.getState().conversations;
+
     // ============================================
-    // 🔥 FIX 1: Auto-switch if in lazy mode
+    // FIX 1: Auto-switch if in lazy mode
     // ============================================
-    if (!activeConversationId && activeFriend) {
+    if (!currentActiveConvId && currentActiveFriend) {
       const isMessageForActiveFriend = 
-        message.sender?.uid === activeFriend.uid ||
+        message.sender?.uid === currentActiveFriend.uid ||
         (isOwnMessage && conversationId);
       
       if (isMessageForActiveFriend) {
         console.log('🎯 [Global] Auto-switching from lazy mode to:', conversationId);
         
-        ensureConversationMessages(conversationId);
-        addMessage(conversationId, message);
-        setActiveConversation(conversationId);
-        setActiveFriend(null);
+        useChatStore.getState().ensureConversationMessages(conversationId);
+        useChatStore.getState().addMessage(conversationId, message);
+        useChatStore.getState().setActiveConversation(conversationId);
+        useChatStore.getState().setActiveFriend(null);
         
         console.log('✅ [Global] Switched to conversation:', conversationId);
       }
     }
     
     // ============================================
-    // 🔥 FIX 2: Update conversation in sidebar
+    // FIX 2: Update conversation in sidebar
     // ============================================
     
-    // Check if conversation exists in store
-    const existingConv = conversations.get(conversationId);
+    const existingConv = currentConversations.get(conversationId);
     
     if (conversationUpdate) {
       if (existingConv) {
-        // Update existing conversation
         console.log('🔄 [Global] Updating conversation in sidebar:', conversationId);
-        updateConversation(conversationId, {
+        useChatStore.getState().updateConversation(conversationId, {
           lastMessage: conversationUpdate.lastMessage,
           lastMessageAt: conversationUpdate.lastMessageAt,
           unreadCount: conversationUpdate.unreadCount,
         });
       } else {
-        // New conversation from another user - add to sidebar
         console.log('🆕 [Global] Adding new conversation to sidebar:', conversationId);
-        addConversation({
+        useChatStore.getState().addConversation({
           _id: conversationId,
           conversationId,
           ...conversationUpdate,
@@ -105,58 +106,55 @@ export const useGlobalSocket = ({ onMessageReceived }) => {
     }
     
     // ============================================
-    // 🔥 FIX 3: Add message to store (for non-active conversations)
+    // FIX 3: Add message to store (for non-active conversations)
     // ============================================
     
-    // Only add message if NOT the active conversation
-    // (active conversation will handle via useChatSocket)
-    if (conversationId !== activeConversationId) {
+    if (conversationId !== currentActiveConvId) {
       console.log('📥 [Global] Adding message to non-active conversation:', conversationId);
-      ensureConversationMessages(conversationId);
-      addMessage(conversationId, message);
+      useChatStore.getState().ensureConversationMessages(conversationId);
+      useChatStore.getState().addMessage(conversationId, message);
     }
     
     // ============================================
-    // 🔥 FIX 4: Call parent callback for additional logic
+    // FIX 4: Call parent callback with normalized data
     // ============================================
     if (onMessageReceived) {
-      onMessageReceived(data);
+      console.log('📤 [Global] Calling parent callback with normalized data');
+      onMessageReceived(normalizedData);
     }
     
-  }, [
-    user?.uid,
-    activeConversationId,
-    activeFriend,
-    conversations,
-    setActiveConversation,
-    setActiveFriend,
-    ensureConversationMessages,
-    addMessage,
-    updateConversation,
-    addConversation,
-    onMessageReceived
-  ]);
+  }, [user?.uid, onMessageReceived]);
 
+  // 🔥 FIXED: Register ONCE per userId
   useEffect(() => {
-    if (!user) {
+    const socket = getSocket();
+    
+    if (!socket || !user) {
       return;
     }
 
-    const socket = getSocket();
-    
-    if (!socket || !socket.connected) {
+    if (!socket.connected) {
       console.log('⏳ [Global] Waiting for socket to connect...');
       return;
     }
 
+    if (registeredRef.current) {
+      console.log('⏭️ [Global] Already registered, skip');
+      return;
+    }
+
     console.log('🌍 [Global] Registering global message listener for user:', user.uid);
+    registeredRef.current = true;
+
     socket.on('message_received', handleGlobalMessage);
 
     return () => {
-      socket.off('message_received', handleGlobalMessage);
       console.log('🌍 [Global] Global listener cleaned up');
+      registeredRef.current = false;
+      socket.off('message_received', handleGlobalMessage);
     };
-  }, [user, handleGlobalMessage]);
+  }, [user?.uid, handleGlobalMessage]); // 🔥 ONLY userId and stable handler
+
 };
 
 export default useGlobalSocket;

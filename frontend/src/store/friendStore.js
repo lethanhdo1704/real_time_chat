@@ -18,14 +18,14 @@ const useFriendStore = create(
         error: null,
         lastFetchTime: null,
         isFetching: false,
-        unseenCount: 0, // 🔥 NEW
+        unseenCount: 0,
+        hasInitialized: false, // 🔥 NEW - Chặn double init
 
         // ============================================
         // ACTIONS - SET DATA
         // ============================================
         
         setFriendsData: (data) => {
-          // 🔥 Tính unseen count từ requests
           const unseenCount = (data.requests || []).filter(r => !r.seenAt).length;
           
           set({
@@ -36,7 +36,7 @@ const useFriendStore = create(
             error: null,
             lastFetchTime: Date.now(),
             isFetching: false,
-            unseenCount, // 🔥 NEW
+            unseenCount,
           });
         },
 
@@ -55,6 +55,63 @@ const useFriendStore = create(
         },
 
         // ============================================
+        // 🔥 INIT ONCE - CHẶN DOUBLE FETCH TRIỆT ĐỂ
+        // ============================================
+        
+        initFriendsOnce: async (loadFriendsData, fetchUnseenCount) => {
+          const state = get();
+
+          // ⛔ Đã init rồi
+          if (state.hasInitialized) {
+            console.log('✅ Friends already initialized, skipping...');
+            return;
+          }
+
+          // ⛔ Đang fetch
+          if (state.isFetching) {
+            console.log('⏳ Already fetching friends, skipping...');
+            return;
+          }
+
+          // ⛔ Cache còn sống
+          if (state.isCacheValid()) {
+            console.log('✅ Using cached friend data');
+            set({ hasInitialized: true });
+            return;
+          }
+
+          try {
+            console.log('🚀 Initializing friends data...');
+            set({ isFetching: true, loading: true });
+
+            // Fetch friends data
+            await loadFriendsData();
+
+            // Fetch unseen count nếu có
+            if (fetchUnseenCount) {
+              const res = await fetchUnseenCount();
+              set({ unseenCount: res.count ?? res });
+            }
+
+            set({
+              hasInitialized: true,
+              isFetching: false,
+              loading: false,
+            });
+
+            console.log('✅ Friends initialized successfully');
+          } catch (err) {
+            console.error('❌ Failed to initialize friends:', err);
+            set({
+              error: err,
+              isFetching: false,
+              loading: false,
+              hasInitialized: false, // Cho phép retry
+            });
+          }
+        },
+
+        // ============================================
         // FRIEND REQUEST ACTIONS
         // ============================================
         
@@ -63,7 +120,6 @@ const useFriendStore = create(
             return state;
           }
           
-          // 🔥 Tăng unseenCount nếu request chưa seen
           const newUnseenCount = !request.seenAt ? state.unseenCount + 1 : state.unseenCount;
           
           return {
@@ -74,8 +130,6 @@ const useFriendStore = create(
 
         removeFriendRequest: (uid) => set((state) => {
           const removedRequest = state.friendRequests.find(r => r.uid === uid);
-          
-          // 🔥 Giảm unseenCount nếu request chưa seen
           const newUnseenCount = removedRequest && !removedRequest.seenAt 
             ? Math.max(0, state.unseenCount - 1) 
             : state.unseenCount;
@@ -88,7 +142,7 @@ const useFriendStore = create(
 
         clearFriendRequests: () => set({ 
           friendRequests: [],
-          unseenCount: 0 // 🔥 Reset unseenCount
+          unseenCount: 0
         }),
 
         // ============================================
@@ -137,8 +191,6 @@ const useFriendStore = create(
         
         acceptFriendRequest: (uid, friendData) => set((state) => {
           const acceptedRequest = state.friendRequests.find(r => r.uid === uid);
-          
-          // 🔥 Giảm unseenCount nếu request chưa seen
           const newUnseenCount = acceptedRequest && !acceptedRequest.seenAt
             ? Math.max(0, state.unseenCount - 1)
             : state.unseenCount;
@@ -159,16 +211,12 @@ const useFriendStore = create(
         })),
 
         // ============================================
-        // 🔥 NEW: SEEN TRACKING ACTIONS
+        // SEEN TRACKING ACTIONS
         // ============================================
         
-        /**
-         * Đánh dấu một request đã xem
-         */
         markRequestAsSeen: (requestId) => set((state) => {
           const request = state.friendRequests.find(r => r._id === requestId);
           
-          // Nếu đã seen rồi thì không làm gì
           if (!request || request.seenAt) {
             return state;
           }
@@ -181,9 +229,6 @@ const useFriendStore = create(
           };
         }),
 
-        /**
-         * Đánh dấu tất cả requests đã xem
-         */
         markAllRequestsAsSeen: () => set((state) => ({
           friendRequests: state.friendRequests.map(r => ({
             ...r,
@@ -192,9 +237,6 @@ const useFriendStore = create(
           unseenCount: 0
         })),
 
-        /**
-         * Set unseenCount từ API
-         */
         setUnseenCount: (count) => set({ unseenCount: count }),
 
         // ============================================
@@ -202,10 +244,7 @@ const useFriendStore = create(
         // ============================================
         
         getFriendRequestCount: () => get().friendRequests.length,
-
-        // 🔥 NEW: Get unseen request count
         getUnseenRequestCount: () => get().unseenCount,
-
         isFriend: (uid) => get().friends.some(f => f.uid === uid),
 
         hasPendingRequest: (uid) => {
@@ -230,7 +269,7 @@ const useFriendStore = create(
         },
 
         // ============================================
-        // RESET - ✅ CHUẨN KIẾN TRÚC
+        // RESET - 🔥 QUAN TRỌNG CHO LOGOUT
         // ============================================
         
         reset: () => set({
@@ -241,7 +280,8 @@ const useFriendStore = create(
           error: null,
           lastFetchTime: null,
           isFetching: false,
-          unseenCount: 0, // 🔥 NEW
+          unseenCount: 0,
+          hasInitialized: false, // 🔥 BẮT BUỘC - Cho phép init lại sau login
         })
       }),
       {
@@ -251,7 +291,8 @@ const useFriendStore = create(
           friendRequests: state.friendRequests,
           sentRequests: state.sentRequests,
           lastFetchTime: state.lastFetchTime,
-          unseenCount: state.unseenCount, // 🔥 NEW - persist unseenCount
+          unseenCount: state.unseenCount,
+          // ⚠️ KHÔNG persist hasInitialized - phải reset mỗi session
         }),
       }
     ),

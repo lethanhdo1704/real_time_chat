@@ -1,15 +1,21 @@
 // frontend/src/store/chat/conversationSlice.js
-import * as chatApi from '../../services/chatApi';
+import * as chatApi from "../../services/chatApi";
 
 /**
- * Conversation Slice
+ * Conversation Slice - IMPROVED
  * Manages conversations list, loading, and active conversation
+ *
+ * Improvements:
+ * ✅ Better conversation ordering (move to top on update)
+ * ✅ Handle non-existent conversations gracefully
+ * ✅ Merge updates properly
+ * ✅ Better logging
  */
 export const createConversationSlice = (set, get) => ({
   // ============================================
   // STATE
   // ============================================
-  
+
   conversations: new Map(),
   conversationsOrder: [],
   activeConversationId: null,
@@ -21,48 +27,48 @@ export const createConversationSlice = (set, get) => ({
   // ============================================
   // ACTIONS - FETCH
   // ============================================
-  
+
   /**
    * 🔥 Fetch conversations once with store-level lock
    */
   fetchConversationsOnce: async () => {
     const { hasFetchedConversations, loadingConversations } = get();
-    
-    console.log('🔍 [conversationSlice] fetchConversationsOnce ENTRY:', {
+
+    console.log("🔍 [conversationSlice] fetchConversationsOnce ENTRY:", {
       hasFetchedConversations,
-      loadingConversations
+      loadingConversations,
     });
-    
+
     // 🔒 Guard: Already fetched
     if (hasFetchedConversations) {
-      console.log('⏭️ [conversationSlice] Already fetched, skip');
-      return;
-    }
-    
-    // 🔒 Guard: Already loading
-    if (loadingConversations) {
-      console.log('⏳ [conversationSlice] Already loading, skip');
+      console.log("⏭️ [conversationSlice] Already fetched, skip");
       return;
     }
 
-    console.log('🚀 [conversationSlice] Fetching conversations...');
+    // 🔒 Guard: Already loading
+    if (loadingConversations) {
+      console.log("⏳ [conversationSlice] Already loading, skip");
+      return;
+    }
+
+    console.log("🚀 [conversationSlice] Fetching conversations...");
     set({ loadingConversations: true, conversationsError: null });
 
     try {
-      console.log('📡 [conversationSlice] Calling API...');
+      console.log("📡 [conversationSlice] Calling API...");
       const data = await chatApi.getUserConversations();
-      console.log('📡 [conversationSlice] API returned:', data?.length || 0);
+      console.log("📡 [conversationSlice] API returned:", data?.length || 0);
 
       const conversationsMap = new Map();
       const order = [];
 
-      data.forEach(conv => {
+      data.forEach((conv) => {
         const id = conv.conversationId || conv._id;
         conversationsMap.set(id, conv);
         order.push(id);
       });
 
-      console.log('💾 [conversationSlice] Setting state with flag = true');
+      console.log("💾 [conversationSlice] Setting state with flag = true");
       set({
         conversations: conversationsMap,
         conversationsOrder: order,
@@ -70,11 +76,14 @@ export const createConversationSlice = (set, get) => ({
         loadingConversations: false,
       });
 
-      console.log('✅ [conversationSlice] Conversations fetched ONCE:', data.length);
+      console.log(
+        "✅ [conversationSlice] Conversations fetched ONCE:",
+        data.length
+      );
     } catch (err) {
-      console.error('❌ [conversationSlice] Fetch failed:', err);
-      set({ 
-        conversationsError: err.message || 'Failed to load conversations',
+      console.error("❌ [conversationSlice] Fetch failed:", err);
+      set({
+        conversationsError: err.message || "Failed to load conversations",
         loadingConversations: false,
       });
     }
@@ -83,84 +92,172 @@ export const createConversationSlice = (set, get) => ({
   // ============================================
   // ACTIONS - CRUD
   // ============================================
-  
+
   setConversations: (conversations) => {
-    console.log('📋 [conversationSlice] setConversations:', conversations.length);
-    
+    console.log(
+      "📋 [conversationSlice] setConversations:",
+      conversations.length
+    );
+
     const conversationsMap = new Map();
     const order = [];
-    
-    conversations.forEach(conv => {
+
+    conversations.forEach((conv) => {
       const id = conv.conversationId || conv._id;
       conversationsMap.set(id, conv);
       order.push(id);
     });
-    
+
     set({
       conversations: conversationsMap,
       conversationsOrder: order,
     });
   },
-  
+
   addConversation: (conversation) => {
     const id = conversation.conversationId || conversation._id;
-    console.log('➕ [conversationSlice] addConversation:', id);
-    
+    console.log("➕ [conversationSlice] addConversation:", id);
+
     const conversations = new Map(get().conversations);
+    const existingOrder = get().conversationsOrder;
+
+    // Add or update conversation
     conversations.set(id, conversation);
-    
-    const order = [id, ...get().conversationsOrder.filter(cid => cid !== id)];
-    
+
+    // 🔥 Move to top of order (remove if exists, then add to front)
+    const order = [id, ...existingOrder.filter((cid) => cid !== id)];
+
     set({
       conversations,
       conversationsOrder: order,
     });
+
+    console.log("✅ [conversationSlice] Conversation added/moved to top:", id);
   },
-  
+
   updateConversation: (conversationId, updates) => {
-    console.log('🔄 [conversationSlice] updateConversation:', conversationId);
-    
+    console.log(
+      "🔄 [conversationSlice] updateConversation:",
+      conversationId,
+      updates
+    );
+
     const conversations = new Map(get().conversations);
     const existing = conversations.get(conversationId);
-    
+
     if (existing) {
-      conversations.set(conversationId, {
+      // 🔥 Merge updates properly
+      const updated = {
         ...existing,
         ...updates,
-      });
-      
-      set({ conversations });
+        // Preserve nested objects if not being updated
+        friend: updates.friend !== undefined ? updates.friend : existing.friend,
+        members:
+          updates.members !== undefined ? updates.members : existing.members,
+      };
+
+      conversations.set(conversationId, updated);
+
+      // 🔥 Move to top if lastMessage was updated
+      if (updates.lastMessage || updates.lastMessageAt) {
+        const existingOrder = get().conversationsOrder;
+        const order = [
+          conversationId,
+          ...existingOrder.filter((id) => id !== conversationId),
+        ];
+
+        set({
+          conversations,
+          conversationsOrder: order,
+        });
+
+        console.log(
+          "✅ [conversationSlice] Conversation updated and moved to top:",
+          conversationId
+        );
+      } else {
+        set({ conversations });
+        console.log(
+          "✅ [conversationSlice] Conversation updated (no reorder):",
+          conversationId
+        );
+      }
     } else {
-      console.warn('⚠️ [conversationSlice] Conversation not found:', conversationId);
+      console.warn(
+        "⚠️ [conversationSlice] Conversation not found, creating placeholder:",
+        conversationId
+      );
+
+      // 🔥 Create placeholder conversation if it doesn't exist
+      const placeholder = {
+        _id: conversationId,
+        conversationId,
+        type: "private",
+        friend: null,
+        members: [],
+        unreadCount: 0,
+        ...updates,
+        _placeholder: true,
+      };
+
+      conversations.set(conversationId, placeholder);
+      const order = [conversationId, ...get().conversationsOrder];
+
+      set({
+        conversations,
+        conversationsOrder: order,
+      });
+
+      console.log(
+        "✅ [conversationSlice] Placeholder conversation created:",
+        conversationId
+      );
     }
   },
 
   // ============================================
   // ACTIONS - ACTIVE CONVERSATION
   // ============================================
-  
+
   setActiveConversation: (conversationId, options = {}) => {
-    console.log('📍 [conversationSlice] setActiveConversation:', conversationId);
+    const state = get();
+    const previousConversationId = state.activeConversationId;
+
+    console.log(
+      "📍 [conversationSlice] setActiveConversation:",
+      conversationId
+    );
 
     const { clearFriend = false } = options;
     const updates = { activeConversationId: conversationId };
 
-    // Create placeholder if conversation doesn't exist
-    if (conversationId && !get().conversations.has(conversationId)) {
-      console.log('🧩 [conversationSlice] Creating placeholder conversation');
+    // 🔥 OPTIONAL: Clear previous conversation's joined state
+    // This allows re-joining if user navigates back
+    if (previousConversationId && previousConversationId !== conversationId) {
+      if (state.markConversationLeft) {
+        state.markConversationLeft(previousConversationId);
+      }
+    }
 
-      const conversations = new Map(get().conversations);
+    // Create placeholder if conversation doesn't exist
+    if (conversationId && !state.conversations.has(conversationId)) {
+      console.log("🧩 [conversationSlice] Creating placeholder conversation");
+
+      const conversations = new Map(state.conversations);
       conversations.set(conversationId, {
         _id: conversationId,
         conversationId,
-        type: 'private',
+        type: "private",
         friend: null,
         members: [],
         unreadCount: 0,
         _placeholder: true,
       });
 
+      const order = [conversationId, ...state.conversationsOrder];
+
       updates.conversations = conversations;
+      updates.conversationsOrder = order;
     }
 
     if (clearFriend && conversationId) {
@@ -171,39 +268,96 @@ export const createConversationSlice = (set, get) => ({
   },
 
   setActiveFriend: (friend) => {
-    console.log('👤 [conversationSlice] setActiveFriend:', friend?.nickname || friend?.uid);
+    console.log(
+      "👤 [conversationSlice] setActiveFriend:",
+      friend?.nickname || friend?.uid
+    );
     set({ activeFriend: friend });
   },
 
   // ============================================
   // ACTIONS - UNREAD
   // ============================================
-  
+
   resetUnreadCount: (conversationId) => {
-    console.log('✅ [conversationSlice] resetUnreadCount:', conversationId);
-    
+    console.log("✅ [conversationSlice] resetUnreadCount:", conversationId);
+
     const conversations = new Map(get().conversations);
     const existing = conversations.get(conversationId);
-    
+
     if (existing) {
       conversations.set(conversationId, {
         ...existing,
         unreadCount: 0,
       });
-      
+
       set({ conversations });
+      console.log("✅ [conversationSlice] Unread count reset to 0");
+    } else {
+      console.warn(
+        "⚠️ [conversationSlice] Cannot reset unread - conversation not found:",
+        conversationId
+      );
+    }
+  },
+
+  // ============================================
+  // 🔥 NEW: INCREMENT UNREAD COUNT
+  // ============================================
+
+  incrementUnreadCount: (conversationId) => {
+    console.log("📈 [conversationSlice] incrementUnreadCount:", conversationId);
+
+    const conversations = new Map(get().conversations);
+    const existing = conversations.get(conversationId);
+
+    if (existing) {
+      const newUnreadCount = (existing.unreadCount || 0) + 1;
+
+      conversations.set(conversationId, {
+        ...existing,
+        unreadCount: newUnreadCount,
+      });
+
+      set({ conversations });
+      console.log(
+        "✅ [conversationSlice] Unread count incremented:",
+        newUnreadCount
+      );
+    } else {
+      console.warn(
+        "⚠️ [conversationSlice] Cannot increment - conversation not found:",
+        conversationId
+      );
     }
   },
 
   // ============================================
   // ACTIONS - LOADING/ERROR
   // ============================================
-  
+
   setConversationsLoading: (loading) => {
     set({ loadingConversations: loading });
   },
-  
+
   setConversationsError: (error) => {
     set({ conversationsError: error });
+  },
+
+  // ============================================
+  // 🔥 NEW: RESET (for logout/account switch)
+  // ============================================
+
+  resetConversations: () => {
+    console.log("🧹 [conversationSlice] Resetting conversations");
+    set({
+      conversations: new Map(),
+      conversationsOrder: [],
+      activeConversationId: null,
+      activeFriend: null,
+      loadingConversations: false,
+      conversationsError: null,
+      hasFetchedConversations: false,
+    });
   },
 });
