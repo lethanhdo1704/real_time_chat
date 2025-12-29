@@ -1,41 +1,42 @@
 // frontend/src/hooks/useHomeChat.js
-import { useEffect, useCallback, useContext, useMemo } from "react";
+import { useEffect, useCallback, useContext, useMemo, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
+import { getSocket } from "../services/socketService";
 import useChatStore from "../store/chatStore";
 import * as chatApi from "../services/chatApi";
 
 /**
  * useHomeChat Hook
  * 
- * 🔥 FIXED: Proper reactivity with useMemo and store subscription
- * Now sidebar WILL update when store changes
+ * 🔥 COMPLETE: Fetch + Socket + UI Logic
+ * - Fetches conversations once via store
+ * - Listens to real-time socket events
+ * - Handles conversation selection
+ * - Marks conversations as read
  */
 export function useHomeChat() {
   const { token, user } = useContext(AuthContext);
 
   // ============================================
-  // 🔥 FIX: Subscribe to BOTH conversationsOrder AND conversations Map
+  // STORE SUBSCRIPTIONS
   // ============================================
 
   const conversationsOrder = useChatStore((state) => state.conversationsOrder);
-  const conversationsMap = useChatStore((state) => state.conversations); // 🔥 ADD THIS
+  const conversationsMap = useChatStore((state) => state.conversations);
   const loading = useChatStore((state) => state.loadingConversations);
   const error = useChatStore((state) => state.conversationsError);
   const activeConversationId = useChatStore((state) => state.activeConversationId);
 
   // ============================================
-  // 🔥 FIX: Use useMemo with proper dependencies
+  // COMPUTED VALUES
   // ============================================
 
-  // Convert to array with useMemo (recomputes when order or map changes)
   const conversations = useMemo(() => {
-    console.log('🔄 [useHomeChat] Recomputing conversations array');
     return conversationsOrder
       .map((id) => conversationsMap.get(id))
       .filter(Boolean);
-  }, [conversationsOrder, conversationsMap]); // 🔥 Depend on BOTH
+  }, [conversationsOrder, conversationsMap]);
 
-  // Get selected conversation with useMemo
   const selectedConversation = useMemo(() => {
     return activeConversationId
       ? conversationsMap.get(activeConversationId)
@@ -43,108 +44,118 @@ export function useHomeChat() {
   }, [activeConversationId, conversationsMap]);
 
   // ============================================
-  // GET ACTIONS FROM STORE
+  // STORE ACTIONS
   // ============================================
 
-  const setConversations = useChatStore((state) => state.setConversations);
   const updateConversation = useChatStore((state) => state.updateConversation);
   const addConversationToStore = useChatStore((state) => state.addConversation);
   const setActiveConversation = useChatStore((state) => state.setActiveConversation);
   const resetUnreadCount = useChatStore((state) => state.resetUnreadCount);
-  const setConversationsLoading = useChatStore((state) => state.setConversationsLoading);
-  const setConversationsError = useChatStore((state) => state.setConversationsError);
+  const fetchConversationsOnce = useChatStore((state) => state.fetchConversationsOnce);
 
   // ============================================
-  // LOAD CONVERSATIONS
+  // 🔥 SOCKET EVENT HANDLERS
   // ============================================
 
-  const loadConversations = useCallback(async () => {
-    if (!token || !user) {
-      console.log('⏭️  Skipping loadConversations - no token or user');
-      return;
-    }
-
-    try {
-      setConversationsLoading(true);
-      setConversationsError(null);
-
-      console.log('📥 Loading conversations...');
-      const data = await chatApi.getUserConversations();
-      
-      const conversationsArray = Array.isArray(data) 
-        ? data 
-        : (data?.conversations || []);
-      
-      console.log('✅ Loaded conversations:', conversationsArray.length);
-      setConversations(conversationsArray);
-      
-    } catch (err) {
-      console.error("❌ Error loading conversations:", err);
-      setConversationsError(err.message || 'Failed to load conversations');
-    } finally {
-      setConversationsLoading(false);
-    }
-  }, [token, user, setConversations, setConversationsLoading, setConversationsError]);
-
-  // ============================================
-  // UPDATE FROM SOCKET
-  // ============================================
-
-  /**
-   * 🔥 FIXED: Update conversation from socket event
-   */
-  const updateConversationFromSocket = useCallback((conversationId, conversationUpdate) => {
-    console.log('🔄 [useHomeChat] Updating from socket:', {
-      conversationId,
-      unreadCount: conversationUpdate?.unreadCount,
-      lastMessage: conversationUpdate?.lastMessage?.content?.substring(0, 20)
-    });
-
-    if (!conversationUpdate) {
-      console.warn('⚠️ [useHomeChat] No conversationUpdate provided');
-      return;
-    }
-
-    // 🔥 Check if conversation exists in store
-    const existingConv = useChatStore.getState().conversations.get(conversationId);
+  useEffect(() => {
+    const socket = getSocket();
     
-    if (existingConv) {
-      // Update existing conversation
-      updateConversation(conversationId, {
-        lastMessage: conversationUpdate.lastMessage,
-        lastMessageAt: conversationUpdate.lastMessage?.createdAt || conversationUpdate.lastMessageAt,
-        unreadCount: conversationUpdate.unreadCount,
-        lastSeenMessage: conversationUpdate.lastSeenMessage,
-      });
-      console.log('✅ [useHomeChat] Updated existing conversation');
-    } else {
-      // Add new conversation if it doesn't exist
-      console.log('🆕 [useHomeChat] Adding new conversation from socket');
-      addConversationToStore({
-        _id: conversationId,
-        conversationId,
-        ...conversationUpdate,
-      });
+    if (!socket) {
+      console.log('⏳ [useHomeChat] Socket not ready');
+      return;
     }
-  }, [updateConversation, addConversationToStore]);
+
+    console.log('🔌 [useHomeChat] Setting up socket listeners');
+
+    // Handler: New message received
+    const handleMessageReceived = (data) => {
+      const { conversationId, message, conversationUpdate } = data;
+
+      console.log('📩 [useHomeChat] Message received:', conversationId);
+
+      if (conversationUpdate) {
+        updateConversation(conversationId, {
+          lastMessage: conversationUpdate.lastMessage || message,
+          lastMessageAt: message.createdAt,
+          unreadCount: conversationUpdate.unreadCount,
+        });
+      }
+    };
+
+    // Handler: Message marked as read
+    const handleMessageRead = (data) => {
+      const { conversationId, conversationUpdate } = data;
+
+      console.log('👁️ [useHomeChat] Message read:', conversationId);
+
+      if (conversationUpdate?.unreadCount !== undefined) {
+        updateConversation(conversationId, {
+          unreadCount: conversationUpdate.unreadCount,
+        });
+      }
+    };
+
+    // Handler: Message deleted
+    const handleMessageDeleted = (data) => {
+      const { conversationId, conversationUpdate } = data;
+
+      console.log('🗑️ [useHomeChat] Message deleted:', conversationId);
+
+      if (conversationUpdate?.lastMessage) {
+        updateConversation(conversationId, {
+          lastMessage: conversationUpdate.lastMessage,
+          lastMessageAt: conversationUpdate.lastMessage.createdAt,
+        });
+      }
+    };
+
+    // Handler: Conversation updated
+    const handleConversationUpdated = (data) => {
+      const { conversationId, updates } = data;
+
+      console.log('🔄 [useHomeChat] Conversation updated:', conversationId);
+
+      updateConversation(conversationId, updates);
+    };
+
+    // Subscribe to events
+    socket.on('message_received', handleMessageReceived);
+    socket.on('message_read', handleMessageRead);
+    socket.on('message_deleted', handleMessageDeleted);
+    socket.on('conversation_updated', handleConversationUpdated);
+
+    // Cleanup
+    return () => {
+      console.log('🔌 [useHomeChat] Cleaning up socket listeners');
+      socket.off('message_received', handleMessageReceived);
+      socket.off('message_read', handleMessageRead);
+      socket.off('message_deleted', handleMessageDeleted);
+      socket.off('conversation_updated', handleConversationUpdated);
+    };
+  }, [updateConversation]);
+
+  // ============================================
+  // 🔥 FETCH CONVERSATIONS (ONCE)
+  // ============================================
+
+  useEffect(() => {
+    if (token && user) {
+      console.log('🚀 [useHomeChat] Calling fetchConversationsOnce');
+      fetchConversationsOnce();
+    }
+  }, [token, user, fetchConversationsOnce]);
 
   // ============================================
   // MARK AS READ
   // ============================================
 
-  /**
-   * Mark conversation as read
-   */
   const markConversationAsRead = useCallback(async (conversationId) => {
     if (!conversationId) return;
     
     console.log('✅ [useHomeChat] Marking as read:', conversationId);
     
     try {
-      // Reset unread count immediately (optimistic)
       resetUnreadCount(conversationId);
-      
-      // Send to backend
       await chatApi.markConversationAsRead(conversationId);
     } catch (err) {
       console.error('❌ Error marking as read:', err);
@@ -155,11 +166,8 @@ export function useHomeChat() {
   // SELECT CONVERSATION
   // ============================================
 
-  /**
-   * Select a conversation and mark it as read
-   */
   const handleSelectConversation = useCallback((conversation) => {
-    console.log('🎯 [useHomeChat] Selecting:', conversation?.conversationId || conversation?._id || 'none');
+    console.log('🎯 [useHomeChat] Selecting:', conversation?.conversationId || conversation?._id);
     
     if (conversation) {
       const convId = conversation.conversationId || conversation._id;
@@ -174,32 +182,10 @@ export function useHomeChat() {
   // ADD CONVERSATION
   // ============================================
 
-  /**
-   * Add new conversation to store
-   */
   const addConversation = useCallback((newConversation) => {
     console.log('➕ [useHomeChat] Adding conversation:', newConversation._id);
     addConversationToStore(newConversation);
   }, [addConversationToStore]);
-
-  // ============================================
-  // LOAD ON MOUNT (only once)
-  // ============================================
-
-  useEffect(() => {
-    if (token && user) {
-      loadConversations();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, user]); // Only depend on token and user
-
-  // 🔥 DEBUG: Log when conversations change
-  useEffect(() => {
-    console.log('🔄 [useHomeChat] Conversations changed:', {
-      count: conversations.length,
-      ids: conversations.map(c => c.conversationId || c._id)
-    });
-  }, [conversations]);
 
   // ============================================
   // RETURN
@@ -211,9 +197,8 @@ export function useHomeChat() {
     error,
     selectedConversation,
     handleSelectConversation,
-    updateConversationFromSocket,
     markConversationAsRead,
-    reloadConversations: loadConversations,
+    reloadConversations: fetchConversationsOnce,
     addConversation,
   };
 }

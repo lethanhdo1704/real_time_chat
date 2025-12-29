@@ -1,5 +1,6 @@
 // frontend/src/store/chatStore.js
 import { create } from 'zustand';
+import chatApi from '../services/chatApi'; // 🔥 Import API
 
 const useChatStore = create((set, get) => ({
   // ============================================
@@ -19,7 +20,8 @@ const useChatStore = create((set, get) => ({
   messagesError: new Map(),
   optimisticMessages: new Map(),
   typingUsers: new Map(),
-  
+  hasFetchedConversations: false,
+
   // ============================================
   // ACTIONS - USER
   // ============================================
@@ -29,7 +31,7 @@ const useChatStore = create((set, get) => ({
   },
   
   // ============================================
-  // 🔥 NEW: RESET STORE
+  // 🔥 RESET STORE
   // ============================================
   
   resetStore: () => {
@@ -48,6 +50,7 @@ const useChatStore = create((set, get) => ({
       messagesError: new Map(),
       optimisticMessages: new Map(),
       typingUsers: new Map(),
+      hasFetchedConversations: false, // 🔒 Reset flag
     });
     console.log('✅ [chatStore] Store reset complete');
   },
@@ -55,6 +58,63 @@ const useChatStore = create((set, get) => ({
   // ============================================
   // ACTIONS - CONVERSATIONS
   // ============================================
+  
+  // 🔥 NEW: FETCH CONVERSATIONS ONCE (STORE-LEVEL LOCK)
+  fetchConversationsOnce: async () => {
+  const { hasFetchedConversations, loadingConversations } = get();
+  
+  console.log('🔍 [fetchConversationsOnce] ENTRY:', {
+    hasFetchedConversations,
+    loadingConversations
+  });
+  
+  // 🔒 Guard: Already fetched
+  if (hasFetchedConversations) {
+    console.log('⏭️ [chatStore] Conversations already fetched, skip');
+    return;
+  }
+  
+  // 🔒 Guard: Already loading
+  if (loadingConversations) {
+    console.log('⏳ [chatStore] Conversations already loading, skip');
+    return;
+  }
+
+  console.log('🚀 [chatStore] Fetching conversations...');
+  set({ loadingConversations: true, conversationsError: null });
+
+  try {
+    console.log('📡 [chatStore] Calling chatApi.fetchConversations()...');
+    const data = await chatApi.getUserConversations();
+    console.log('📡 [chatStore] API returned:', data?.length || 0, 'conversations');
+
+    const conversationsMap = new Map();
+    const order = [];
+
+    data.forEach(conv => {
+      const id = conv.conversationId || conv._id;
+      conversationsMap.set(id, conv);
+      order.push(id);
+    });
+
+    console.log('💾 [chatStore] Setting state with flag = true');
+    set({
+      conversations: conversationsMap,
+      conversationsOrder: order,
+      hasFetchedConversations: true, // 🔒 LOCK
+      loadingConversations: false,
+    });
+
+    console.log('✅ [chatStore] Conversations fetched ONCE:', data.length);
+    console.log('🔍 [chatStore] Flag after set:', get().hasFetchedConversations);
+  } catch (err) {
+    console.error('❌ [chatStore] Failed to fetch conversations:', err);
+    set({ 
+      conversationsError: err.message || 'Failed to load conversations',
+      loadingConversations: false,
+    });
+  }
+},
   
   setConversations: (conversations) => {
     const conversationsMap = new Map();
@@ -163,7 +223,6 @@ const useChatStore = create((set, get) => ({
   // ACTIONS - MESSAGES
   // ============================================
   
-  // 🔥 NEW: Ensure messages array exists for a conversation
   ensureConversationMessages: (conversationId) => {
     const messagesMap = new Map(get().messages);
     
@@ -205,7 +264,6 @@ const useChatStore = create((set, get) => ({
     const messagesMap = new Map(get().messages);
     const existing = messagesMap.get(conversationId) || [];
     
-    // Check duplicate by _id or messageId
     const exists = existing.some(m => {
       if (message._id && m._id && m._id === message._id) return true;
       if (message.messageId && m.messageId && m.messageId === message.messageId) return true;
@@ -320,7 +378,7 @@ const useChatStore = create((set, get) => ({
   },
   
   // ============================================
-  // ACTIONS - TYPING INDICATORS (FIXED)
+  // ACTIONS - TYPING INDICATORS
   // ============================================
   
   addTypingUser: (conversationId, user) => {
@@ -338,8 +396,6 @@ const useChatStore = create((set, get) => ({
       users: Array.from(usersSet)
     });
     
-    // ✅ CRITICAL: Store user object, not just uid
-    // Clone Set to ensure React detects change
     const newUsersSet = new Set(usersSet);
     newUsersSet.add(user);
     
@@ -374,8 +430,6 @@ const useChatStore = create((set, get) => ({
       users: Array.from(usersSet)
     });
     
-    // ✅ CRITICAL FIX: Find and delete by comparing uid
-    // Clone Set to ensure React detects change
     const newUsersSet = new Set(usersSet);
     let removed = false;
     
@@ -383,7 +437,7 @@ const useChatStore = create((set, get) => ({
       const userIdToCheck = typeof user === 'string' ? user : (user.uid || user._id);
       
       if (userIdToCheck === userId) {
-        newUsersSet.delete(user); // Delete the OBJECT, not the string
+        newUsersSet.delete(user);
         removed = true;
         console.log(`🔴 [Store] ✅ Found and removed:`, user);
         break;
@@ -397,7 +451,7 @@ const useChatStore = create((set, get) => ({
           typeof u === 'string' ? u : (u.uid || u._id)
         )
       });
-      return; // Don't update state if nothing changed
+      return;
     }
     
     console.log(`🔴 [Store] After remove:`, {
