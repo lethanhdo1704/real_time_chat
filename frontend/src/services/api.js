@@ -88,31 +88,23 @@ api.interceptors.response.use(
           break;
 
         default:
-          console.error(`❌ [API] Error ${status}:`, data?.message || error.message);
+          console.error(`❌ [API] Error ${status}:`, data?.error || data?.message || error.message);
       }
 
-      return Promise.reject({
-        status,
-        message: data?.message || error.message,
-        data: data,
-      });
+      // ✅ GIỮ NGUYÊN error object của axios để useLogin có thể access err.response.data.error
+      return Promise.reject(error);
     }
 
     if (error.request) {
       console.error("❌ [API] Network error");
-      return Promise.reject({
-        status: 0,
-        message: "Network error. Please check your connection.",
-        data: null,
-      });
+      // ✅ Tạo error object giống cấu trúc axios
+      const networkError = new Error("Network error. Please check your connection.");
+      networkError.request = error.request;
+      return Promise.reject(networkError);
     }
 
     console.error("❌ [API] Request setup error:", error.message);
-    return Promise.reject({
-      status: -1,
-      message: error.message,
-      data: null,
-    });
+    return Promise.reject(error);
   }
 );
 

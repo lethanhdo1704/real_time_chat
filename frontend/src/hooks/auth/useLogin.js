@@ -40,7 +40,27 @@ export function useLogin() {
       await login(email, password, rememberMe);
       // Navigation handled by useEffect when user changes
     } catch (err) {
-      setError(err.response?.data?.error || t("errors.serverError"));
+      // Xử lý error message dựa trên response từ server
+      if (err.response?.data?.error) {
+        const backendError = err.response.data.error;
+        
+        // Map backend error sang translation key
+        const errorMap = {
+          "Invalid credentials": t("errors.invalidCredentials"),
+          "Missing email or password": t("errors.missingFields"),
+          "Email không hợp lệ": t("errors.invalidEmail"),
+          "Server error": t("errors.serverError"),
+        };
+        
+        // Nếu có trong map thì dùng translation, không thì hiển thị message gốc
+        setError(errorMap[backendError] || backendError);
+      } else if (err.request) {
+        // Request được gửi nhưng không nhận được response
+        setError(t("errors.networkError"));
+      } else {
+        // Lỗi khác
+        setError(t("errors.serverError"));
+      }
     } finally {
       setLoading(false);
     }

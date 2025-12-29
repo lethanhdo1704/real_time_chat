@@ -14,7 +14,7 @@
     "email": "Email",
     "emailPlaceholder": "example@email.com",
     "password": "Password",
-    "passwordPlaceholder": "••••••••",
+    "passwordPlaceholder": "Your password",
     "rememberMe": "Remember me",
     "forgotPassword": "Forgot password?",
     "loginButton": "Login",
@@ -26,7 +26,9 @@
   
   "errors": {
     "serverError": "Server error",
+    "networkError": "Network connection error",
     "invalidCredentials": "Invalid email or password",
-    "networkError": "Network connection error"
+    "missingFields": "Missing email or password",
+    "invalidEmail": "Invalid email"
   }
 }
