@@ -15,7 +15,7 @@ export const SocketProvider = ({ children }) => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
     // 🔥 User có token → Connect
-    if (user && token) {
+    if (user?.uid && token) {
       // 🔥 Chỉ connect 1 lần duy nhất
       if (!hasInitialized.current) {
         console.log('🔌 Connecting socket for user:', user.uid);
@@ -79,6 +79,22 @@ export const SocketProvider = ({ children }) => {
       socketConnected: socket?.connected
     });
   }, [socket, isConnected]);
+
+  useEffect(() => {
+  if (!socket) return;
+
+  const handleUserUpdate = (payload) => {
+    console.log('🔥 USER UPDATE RECEIVED:', payload);
+  };
+
+  socket.on('user:update', handleUserUpdate);
+
+  console.log('📡 Listening for user:update');
+
+  return () => {
+    socket.off('user:update', handleUserUpdate);
+  };
+}, [socket]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>

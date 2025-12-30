@@ -32,6 +32,11 @@ const userSchema = new mongoose.Schema({
     default: "",
   },
 
+  avatarUpdatedAt: { 
+    type: Date,
+    default: null,
+  },
+
   role: {
     type: String,
     enum: ["user", "admin"],
@@ -51,4 +56,3 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema);
 export default User;
-

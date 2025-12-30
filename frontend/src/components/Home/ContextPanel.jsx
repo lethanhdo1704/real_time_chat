@@ -1,4 +1,4 @@
-// frontend/src/components/Home/ContextPanel.jsx - FULL i18n SUPPORT
+// frontend/src/components/Home/ContextPanel.jsx - FINAL VERSION with AvatarImage
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import FriendList from "../FriendFeature/FriendList";
@@ -6,6 +6,7 @@ import FriendRequests from "../FriendFeature/FriendRequests";
 import AddFriend from "../FriendFeature/AddFriend";
 import GroupList from "../FriendFeature/GroupList";
 import CopyToast from "./CopyToast";
+import AvatarImage from "../common/AvatarImage";
 
 export default function ContextPanel({ 
   activeTab,
@@ -62,15 +63,6 @@ export default function ContextPanel({
   };
 
   // ============================================
-  // GET USER INITIALS
-  // ============================================
-  
-  const getUserInitials = (nickname) => {
-    if (!nickname) return "?";
-    return nickname.trim()[0].toUpperCase();
-  };
-
-  // ============================================
   // RENDER
   // ============================================
 
@@ -88,29 +80,23 @@ export default function ContextPanel({
           <div className="px-4 py-4">
             {/* User Avatar & Name */}
             <div className="flex items-center gap-3 mb-3">
-              {/* Avatar with Status */}
-              <div className="relative shrink-0">
-                <div className="w-14 h-14 rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden ring-2 ring-white/30 shadow-lg">
-                  {user.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt={user.nickname}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    getUserInitials(user.nickname)
-                  )}
-                </div>
-                <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></span>
-              </div>
+              {/* Avatar with Status - Using AvatarImage component */}
+              <AvatarImage
+                avatar={user.avatar}
+                nickname={user.nickname}
+                avatarUpdatedAt={user.avatarUpdatedAt}
+                size="lg"
+                showOnlineStatus={true}
+                isOnline={user.isOnline || true}
+              />
               
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-white truncate text-sm">
-                  {user.nickname}
+                  {user.nickname || 'Unknown User'}
                 </p>
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-white/80 truncate">
-                    {t("home.header.uidLabel")} {user.uid}
+                    {t("home.header.uidLabel")} {user.uid || '---'}
                   </p>
                   <button
                     onClick={handleCopyUID}

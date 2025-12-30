@@ -1,4 +1,4 @@
-// frontend/src/context/AuthContext.jsx
+// frontend/src/context/AuthContext.jsx - FIXED API RESPONSE HANDLING
 import { createContext, useState, useEffect } from "react";
 import api from "../services/api";
 import useChatStore from '../store/chat/chatStore';
@@ -28,9 +28,18 @@ export const AuthProvider = ({ children }) => {
 
       try {
         const res = await api.get("/users/me");
-        setUser(res.data);
+        
+        // ✅ FIX: Lấy user từ res.data.data (vì backend trả về { success, data: {...} })
+        const userData = res.data.data || res.data;
+        
+        console.log("✅ [Auth] User loaded:", {
+          uid: userData.uid,
+          nickname: userData.nickname
+        });
+        
+        setUser(userData);
       } catch (err) {
-        console.error("Load user failed:", err);
+        console.error("❌ [Auth] Load user failed:", err);
         localStorage.removeItem("token");
         sessionStorage.removeItem("token");
         setToken(null);
@@ -70,9 +79,12 @@ export const AuthProvider = ({ children }) => {
     }
 
     setToken(res.data.token);
-    setUser(res.data.user);
     
-    console.log('✅ [Auth] Login successful:', res.data.user.uid);
+    // ✅ FIX: Xử lý response có thể có format khác nhau
+    const userData = res.data.user || res.data.data;
+    setUser(userData);
+    
+    console.log('✅ [Auth] Login successful:', userData.uid);
 
     return res.data;
   };
@@ -125,8 +137,12 @@ export const AuthProvider = ({ children }) => {
     if (res.data.token) {
       localStorage.setItem("token", res.data.token);
       setToken(res.data.token);
-      setUser(res.data.user);
-      console.log('✅ [Auth] Registration successful:', res.data.user.uid);
+      
+      // ✅ FIX: Xử lý response có thể có format khác nhau
+      const userData = res.data.user || res.data.data;
+      setUser(userData);
+      
+      console.log('✅ [Auth] Registration successful:', userData.uid);
     }
 
     return res.data;

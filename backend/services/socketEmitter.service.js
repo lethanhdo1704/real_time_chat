@@ -278,6 +278,29 @@ class SocketEmitter {
     }
   }
 
+    /**
+   * ✅ Generic emit to a single user (soft realtime)
+   * Used for: user:update, profile/avatar changes, system events
+   */
+  emitToUser(uid, event, payload) {
+    if (!this.isIOAvailable()) return;
+
+    if (!uid || !event) {
+      console.warn('⚠️ [SocketEmitter] emitToUser missing uid or event');
+      return;
+    }
+
+    try {
+      this.io.to(`user:${uid}`).emit(event, payload);
+      console.log(`📡 [SocketEmitter] emitToUser → user:${uid} | event: ${event}`);
+    } catch (error) {
+      console.error(
+        `❌ [SocketEmitter] emitToUser failed for user:${uid}:`,
+        error.message
+      );
+    }
+  }
+  
   /**
    * ✅ Helper to get connected sockets for user
    */

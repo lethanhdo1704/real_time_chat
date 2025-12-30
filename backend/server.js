@@ -1,6 +1,8 @@
 // backend/server.js
 import express from "express";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 import connectDB from "./config/db.js";
 import { createServer } from "http";
 import "dotenv/config";
@@ -47,6 +49,12 @@ import messageRoutes from "./routes/message.routes.js";
 // ==========================
 import initSocket from "./socket/index.js";
 
+// ==========================
+// ES MODULE HELPERS
+// ==========================
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 
 // ==========================
@@ -64,7 +72,6 @@ app.use(
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   })
 );
-
 
 // ==========================
 // GLOBAL MIDDLEWARE
@@ -90,6 +97,21 @@ if (config.nodeEnv === "production") {
 // DATABASE
 // ==========================
 connectDB();
+
+// ==========================
+// STATIC FILES - SERVE AVATARS
+// ==========================
+app.use(
+  "/uploads/avatars",
+  (req, res, next) => {
+    // Set cache-control headers for better performance
+    res.set("Cache-Control", "public, max-age=86400"); // 24 hours
+    next();
+  },
+  express.static(path.join(__dirname, "uploads/avatars"))
+);
+
+console.log("✅ Static avatar serving configured");
 
 // ==========================
 // HEALTH CHECK
@@ -147,13 +169,14 @@ console.log("✅ Chat socket handlers ready");
 // ==========================
 // START SERVER
 // ==========================
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log("\n" + "=".repeat(50));
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`🌐 Network: http://192.168.1.2:${PORT}`);
   console.log(`🌍 Environment: ${config.nodeEnv}`);
   console.log(`🔌 Socket.IO ready`);
   console.log(`💬 Chat system ready`);
+  console.log(`📁 Avatar serving: /uploads/avatars`);
   console.log("=".repeat(50) + "\n");
 });
 
@@ -162,11 +185,11 @@ server.listen(PORT, '0.0.0.0', () => {
 // ==========================
 const shutdown = (signal) => {
   console.log(`\n👋 ${signal} received: shutting down gracefully...`);
-  
+
   // Close server
   server.close(() => {
     console.log("✅ HTTP server closed");
-    
+
     // Close socket connections
     io.close(() => {
       console.log("✅ Socket.IO closed");

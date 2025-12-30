@@ -219,6 +219,14 @@ export const createRateLimiter = ({
     skip: () => isDev && skipDev
   });
 
+export const avatarUploadLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 5, // 5 requests per window
+  message: 'Too many avatar uploads. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 export default {
   globalLimiter,
   authLimiter,
@@ -230,5 +238,6 @@ export default {
   searchLimiter,
   uploadLimiter,
   apiLimiter,
+  avatarUploadLimiter,
   createRateLimiter
 };

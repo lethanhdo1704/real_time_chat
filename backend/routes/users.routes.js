@@ -1,59 +1,52 @@
+// backend/routes/users.routes.js
 import express from "express";
 import auth from "../middleware/auth.js";
-import User from "../models/User.js";
+import uploadAvatar, { handleAvatarUploadError } from "../middleware/uploadAvatar.js";
+import userController from "../controllers/user.controller.js";
+import avatarController from "../controllers/avatar.controller.js";
+import { avatarUploadLimiter } from "../middleware/rateLimit.js";
 
 const router = express.Router();
 
+// ===== USER PROFILE ROUTES =====
+
 /**
  * GET /api/users/me
- * Lấy thông tin user hiện tại
- * Yêu cầu login (auth)
+ * Get current user info
  */
-router.get("/me", auth, async (req, res) => {
-  try {
-    const user = await User.findOne({ uid: req.user.uid }).select("-passwordHash");
-
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    res.json({
-      uid: user.uid,
-      nickname: user.nickname,
-      email: user.email,
-      avatar: user.avatar,
-      role: user.role,
-      isOnline: user.isOnline,
-    });
-  } catch (err) {
-    console.error("GET /users/me error:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
+router.get("/me", auth, userController.getMe);
 
 /**
  * GET /api/users/search?uid=...
- * Tìm user theo UID
- * Yêu cầu login (auth)
+ * Search user by UID
  */
-router.get("/search", auth, async (req, res) => {
-  const { uid } = req.query;
-  if (!uid) return res.status(400).json({ message: "UID required" });
+router.get("/search", auth, userController.searchUser);
 
-  try {
-    const user = await User.findOne({ uid }).select("-passwordHash");
-    if (!user) return res.status(404).json({ message: "User not found" });
+/**
+ * PUT /api/users/me
+ * Update user profile (nickname)
+ */
+router.put("/me", auth, userController.updateProfile);
 
-    res.status(200).json({
-      uid: user.uid,
-      nickname: user.nickname,
-      avatar: user.avatar,
-      email: user.email,
-    });
-  } catch (err) {
-    console.error("GET /users/search error:", err);
-    res.status(500).json({ message: err.message });
-  }
-});
+// ===== AVATAR ROUTES =====
+
+/**
+ * PUT /api/users/me/avatar
+ * Upload/Update avatar
+ */
+router.put(
+  "/me/avatar",
+  auth,
+  avatarUploadLimiter,
+  uploadAvatar.single('avatar'),
+  handleAvatarUploadError,
+  avatarController.uploadAvatar
+);
+
+/**
+ * DELETE /api/users/me/avatar
+ * Remove avatar
+ */
+router.delete("/me/avatar", auth, avatarController.removeAvatar);
 
 export default router;
