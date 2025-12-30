@@ -34,11 +34,11 @@ import {
 // ==========================
 // ROUTES
 // ==========================
-import authRoutes from "./routes/auth.js";
-import userRoutes from "./routes/users.js";
-import otpForgotRoutes from "./routes/otp/forgot.js";
-import otpRegisterRoutes from "./routes/otp/register.js";
-import friendsRoutes from "./routes/friend.js";
+import authRoutes from "./routes/auth.routes.js";
+import userRoutes from "./routes/users.routes.js";
+import otpForgotRoutes from "./routes/otp/forgot.routes.js";
+import otpRegisterRoutes from "./routes/otp/register.routes.js";
+import friendsRoutes from "./routes/friend.routes.js";
 import conversationRoutes from "./routes/conversation.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 
