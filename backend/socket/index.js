@@ -5,38 +5,41 @@ import setupFriendSocket from "./friend.socket.js";
 import socketEmitter from "../services/socketEmitter.service.js";
 
 export default function initSocket(server) {
-  // ============================================
-  // 1️⃣ CREATE SOCKET.IO SERVER
-  // ============================================
   const io = new Server(server, {
     cors: {
-      origin: true,
+      origin: true, // 🔥 Cho phép TẤT CẢ origins (development mode)
+      credentials: true,
       methods: ["GET", "POST"],
-      credentials: true
     },
+    transports: ["websocket", "polling"],
     pingInterval: 25000,
     pingTimeout: 60000,
+    allowEIO3: true,
   });
 
-  console.log('🔌 Socket.IO server created');
+  // 🔥 Debug middleware - log mọi connection attempt
+  io.engine.on("initial_headers", (headers, req) => {
+    console.log('🔍 Socket handshake from:', req.headers.origin || 'no-origin');
+  });
 
-  // ============================================
-  // 2️⃣ INJECT IO INTO SOCKET EMITTER (SINGLETON)
-  // ============================================
+  io.on("connection", (socket) => {
+    console.log(`✅ Client connected: ${socket.id} from ${socket.handshake.address}`);
+    
+    socket.on("disconnect", (reason) => {
+      console.log(`❌ Client disconnected: ${socket.id} - ${reason}`);
+    });
+  });
+
+  console.log('🔌 Socket.IO server initialized with CORS: ALL ORIGINS');
+
   socketEmitter.setIO(io);
   console.log('✅ [SocketEmitter] IO instance injected');
 
-  // ============================================
-  // 3️⃣ SETUP SOCKET HANDLERS
-  // ============================================
   setupChatSocket(io);
   console.log('💬 Chat socket handlers initialized');
 
   setupFriendSocket(io);
   console.log('👥 Friend socket handlers initialized');
 
-  // ============================================
-  // 4️⃣ RETURN FOR SERVER.JS
-  // ============================================
   return { io, socketEmitter };
 }
