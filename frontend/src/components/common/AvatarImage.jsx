@@ -37,7 +37,8 @@ export default function AvatarImage({
     sm: "w-10 h-10 text-sm",
     md: "w-12 h-12 text-base",
     lg: "w-14 h-14 text-lg",
-    xl: "w-20 h-20 text-2xl"
+    xl: "w-20 h-20 text-2xl",
+    "2xl": "w-24 h-24 text-3xl"
   };
 
   const sizeClass = sizeClasses[size] || sizeClasses.md;
@@ -55,7 +56,7 @@ export default function AvatarImage({
   return (
     <div className={`relative ${className}`}>
       <div 
-        className={`${sizeClass} rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden ring-2 ring-white/30 shadow-lg`}
+        className={`${sizeClass} rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden shadow-lg`}
       >
         {avatarUrl && !imageError ? (
           <>

@@ -1,5 +1,6 @@
 // frontend/src/components/Chat/ChatWindow/ChatWindowBody.jsx
 import MessageList from "../MessageList";
+import AvatarImage from "../../common/AvatarImage";
 
 export default function ChatWindowBody({
   messagesContainerRef,
@@ -40,16 +41,15 @@ export default function ChatWindowBody({
         {messages.length === 0 && displayInfo.isNewConversation && (
           <div className="flex items-center justify-center min-h-[60vh] px-4">
             <div className="text-center max-w-sm">
-              <div className="relative w-24 h-24 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold mx-auto mb-5 overflow-hidden shadow-xl ring-4 ring-blue-100">
-                {displayInfo.avatar ? (
-                  <img
-                    src={displayInfo.avatar}
-                    alt={displayInfo.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  displayInfo.name[0]?.toUpperCase() || "?"
-                )}
+              {/* Using AvatarImage component */}
+              <div className="flex justify-center mb-5">
+                <AvatarImage
+                  avatar={displayInfo.avatar}
+                  nickname={displayInfo.name}
+                  avatarUpdatedAt={displayInfo.avatarUpdatedAt}
+                  size="xl"
+                  className="shadow-xl ring-4 ring-blue-100"
+                />
               </div>
 
               <h3 className="text-xl font-bold text-gray-800 mb-2">
@@ -111,18 +111,15 @@ export default function ChatWindowBody({
               ref={typingIndicatorRef}
               className="flex items-start gap-3 mt-4 animate-fadeIn"
             >
-              <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-semibold overflow-hidden shrink-0 shadow-md">
-                {typingUser.avatar ? (
-                  <img
-                    src={typingUser.avatar}
-                    alt={typingUser.nickname}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  (typingUser.nickname || typingUser.fullName)?.[0]?.toUpperCase() ||
-                  "?"
-                )}
-              </div>
+              {/* Using AvatarImage component for typing user */}
+              <AvatarImage
+                avatar={typingUser.avatar}
+                nickname={typingUser.nickname || typingUser.fullName}
+                avatarUpdatedAt={typingUser.avatarUpdatedAt}
+                size="sm"
+                className="shrink-0"
+              />
+              
               <div className="bg-white rounded-2xl rounded-bl-md px-5 py-3.5 shadow-md border border-gray-100">
                 <div className="flex gap-1.5">
                   <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>

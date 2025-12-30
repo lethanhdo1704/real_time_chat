@@ -3,16 +3,18 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import useFriendStore from "../../store/friendStore";
 import useFriendActions from "../../hooks/useFriendActions";
-import friendService from "../../services/friendService"; // 🔥 NEW
+import friendService from "../../services/friendService";
+import AvatarImage from "../common/AvatarImage";
 
 /**
- * FriendRequests Component - ✅ UPDATED WITH SEEN TRACKING
+ * FriendRequests Component - ✅ UPDATED WITH SEEN TRACKING & AvatarImage
  * 
  * Changes:
  * - Dùng useFriendActions hook thay vì gọi store actions trực tiếp
  * - Dùng friendRequests thay vì requests (theo friendStore.js)
  * - Auto mark all as seen when component mounts
  * - Socket tự động sync qua useFriendSocket
+ * - Sử dụng AvatarImage component
  */
 export default function FriendRequests({ currentUser, onUpdateCount }) {
   const { t } = useTranslation("friendFeature");
@@ -23,7 +25,7 @@ export default function FriendRequests({ currentUser, onUpdateCount }) {
 
   const friendRequests = useFriendStore((state) => state.friendRequests);
   const friends = useFriendStore((state) => state.friends);
-  const markAllRequestsAsSeen = useFriendStore((state) => state.markAllRequestsAsSeen); // 🔥 NEW
+  const markAllRequestsAsSeen = useFriendStore((state) => state.markAllRequestsAsSeen);
   
   // ============================================
   // GET ACTIONS FROM HOOK - ✅ NEW
@@ -211,37 +213,39 @@ export default function FriendRequests({ currentUser, onUpdateCount }) {
         return (
           <div 
             key={r._id || r.uid} 
-            className="flex items-center p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+            className="p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
           >
-            <img 
-              src={r.avatar || "https://i.pravatar.cc/40"} 
-              alt={r.nickname || r.uid} 
-              className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-100"
-            />
-            
-            <div className="flex-1 ml-3">
-              <p className="font-medium text-gray-900">
-                {r.nickname || r.uid}
-              </p>
-              <p className="text-xs text-gray-500 flex items-center gap-1">
-                <span className="font-medium text-gray-400">
-                  {t("common.uid")}:
-                </span>
-                {r.uid}
-              </p>
+            {/* Top: Avatar and Name */}
+            <div className="flex items-center gap-3 mb-3">
+              {/* Avatar on the left */}
+              <AvatarImage
+                avatar={r.avatar}
+                nickname={r.nickname || r.uid}
+                avatarUpdatedAt={r.avatarUpdatedAt}
+                size="lg"
+                showOnlineStatus={false}
+              />
               
-              {alreadyFriend && (
-                <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium text-green-700 bg-green-100 rounded">
-                  {t("friendRequests.alreadyFriend")}
-                </span>
-              )}
+              {/* Name and status */}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 truncate text-base">
+                  {r.nickname || r.uid}
+                </p>
+                
+                {alreadyFriend && (
+                  <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium text-green-700 bg-green-100 rounded">
+                    {t("friendRequests.alreadyFriend")}
+                  </span>
+                )}
+              </div>
             </div>
             
+            {/* Bottom: Action Buttons */}
             <div className="flex gap-2">
               {alreadyFriend ? (
                 <button 
                   onClick={() => handleReject(r.uid)} 
-                  className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors"
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors"
                 >
                   {t("friendRequests.removeRequest")}
                 </button>
@@ -249,14 +253,14 @@ export default function FriendRequests({ currentUser, onUpdateCount }) {
                 <>
                   <button 
                     onClick={() => handleAccept(r.uid)} 
-                    className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={loading}
                   >
                     {t("friendRequests.accept")}
                   </button>
                   <button 
                     onClick={() => handleReject(r.uid)} 
-                    className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={loading}
                   >
                     {t("friendRequests.reject")}

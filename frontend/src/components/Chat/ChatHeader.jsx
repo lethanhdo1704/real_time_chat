@@ -1,5 +1,6 @@
 // frontend/src/components/Chat/ChatHeader.jsx
 import { useTranslation } from "react-i18next";
+import AvatarImage from "../common/AvatarImage";
 
 /**
  * ChatHeader Component
@@ -7,18 +8,20 @@ import { useTranslation } from "react-i18next";
  * ✅ Mobile: Back button on the left (Telegram-style)
  * ✅ Desktop: No back button
  * ✅ Consistent max-w-3xl with Body & Input
+ * ✅ Using AvatarImage component
  */
 export default function ChatHeader({ 
   receiverName, 
-  receiverAvatar, 
+  receiverAvatar,
+  receiverAvatarUpdatedAt, // NEW: For cache busting
   isTyping = false,
   typingUserName,
   isOnline = true,
   onCallClick,
   onVideoClick,
   onInfoClick,
-  onBackClick,  // NEW: Back button handler
-  showBackButton = false,  // NEW: Show back button on mobile
+  onBackClick,
+  showBackButton = false,
 }) {
   const { t } = useTranslation("chat");
 
@@ -56,26 +59,16 @@ export default function ChatHeader({
               </button>
             )}
 
-            {/* Avatar with Status */}
+            {/* Avatar with Status - Using AvatarImage */}
             <div className="relative shrink-0">
-              <div className="w-11 h-11 rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden ring-2 ring-gray-100">
-                {receiverAvatar ? (
-                  <img
-                    src={receiverAvatar}
-                    alt={receiverName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-lg">
-                    {receiverName?.[0]?.toUpperCase() || "?"}
-                  </span>
-                )}
-              </div>
-
-              {/* Online Status Indicator */}
-              {isOnline && !isTyping && (
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
-              )}
+              <AvatarImage
+                avatar={receiverAvatar}
+                nickname={receiverName}
+                avatarUpdatedAt={receiverAvatarUpdatedAt}
+                size="md"
+                showOnlineStatus={true}
+                isOnline={isOnline && !isTyping}
+              />
 
               {/* Typing Animation Indicator */}
               {isTyping && (

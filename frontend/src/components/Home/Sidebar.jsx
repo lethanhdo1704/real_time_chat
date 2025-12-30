@@ -5,7 +5,8 @@ import AddFriend from "../FriendFeature/AddFriend";
 import FriendRequests from "../FriendFeature/FriendRequests";
 import FriendList from "../FriendFeature/FriendList";
 import GroupList from "../FriendFeature/GroupList";
-import useFriendStore from "../../store/friendStore"; // 🔥 NEW
+import AvatarImage from "../common/AvatarImage";
+import useFriendStore from "../../store/friendStore";
 
 /**
  * Sidebar Component - Mobile-First Optimized (Pure Tailwind)
@@ -15,6 +16,7 @@ import useFriendStore from "../../store/friendStore"; // 🔥 NEW
  * ✅ Smooth scrolling
  * ✅ Premium mobile design
  * 🔥 NEW: Auto-sync unseen count from store
+ * 🔥 UPDATED: Using AvatarImage component for consistent avatar rendering
  */
 export default function Sidebar({
   user,
@@ -30,7 +32,7 @@ export default function Sidebar({
 }) {
   const { t } = useTranslation("home");
   
-  // 🔥 NEW: Get unseen count from store
+  // 🔥 Get unseen count from store
   const unseenCount = useFriendStore((state) => state.unseenCount);
 
   return (
@@ -40,17 +42,15 @@ export default function Sidebar({
         <div className="flex items-center justify-between gap-4">
           {/* User info section */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            {/* Avatar with online status */}
-            <div className="relative shrink-0">
-              <div className="w-14 h-14 rounded-2xl overflow-hidden ring-4 ring-white/30 shadow-xl">
-                <img
-                  src={user.avatar || "https://i.pravatar.cc/56"}
-                  alt="avatar"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 border-4 border-white rounded-full shadow-lg"></span>
-            </div>
+            {/* Avatar with online status - Using AvatarImage component */}
+            <AvatarImage
+              avatar={user.avatar}
+              nickname={user.nickname}
+              avatarUpdatedAt={user.avatarUpdatedAt}
+              size="lg"
+              showOnlineStatus={true}
+              isOnline={user.isOnline || true}
+            />
 
             {/* User details */}
             <div className="flex-1 min-w-0">
@@ -183,7 +183,7 @@ export default function Sidebar({
             </svg>
           }
           label={t("home.tabs.requests")}
-          badge={unseenCount} // 🔥 NEW: Use unseenCount from store instead of requestCount
+          badge={unseenCount}
         />
 
         <SidebarItem
@@ -210,7 +210,7 @@ export default function Sidebar({
 
       {/* Content Area - Optimized scrolling for mobile */}
       <div 
-        className="flex-1 min-h-0 overflow-y-auto bg-gray-50"
+        className="flex-1 min-h-0 overflow-y-auto bg-white"
         style={{
           WebkitOverflowScrolling: 'touch',
           overscrollBehavior: 'contain'
@@ -223,26 +223,20 @@ export default function Sidebar({
 
         {/* GROUPS TAB */}
         {activeTab === "groups" && (
-          <div className="p-4">
-            <GroupList currentUser={user} onSelectRoom={onSelectConversation} />
-          </div>
+          <GroupList currentUser={user} onSelectRoom={onSelectConversation} />
         )}
 
         {/* REQUESTS TAB */}
         {activeTab === "requests" && (
-          <div className="p-4">
-            <FriendRequests
-              currentUser={user}
-              onUpdateCount={updateRequestCount}
-            />
-          </div>
+          <FriendRequests
+            currentUser={user}
+            onUpdateCount={updateRequestCount}
+          />
         )}
 
         {/* ADD FRIEND TAB */}
         {activeTab === "add" && (
-          <div className="p-4">
-            <AddFriend currentUser={user} />
-          </div>
+          <AddFriend currentUser={user} />
         )}
       </div>
     </div>

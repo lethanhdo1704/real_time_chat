@@ -301,7 +301,7 @@ class FriendService {
       uid: doc.user.uid,
       nickname: doc.user.nickname,
       avatar: doc.user.avatar,
-      seenAt: doc.seenAt, // 🔥 Thêm seenAt
+      seenAt: doc.seenAt,
     }));
 
     // Lời mời đã gửi
@@ -321,15 +321,23 @@ class FriendService {
   }
 
   /**
-   * Kiểm tra trạng thái quan hệ
+   * Kiểm tra trạng thái quan hệ - ✅ FIXED: Always return user info
    */
   async getFriendStatus(userId, friendUid) {
     userId = this.toObjectId(userId);
     const friendUser = await this.uidToId(friendUid);
     const friendId = friendUser._id;
 
+    // Check if searching for self
     if (userId.equals(friendId)) {
-      return { status: "self" };
+      return { 
+        status: "self",
+        user: {
+          uid: friendUser.uid,
+          nickname: friendUser.nickname,
+          avatar: friendUser.avatar
+        }
+      };
     }
 
     const friendship = await Friend.findOne({
@@ -339,20 +347,33 @@ class FriendService {
       ]
     });
 
+    // ✅ ALWAYS return user info along with status
+    const result = {
+      status: "none",
+      user: {
+        uid: friendUser.uid,
+        nickname: friendUser.nickname,
+        avatar: friendUser.avatar
+      }
+    };
+
     if (!friendship) {
-      return { status: "none" };
+      return result;
     }
 
     if (friendship.status === "accepted") {
-      return { status: "friends" };
+      result.status = "friends";
+      return result;
     }
 
     // Pending
     if (friendship.user.equals(userId)) {
-      return { status: "request_sent" };
+      result.status = "request_sent";
     } else {
-      return { status: "request_received" };
+      result.status = "request_received";
     }
+
+    return result;
   }
 
   /**

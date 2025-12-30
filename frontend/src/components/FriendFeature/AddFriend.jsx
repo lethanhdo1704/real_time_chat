@@ -3,15 +3,10 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import friendService from "../../services/friendService";
 import useFriendActions from "../../hooks/useFriendActions";
+import AvatarImage from "../common/AvatarImage";
 
 /**
- * AddFriend Component - ✅ UPDATED TO MATCH NEW STRUCTURE
- * 
- * Changes:
- * - Dùng useFriendActions hook thay vì gọi friendService trực tiếp
- * - Removed searchUser và getFriendStatus imports (không có trong friendService.js mới)
- * - Dùng checkFriendStatus từ useFriendActions
- * - sendFriendRequest giờ từ useFriendActions (auto update store)
+ * AddFriend Component - ✅ REDESIGNED UI
  */
 export default function AddFriend({ currentUser }) {
   const { t } = useTranslation("friendFeature");
@@ -21,10 +16,6 @@ export default function AddFriend({ currentUser }) {
   const [message, setMessage] = useState({ text: "", type: "" });
   const [searching, setSearching] = useState(false);
 
-  // ============================================
-  // GET ACTIONS FROM HOOK - ✅ NEW
-  // ============================================
-  
   const {
     loading,
     sendFriendRequest,
@@ -32,7 +23,7 @@ export default function AddFriend({ currentUser }) {
   } = useFriendActions();
 
   // ============================================
-  // HELPER: CHECK STATUS - ✅ UPDATED
+  // HELPER: CHECK STATUS
   // ============================================
   
   const checkStatus = async (friendUid) => {
@@ -48,10 +39,7 @@ export default function AddFriend({ currentUser }) {
   };
 
   // ============================================
-  // SEARCH USER - ✅ UPDATED
-  // Vì friendService.js mới không có searchUser,
-  // ta giả định BE có endpoint GET /users/search?uid=xxx
-  // Hoặc bạn có thể thêm searchUser vào friendService.js
+  // SEARCH USER
   // ============================================
   
   const handleSearch = async () => {
@@ -65,16 +53,22 @@ export default function AddFriend({ currentUser }) {
     setFriendStatus(null);
     
     try {
-      // ⚠️ Bạn cần thêm searchUser vào friendService.js
-      // Hoặc gọi trực tiếp api
       const response = await friendService.getFriendStatus(uid.trim());
       
-      // Giả sử response có thêm user info
+      console.log("📥 Friend status response:", response);
+      
+      if (!response || !response.user) {
+        throw new Error("Invalid response: missing user information");
+      }
+      
       const user = {
-        uid: uid.trim(),
-        nickname: response.nickname,
-        avatar: response.avatar
+        uid: response.user.uid,
+        nickname: response.user.nickname || response.user.fullName || response.user.uid,
+        avatar: response.user.avatar,
+        avatarUpdatedAt: response.user.avatarUpdatedAt
       };
+      
+      console.log("✅ Processed user data:", user);
       
       if (user.uid === currentUser.uid) {
         setResult(null);
@@ -84,48 +78,53 @@ export default function AddFriend({ currentUser }) {
       }
       
       setResult(user);
+      setFriendStatus(response.status);
       
-      // Kiểm tra trạng thái
-      const status = await checkStatus(user.uid);
-      
-      if (status === "friends") {
+      if (response.status === "friends") {
         setMessage({ text: t("addFriend.messages.alreadyFriends"), type: "info" });
-      } else if (status === "request_sent") {
+      } else if (response.status === "request_sent") {
         setMessage({ text: t("addFriend.messages.requestAlreadySent"), type: "info" });
-      } else if (status === "request_received") {
+      } else if (response.status === "request_received") {
         setMessage({ text: t("addFriend.messages.requestAlreadyReceived"), type: "info" });
+      } else {
+        setMessage({ text: "", type: "" });
       }
       
     } catch (err) {
+      console.error("❌ Search error:", err);
       setResult(null);
       setFriendStatus(null);
-      setMessage({ text: err.message || t("addFriend.messages.userNotFound"), type: "error" });
+      
+      let errorMessage = t("addFriend.messages.userNotFound");
+      
+      if (err.message === "USER_NOT_FOUND" || err.message.includes("USER_NOT_FOUND")) {
+        errorMessage = t("addFriend.messages.userNotFound");
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setMessage({ 
+        text: errorMessage, 
+        type: "error" 
+      });
     } finally {
       setSearching(false);
     }
   };
 
   // ============================================
-  // SEND REQUEST - ✅ UPDATED
+  // SEND REQUEST
   // ============================================
   
   const handleSend = async () => {
     if (!result) return;
     
     try {
-      // ✅ Dùng hook action - tự động update store
       await sendFriendRequest(result.uid);
-      
-      // Refetch status
       const newStatus = await checkStatus(result.uid);
-      
       setMessage({ text: t("addFriend.messages.requestSentSuccess"), type: "success" });
-      
-      // Giữ result để user thấy status mới
     } catch (err) {
       const errorMessage = err.message || t("addFriend.messages.requestFailed");
-      
-      // Parse error codes nếu có
       let displayMessage = errorMessage;
       
       if (errorMessage.includes("ALREADY_FRIENDS") || errorMessage.includes("already friends")) {
@@ -160,7 +159,7 @@ export default function AddFriend({ currentUser }) {
     if (!badge) return null;
     
     return (
-      <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${badge.color}`}>
+      <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${badge.color}`}>
         {badge.text}
       </span>
     );
@@ -182,13 +181,13 @@ export default function AddFriend({ currentUser }) {
     <div className="space-y-4">
       {/* Search Form */}
       <div className="bg-linear-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100 shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="p-2 bg-blue-500 rounded-lg">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2.5 bg-linear-to-br from-blue-500 to-indigo-600 rounded-lg shadow-md">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-gray-800">{t("addFriend.title")}</h3>
+          <h3 className="text-lg font-bold text-gray-800">{t("addFriend.title")}</h3>
         </div>
         
         <div className="relative">
@@ -228,52 +227,65 @@ export default function AddFriend({ currentUser }) {
         </button>
       </div>
 
-      {/* Search Result */}
+      {/* Search Result - ✅ NEW LAYOUT: Avatar beside nickname */}
       {result && (
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-lg hover:shadow-xl transition-shadow">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-6 bg-linear-to-b from-blue-500 to-indigo-600 rounded-full"></div>
-            <p className="text-sm font-semibold text-gray-700">{t("addFriend.resultTitle")}</p>
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-lg hover:shadow-xl transition-all">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-1.5 h-6 bg-linear-to-b from-blue-500 to-indigo-600 rounded-full"></div>
+            <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">{t("addFriend.resultTitle")}</p>
           </div>
           
-          <div className="flex items-center p-4 bg-linear-to-br from-gray-50 to-blue-50/30 rounded-xl border border-gray-100">
-            <div className="relative">
-              <img
-                src={result.avatar || "https://i.pravatar.cc/50"}
-                alt={result.nickname || result.uid}
-                className="w-16 h-16 rounded-full object-cover ring-4 ring-white shadow-md"
+          {/* ✅ NEW LAYOUT: Avatar on left, info on right */}
+          <div className="flex items-center gap-4 mb-6">
+            {/* Avatar */}
+            <div className="shrink-0">
+              <AvatarImage
+                avatar={result.avatar}
+                nickname={result.nickname}
+                avatarUpdatedAt={result.avatarUpdatedAt}
+                size="xl"
+                showOnlineStatus={true}
+                isOnline={true}
               />
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
             </div>
             
-            <div className="flex-1 ml-4">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="font-bold text-gray-900 text-lg">{result.nickname || result.uid}</p>
-                {getStatusBadge()}
-              </div>
-              <p className="text-sm text-gray-500 font-medium">@{result.uid}</p>
+            {/* User Info */}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-xl font-bold text-gray-900 mb-2 truncate">
+                {result.nickname}
+              </h3>
+              {getStatusBadge()}
             </div>
-            
+          </div>
+          
+          {/* Action Button */}
+          <div className="w-full">
             {canSendRequest() ? (
               <button 
                 onClick={handleSend}
                 disabled={loading}
-                className="px-6 py-3 bg-linear-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg flex items-center gap-2 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-6 py-3.5 bg-linear-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                 </svg>
-                {t("addFriend.sendRequest")}
+                <span>{t("addFriend.sendRequest")}</span>
               </button>
             ) : (
               <button 
                 disabled
-                className="px-6 py-3 bg-gray-200 text-gray-500 font-semibold rounded-xl cursor-not-allowed shadow-sm flex items-center gap-2"
+                className="w-full px-6 py-3.5 bg-gray-200 text-gray-500 font-bold rounded-xl cursor-not-allowed shadow-md flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                {friendStatus === "friends" ? t("addFriend.status.friends") : t("addFriend.status.requestSent")}
+                <span>
+                  {friendStatus === "friends" 
+                    ? t("addFriend.status.friends") 
+                    : friendStatus === "request_sent"
+                    ? t("addFriend.status.requestSent")
+                    : t("addFriend.status.requestReceived")}
+                </span>
               </button>
             )}
           </div>
@@ -282,28 +294,34 @@ export default function AddFriend({ currentUser }) {
 
       {/* Message */}
       {message.text && (
-        <div className={`p-4 rounded-lg ${
+        <div className={`p-4 rounded-xl border-2 ${
           message.type === "error"
-            ? 'bg-red-50 border border-red-200'
+            ? 'bg-red-50 border-red-200'
             : message.type === "success"
-            ? 'bg-green-50 border border-green-200'
-            : 'bg-blue-50 border border-blue-200'
-        }`}>
-          <div className="flex items-center gap-2">
+            ? 'bg-green-50 border-green-200'
+            : 'bg-blue-50 border-blue-200'
+        } shadow-sm`}>
+          <div className="flex items-center gap-3">
             {message.type === "error" ? (
-              <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
+              <div className="shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
             ) : message.type === "success" ? (
-              <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
+              <div className="shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
             ) : (
-              <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
+              <div className="shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
             )}
-            <p className={`text-sm font-medium ${
+            <p className={`text-sm font-semibold flex-1 ${
               message.type === "error" 
                 ? "text-red-700" 
                 : message.type === "success" 

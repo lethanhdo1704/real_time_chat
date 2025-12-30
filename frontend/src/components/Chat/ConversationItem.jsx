@@ -2,6 +2,7 @@
 import { formatDistanceToNow } from "date-fns";
 import { vi, enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
+import AvatarImage from "../common/AvatarImage";
 
 /**
  * ConversationItem Component
@@ -9,6 +10,7 @@ import { useTranslation } from "react-i18next";
  * Displays a conversation in the sidebar
  * Works for both friends and groups
  * Shows: avatar, name, lastMessage, unreadCount, timestamp
+ * 🔥 UPDATED: Using AvatarImage component for consistent rendering
  */
 export default function ConversationItem({
   conversation,
@@ -21,15 +23,6 @@ export default function ConversationItem({
   const locale = i18n.language === "vi" ? vi : enUS;
 
   // ============================================
-  // GET USER INITIALS
-  // ============================================
-
-  const getUserInitials = (name) => {
-    if (!name) return "?";
-    return name.trim()[0].toUpperCase();
-  };
-
-  // ============================================
   // GET DISPLAY INFO
   // ============================================
 
@@ -38,6 +31,8 @@ export default function ConversationItem({
       return {
         avatar: conversation.avatar || null,
         name: conversation.name || "Group Chat",
+        avatarUpdatedAt: conversation.avatarUpdatedAt,
+        isOnline: true, // Groups are always "online"
       };
     }
 
@@ -46,6 +41,8 @@ export default function ConversationItem({
       return {
         avatar: friend.avatar || null,
         name: friend.nickname || friend.uid,
+        avatarUpdatedAt: friend.avatarUpdatedAt,
+        isOnline: friend.isOnline || friend.status === 'online' || false,
       };
     }
 
@@ -53,10 +50,12 @@ export default function ConversationItem({
     return {
       avatar: null,
       name: "Unknown",
+      avatarUpdatedAt: null,
+      isOnline: false,
     };
   };
 
-  const { avatar, name } = getDisplayInfo();
+  const { avatar, name, avatarUpdatedAt, isOnline } = getDisplayInfo();
   const unreadCount = conversation?.unreadCount || 0;
   const lastMessage = conversation?.lastMessage;
   const lastMessageAt = conversation?.lastMessageAt;
@@ -171,13 +170,11 @@ export default function ConversationItem({
         }
       `}
     >
-      {/* Avatar with Status */}
+      {/* Avatar with Status - Using AvatarImage Component */}
       <div className="relative shrink-0">
         <div
           className={`
-            w-14 h-14 rounded-full bg-linear-to-br from-blue-400 to-purple-500 
-            flex items-center justify-center text-white font-semibold text-lg
-            overflow-hidden transition-all
+            transition-all
             ${
               isActive
                 ? "ring-4 ring-white shadow-xl"
@@ -185,26 +182,19 @@ export default function ConversationItem({
                 ? "ring-2 ring-blue-300"
                 : "ring-2 ring-gray-100 group-hover:ring-gray-200"
             }
+            rounded-full
           `}
         >
-          {avatar ? (
-            <img
-              src={avatar}
-              alt={name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            getUserInitials(name)
-          )}
+          <AvatarImage
+            avatar={avatar}
+            nickname={name}
+            avatarUpdatedAt={avatarUpdatedAt}
+            size="lg"
+            showOnlineStatus={true}
+            isOnline={isOnline}
+            className="transition-transform group-hover:scale-105"
+          />
         </div>
-
-        {/* Online Status Indicator */}
-        <span
-          className={`
-          absolute bottom-0 right-0 w-4 h-4 rounded-full border-2
-          ${isActive ? "border-blue-600 bg-white" : "border-white bg-green-500"}
-        `}
-        ></span>
 
         {/* Unread Badge on Avatar */}
         {unreadCount > 0 && (

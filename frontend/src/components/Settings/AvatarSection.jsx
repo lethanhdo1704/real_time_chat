@@ -1,9 +1,9 @@
 // frontend/src/components/Settings/AvatarSection.jsx
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Camera, Check, X } from "lucide-react";
+import { Camera, Check, X, User } from "lucide-react";
 import AvatarCropModal from "./AvatarCropModal";
-import { getAvatarUrlWithCache } from "../../utils/avatarUtils";
+import { getAvatarUrlWithCache, getUserInitials } from "../../utils/avatarUtils";
 
 export default function AvatarSection({
   user,
@@ -16,8 +16,11 @@ export default function AvatarSection({
   const { t } = useTranslation("settings");
   const [showCropModal, setShowCropModal] = useState(false);
   const [originalImage, setOriginalImage] = useState(null);
+  const [imageError, setImageError] = useState(false);
 
   const currentAvatar = getAvatarUrlWithCache(user.avatar, user.avatarUpdatedAt);
+  const initials = getUserInitials(user.nickname);
+  const displayAvatar = croppedAvatar || currentAvatar;
 
   // Handle file selection
   const handleFileSelect = (e) => {
@@ -34,6 +37,7 @@ export default function AvatarSection({
 
   // Handle crop confirmation
   const handleCropConfirm = (croppedDataUrl) => {
+    setImageError(false); // Reset error when new image selected
     onAvatarSelect(croppedDataUrl);
     setShowCropModal(false);
     setOriginalImage(null);
@@ -43,6 +47,18 @@ export default function AvatarSection({
   const handleCropCancel = () => {
     setShowCropModal(false);
     setOriginalImage(null);
+  };
+
+  // Handle image error
+  const handleImageError = () => {
+    console.error("❌ Avatar failed to load:", displayAvatar);
+    setImageError(true);
+  };
+
+  // Handle image load success
+  const handleImageLoad = () => {
+    console.log("✅ Avatar loaded successfully");
+    setImageError(false);
   };
 
   return (
@@ -58,12 +74,27 @@ export default function AvatarSection({
         <div className="flex items-start gap-6">
           {/* Avatar Display */}
           <div className="relative group">
-            <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-gray-100 shadow-md">
-              <img
-                src={croppedAvatar || currentAvatar}
-                alt={t("settings.avatar.alt")}
-                className="w-full h-full object-cover"
-              />
+            {/* Container với conditional background */}
+            <div className={`w-32 h-32 rounded-full overflow-hidden border-4 border-gray-100 shadow-md ${
+              displayAvatar && !imageError 
+                ? '' // Không cần background khi có ảnh
+                : 'bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center'
+            }`}>
+              {displayAvatar && !imageError ? (
+                <img
+                  src={displayAvatar}
+                  alt={t("settings.avatar.alt")}
+                  className="w-full h-full object-cover"
+                  onError={handleImageError}
+                  onLoad={handleImageLoad}
+                  style={{ display: 'block' }} // Fix flexbox issue
+                />
+              ) : (
+                // Fallback UI
+                <div className="w-full h-full flex items-center justify-center text-white text-4xl font-bold">
+                  {initials || <User className="w-16 h-16" />}
+                </div>
+              )}
             </div>
 
             {/* Upload Button Overlay */}

@@ -1,5 +1,5 @@
 // frontend/src/hooks/settings/useAvatarCrop.js
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 /**
  * Custom hook for avatar cropping functionality
@@ -16,57 +16,78 @@ export function useAvatarCrop(originalImage) {
   const imageRef = useRef(null);
 
   // Draw image on canvas with transformations
-  const drawImage = () => {
+  const drawImage = useCallback(() => {
     if (!canvasRef.current || !imageRef.current) return;
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: false });
     const img = imageRef.current;
 
     const size = 256;
     canvas.width = size;
     canvas.height = size;
 
-    ctx.clearRect(0, 0, size, size);
+    // Clear with WHITE background
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, size, size);
+
+    // Calculate scale to cover
+    const baseScale = Math.max(size / img.width, size / img.height);
+
     ctx.save();
 
-    // Apply transformations
+    // Transform from center
     ctx.translate(size / 2, size / 2);
     ctx.rotate((rotation * Math.PI) / 180);
-    ctx.scale(zoom, zoom);
-    ctx.translate(-size / 2 + position.x, -size / 2 + position.y);
+    ctx.scale(baseScale * zoom, baseScale * zoom);
+    ctx.translate(position.x, position.y);
 
-    // Draw image centered
-    const scale = Math.max(size / img.width, size / img.height);
-    const x = (size - img.width * scale) / 2;
-    const y = (size - img.height * scale) / 2;
+    // Draw image from center
+    ctx.drawImage(img, -img.width / 2, -img.height / 2, img.width, img.height);
 
-    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
     ctx.restore();
 
-    // Draw circular crop overlay
+    // === CREATE CIRCULAR MASK - CORRECT WAY ===
+    // Use globalCompositeOperation to create circular mask
     ctx.globalCompositeOperation = "destination-in";
+    ctx.fillStyle = "#000000"; // Color doesn't matter, only alpha
     ctx.beginPath();
     ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    ctx.closePath();
     ctx.fill();
-  };
+    
+    // Reset composite operation
+    ctx.globalCompositeOperation = "source-over";
+  }, [zoom, rotation, position]);
 
   // Redraw when any parameter changes
   useEffect(() => {
     drawImage();
-  }, [zoom, rotation, position, originalImage]);
+  }, [drawImage]);
 
   // Mouse event handlers
   const handleMouseDown = (e) => {
     setIsDragging(true);
-    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    setDragStart({ 
+      x: e.clientX, 
+      y: e.clientY 
+    });
   };
 
   const handleMouseMove = (e) => {
     if (!isDragging) return;
-    setPosition({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y,
+    
+    const deltaX = e.clientX - dragStart.x;
+    const deltaY = e.clientY - dragStart.y;
+    
+    setPosition(prev => ({
+      x: prev.x + deltaX,
+      y: prev.y + deltaY,
+    }));
+    
+    setDragStart({
+      x: e.clientX,
+      y: e.clientY
     });
   };
 
@@ -77,7 +98,19 @@ export function useAvatarCrop(originalImage) {
   // Get cropped image as data URL
   const getCroppedImage = () => {
     if (!canvasRef.current) return null;
-    return canvasRef.current.toDataURL("image/jpeg", 0.9);
+    
+    console.log('📸 Exporting cropped image...');
+    
+    try {
+      // Export as JPEG with white background
+      const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.95);
+      console.log('✅ Export successful, size:', dataUrl.length);
+      
+      return dataUrl;
+    } catch (error) {
+      console.error('❌ Export failed:', error);
+      return null;
+    }
   };
 
   return {
