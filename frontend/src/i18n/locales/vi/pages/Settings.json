@@ -1,0 +1,42 @@
+{
+  "settings": {
+    "header": {
+      "title": "Cài đặt tài khoản",
+      "subtitle": "Quản lý thông tin cá nhân của bạn"
+    },
+    "avatar": {
+      "title": "Ảnh đại diện",
+      "alt": "Avatar",
+      "description": "Ảnh đại diện giúp mọi người dễ nhận biết bạn hơn. Định dạng JPG, PNG, tối đa 5MB.",
+      "select": "Chọn ảnh mới",
+      "upload": "Cập nhật avatar",
+      "uploading": "Đang tải...",
+      "cancel": "Hủy"
+    },
+    "crop": {
+      "title": "Chỉnh sửa ảnh đại diện",
+      "subtitle": "Di chuyển và zoom để điều chỉnh ảnh",
+      "zoom": "Phóng to",
+      "rotate": "Xoay",
+      "confirm": "Xác nhận",
+      "cancel": "Hủy"
+    },
+    "profile": {
+      "title": "Thông tin cá nhân",
+      "nickname": "Tên hiển thị",
+      "nicknamePlaceholder": "Nhập tên hiển thị",
+      "characters": "ký tự",
+      "email": "Email",
+      "emailNote": "Email không thể thay đổi",
+      "save": "Lưu thay đổi",
+      "saving": "Đang lưu..."
+    },
+    "security": {
+      "title": "Lưu ý về bảo mật",
+      "description": "Thông tin của bạn được mã hóa và bảo mật. Chúng tôi không bao giờ chia sẻ dữ liệu cá nhân của bạn với bên thứ ba."
+    },
+    "toast": {
+      "success": "Cập nhật thành công!"
+    }
+  }
+}

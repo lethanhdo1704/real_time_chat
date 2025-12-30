@@ -7,6 +7,7 @@ import { setViewportHeight } from "./utils/setViewportHeight";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
+import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -37,10 +38,12 @@ function App() {
             w-screen
           ">
             <Routes>
+              {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgotpassword" element={<ForgotPassword />} />
               
+              {/* Protected Routes - Home (Main Chat Interface) */}
               <Route
                 path="/"
                 element={
@@ -49,9 +52,6 @@ function App() {
                   </ProtectedRoute>
                 }
               >
-                {/* ❌ REMOVED: <Route index element={<Navigate to="/friends" replace />} /> */}
-                {/* ✅ Root "/" redirect now handled inside Home.jsx */}
-                
                 <Route path="friends" element={null} />
                 <Route path="friends/:conversationId" element={null} />
                 <Route path="groups" element={null} />
@@ -60,6 +60,17 @@ function App() {
                 <Route path="add" element={null} />
               </Route>
               
+              {/* Protected Routes - Settings (Full Page) */}
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

@@ -1,12 +1,13 @@
 // frontend/src/components/Home/NavigationColumn.jsx
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 
 /**
  * NavigationColumn Component - Column 1 (64px width)
  * 
  * ✅ Icon-only navigation
  * ✅ Badge notifications
- * ✅ Settings button at bottom
+ * ✅ Settings button at bottom (navigates to /settings)
  * ✅ Mobile optimized (min 48px touch targets)
  * ✅ Scrollable when content overflows
  * ✅ Logout always visible
@@ -15,10 +16,10 @@ export default function NavigationColumn({
   activeTab, 
   onTabChange,
   unseenRequestCount = 0,
-  onLogout,
-  onSettings
+  onLogout
 }) {
   const { t } = useTranslation("home");
+  const navigate = useNavigate();
 
   const navItems = [
     { 
@@ -46,6 +47,11 @@ export default function NavigationColumn({
       badge: 0 
     },
   ];
+
+  // Navigate to Settings page
+  const handleSettings = () => {
+    navigate('/settings');
+  };
 
   return (
     <div className="w-16 bg-white border-r border-gray-200 flex flex-col shrink-0 h-full">
@@ -97,7 +103,7 @@ export default function NavigationColumn({
       <div className="flex flex-col items-center py-4 border-t border-gray-200 shrink-0">
         {/* Settings Button */}
         <button
-          onClick={onSettings}
+          onClick={handleSettings}
           className="w-12 h-12 rounded-xl flex items-center justify-center mb-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
           style={{ 
             minWidth: '48px',

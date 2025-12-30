@@ -1,0 +1,42 @@
+{
+  "settings": {
+    "header": {
+      "title": "Account Settings",
+      "subtitle": "Manage your personal information"
+    },
+    "avatar": {
+      "title": "Profile Picture",
+      "alt": "Avatar",
+      "description": "Your profile picture helps others recognize you more easily. Supported formats: JPG, PNG. Maximum size: 5MB.",
+      "select": "Choose new picture",
+      "upload": "Update avatar",
+      "uploading": "Uploading...",
+      "cancel": "Cancel"
+    },
+    "crop": {
+      "title": "Edit profile picture",
+      "subtitle": "Move and zoom to adjust the image",
+      "zoom": "Zoom",
+      "rotate": "Rotate",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    },
+    "profile": {
+      "title": "Personal Information",
+      "nickname": "Display name",
+      "nicknamePlaceholder": "Enter display name",
+      "characters": "characters",
+      "email": "Email",
+      "emailNote": "Email cannot be changed",
+      "save": "Save changes",
+      "saving": "Saving..."
+    },
+    "security": {
+      "title": "Security Notice",
+      "description": "Your information is encrypted and secure. We never share your personal data with third parties."
+    },
+    "toast": {
+      "success": "Updated successfully!"
+    }
+  }
+}

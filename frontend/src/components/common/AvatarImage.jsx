@@ -55,7 +55,7 @@ export default function AvatarImage({
   return (
     <div className={`relative ${className}`}>
       <div 
-        className={`${sizeClass} rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden ring-2 ring-white/30 shadow-lg`}
+        className={`${sizeClass} rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden ring-2 ring-white/30 shadow-lg`}
       >
         {avatarUrl && !imageError ? (
           <>
