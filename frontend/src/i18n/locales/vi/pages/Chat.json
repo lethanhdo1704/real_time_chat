@@ -27,7 +27,8 @@
     "flags": "Cờ"
   },
   "loading": {
-    "more": "Đang tải thêm tin nhắn..."
+    "more": "Đang tải thêm tin nhắn...",
+    "messages": "Đang tải tin nhắn..."
   },
   "empty": {
     "title": "Không có cuộc trò chuyện",

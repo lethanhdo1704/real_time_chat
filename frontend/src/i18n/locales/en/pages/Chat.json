@@ -27,7 +27,8 @@
     "flags": "Flags"
   },
   "loading": {
-    "more": "Loading more messages..."
+    "more": "Loading more messages...",
+    "messages": "Loading messages..."
   },
   "empty": {
     "title": "No messages yet",
