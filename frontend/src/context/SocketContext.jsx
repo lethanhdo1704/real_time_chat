@@ -11,66 +11,68 @@ export const SocketProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const hasInitialized = useRef(false);
 
+  // ============================================
+  // 🔥 SINGLE EFFECT: Socket lifecycle
+  // ============================================
   useEffect(() => {
+    const userId = user?.uid;
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
-    // 🔥 User có token → Connect
-    if (user?.uid && token) {
-      // 🔥 Chỉ connect 1 lần duy nhất
-      if (!hasInitialized.current) {
-        console.log('🔌 Connecting socket for user:', user.uid);
-        
-        const socketInstance = connectSocket(token);
-        setSocket(socketInstance); // ⚠️ Trigger re-render cho components
-        hasInitialized.current = true;
+    // 🔥 Connect: Only when we have user AND haven't initialized
+    if (userId && token && !hasInitialized.current) {
+      console.log('🔌 [SocketContext] Connecting socket for user:', userId);
+      
+      const socketInstance = connectSocket(token);
+      setSocket(socketInstance);
+      hasInitialized.current = true;
 
-        const handleConnect = () => {
-          console.log('✅ Socket connected:', socketInstance.id);
-          setIsConnected(true);
-          setSocket(socketInstance); // 🔥 Re-trigger để components biết socket đã sẵn sàng
-        };
+      // Event handlers
+      const handleConnect = () => {
+        console.log('✅ [SocketContext] Socket connected:', socketInstance.id);
+        setIsConnected(true);
+      };
 
-        const handleDisconnect = () => {
-          console.warn('⚠️ Socket disconnected');
-          setIsConnected(false);
-        };
+      const handleDisconnect = () => {
+        console.warn('⚠️ [SocketContext] Socket disconnected');
+        setIsConnected(false);
+      };
 
-        const handleReconnect = (attemptNumber) => {
-          console.log(`🔄 Reconnected after ${attemptNumber} attempts`);
-          setIsConnected(true);
-          setSocket(socketInstance); // 🔥 Re-trigger để components đăng ký lại listeners
-        };
+      const handleReconnect = (attemptNumber) => {
+        console.log(`🔄 [SocketContext] Reconnected after ${attemptNumber} attempts`);
+        setIsConnected(true);
+      };
 
-        socketInstance.on('connect', handleConnect);
-        socketInstance.on('disconnect', handleDisconnect);
-        socketInstance.io.on('reconnect', handleReconnect);
+      // Register listeners
+      socketInstance.on('connect', handleConnect);
+      socketInstance.on('disconnect', handleDisconnect);
+      socketInstance.io.on('reconnect', handleReconnect);
 
-        // 🔥 Check if already connected
-        if (socketInstance.connected) {
-          console.log('✅ Socket already connected');
-          setIsConnected(true);
-        }
-
-        // 🔥 Cleanup chỉ gỡ listener, KHÔNG disconnect
-        return () => {
-          socketInstance.off('connect', handleConnect);
-          socketInstance.off('disconnect', handleDisconnect);
-          socketInstance.io.off('reconnect', handleReconnect);
-        };
+      // Initial state check
+      if (socketInstance.connected) {
+        console.log('✅ [SocketContext] Socket already connected');
+        setIsConnected(true);
       }
+
+      // 🔥 Cleanup: ONLY remove listeners, DON'T disconnect
+      return () => {
+        console.log('🧹 [SocketContext] Removing event listeners (NOT disconnecting)');
+        socketInstance.off('connect', handleConnect);
+        socketInstance.off('disconnect', handleDisconnect);
+        socketInstance.io.off('reconnect', handleReconnect);
+      };
     }
 
-    // 🔥 User logout → Disconnect thật sự
-    if (!user && hasInitialized.current) {
-      console.log('👋 User logged out, disconnecting socket');
+    // 🔥 Disconnect: ONLY when user logs out
+    if (!userId && hasInitialized.current) {
+      console.log('👋 [SocketContext] User logged out, disconnecting socket');
       disconnectSocket();
       setSocket(null);
-      hasInitialized.current = false;
       setIsConnected(false);
+      hasInitialized.current = false;
     }
-  }, [user]);
+  }, [user?.uid]); // 🔥 ONLY depend on user ID primitive value
 
-  // 🔥 Debug state changes
+  // Debug state
   useEffect(() => {
     console.log('🔍 [SocketContext] State:', {
       hasSocket: !!socket,
@@ -80,21 +82,21 @@ export const SocketProvider = ({ children }) => {
     });
   }, [socket, isConnected]);
 
+  // User update listener
   useEffect(() => {
-  if (!socket) return;
+    if (!socket) return;
 
-  const handleUserUpdate = (payload) => {
-    console.log('🔥 USER UPDATE RECEIVED:', payload);
-  };
+    const handleUserUpdate = (payload) => {
+      console.log('🔥 [SocketContext] USER UPDATE RECEIVED:', payload);
+    };
 
-  socket.on('user:update', handleUserUpdate);
+    socket.on('user:update', handleUserUpdate);
+    console.log('📡 [SocketContext] Listening for user:update');
 
-  console.log('📡 Listening for user:update');
-
-  return () => {
-    socket.off('user:update', handleUserUpdate);
-  };
-}, [socket]);
+    return () => {
+      socket.off('user:update', handleUserUpdate);
+    };
+  }, [socket]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>
@@ -103,11 +105,10 @@ export const SocketProvider = ({ children }) => {
   );
 };
 
-// ✅ FIXED: Custom hook trả về context thay vì getSocket()
 export const useSocket = () => {
   const context = useContext(SocketContext);
   if (!context) {
     throw new Error('useSocket must be used within SocketProvider');
   }
-  return context; // 🔥 Trả về { socket, isConnected }
+  return context;
 };

@@ -1,31 +1,21 @@
 // frontend/src/hooks/useGlobalSocket.js
 import { useEffect, useContext, useCallback, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { getSocket } from "../services/socketService";
+import { SocketContext } from "../context/SocketContext"; // 🔥 Use context
 import useChatStore from "../store/chat/chatStore";
 
 /**
- * Global socket listener for sidebar updates - PRODUCTION READY
+ * Global socket listener for sidebar updates
  * 
- * ✅ FIXED: Listener registered ONCE per userId (no continuous cleanup/re-register)
- * ✅ FIXED: Normalize data with conversationId before callback
- * ✅ FIXED: Auto-switch from lazy mode
+ * 🔥 FIXED:
+ * - Sử dụng SocketContext thay vì getSocket()
+ * - Consistent với useFriendSocket pattern
+ * - Register ONCE per connection
  */
 export const useGlobalSocket = ({ onMessageReceived }) => {
   const { user } = useContext(AuthContext);
-  const registeredRef = useRef(false); // 🔥 NEW: Prevent re-registration
-  
-  // Get store state & actions
-  const activeConversationId = useChatStore((state) => state.activeConversationId);
-  const activeFriend = useChatStore((state) => state.activeFriend);
-  const conversations = useChatStore((state) => state.conversations);
-  
-  const setActiveConversation = useChatStore((state) => state.setActiveConversation);
-  const setActiveFriend = useChatStore((state) => state.setActiveFriend);
-  const ensureConversationMessages = useChatStore((state) => state.ensureConversationMessages);
-  const addMessage = useChatStore((state) => state.addMessage);
-  const updateConversation = useChatStore((state) => state.updateConversation);
-  const addConversation = useChatStore((state) => state.addConversation);
+  const { socket, isConnected } = useContext(SocketContext); // 🔥 Use context
+  const registeredRef = useRef(false);
 
   // 🔥 STABLE HANDLER: Won't change on every render
   const handleGlobalMessage = useCallback((data) => {
@@ -125,15 +115,9 @@ export const useGlobalSocket = ({ onMessageReceived }) => {
     
   }, [user?.uid, onMessageReceived]);
 
-  // 🔥 FIXED: Register ONCE per userId
+  // 🔥 FIXED: Register ONCE when socket connected
   useEffect(() => {
-    const socket = getSocket();
-    
-    if (!socket || !user) {
-      return;
-    }
-
-    if (!socket.connected) {
+    if (!socket || !isConnected || !user) {
       console.log('⏳ [Global] Waiting for socket to connect...');
       return;
     }
@@ -153,8 +137,14 @@ export const useGlobalSocket = ({ onMessageReceived }) => {
       registeredRef.current = false;
       socket.off('message_received', handleGlobalMessage);
     };
-  }, [user?.uid, handleGlobalMessage]); // 🔥 ONLY userId and stable handler
+  }, [socket, isConnected, user?.uid, handleGlobalMessage]);
 
+  // Reset registration flag on disconnect
+  useEffect(() => {
+    if (!isConnected) {
+      registeredRef.current = false;
+    }
+  }, [isConnected]);
 };
 
 export default useGlobalSocket;

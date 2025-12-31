@@ -17,9 +17,7 @@ const useFriendStore = create(
         loading: false,
         error: null,
         lastFetchTime: null,
-        isFetching: false,
         unseenCount: 0,
-        hasInitialized: false, // 🔥 NEW - Chặn double init
 
         // ============================================
         // ACTIONS - SET DATA
@@ -35,81 +33,26 @@ const useFriendStore = create(
             loading: false,
             error: null,
             lastFetchTime: Date.now(),
-            isFetching: false,
             unseenCount,
           });
         },
 
         setLoading: (loading) => set({ loading }),
-        setError: (error) => set({ error, isFetching: false }),
-        setFetching: (isFetching) => set({ isFetching }),
+        setError: (error) => set({ error }),
 
         // ✅ Check if cache is valid
         isCacheValid: () => {
           const state = get();
           if (!state.lastFetchTime) return false;
           const age = Date.now() - state.lastFetchTime;
-          const isValid = age < CACHE_DURATION;
-          console.log(`🔍 Cache check: age=${Math.round(age/1000)}s, valid=${isValid}`);
-          return isValid;
+          return age < CACHE_DURATION;
         },
 
         // ============================================
-        // 🔥 INIT ONCE - CHẶN DOUBLE FETCH TRIỆT ĐỂ
+        // 🔥 REMOVED: initFriendsOnce - NO AUTO FETCH!
         // ============================================
-        
-        initFriendsOnce: async (loadFriendsData, fetchUnseenCount) => {
-          const state = get();
-
-          // ⛔ Đã init rồi
-          if (state.hasInitialized) {
-            console.log('✅ Friends already initialized, skipping...');
-            return;
-          }
-
-          // ⛔ Đang fetch
-          if (state.isFetching) {
-            console.log('⏳ Already fetching friends, skipping...');
-            return;
-          }
-
-          // ⛔ Cache còn sống
-          if (state.isCacheValid()) {
-            console.log('✅ Using cached friend data');
-            set({ hasInitialized: true });
-            return;
-          }
-
-          try {
-            console.log('🚀 Initializing friends data...');
-            set({ isFetching: true, loading: true });
-
-            // Fetch friends data
-            await loadFriendsData();
-
-            // Fetch unseen count nếu có
-            if (fetchUnseenCount) {
-              const res = await fetchUnseenCount();
-              set({ unseenCount: res.count ?? res });
-            }
-
-            set({
-              hasInitialized: true,
-              isFetching: false,
-              loading: false,
-            });
-
-            console.log('✅ Friends initialized successfully');
-          } catch (err) {
-            console.error('❌ Failed to initialize friends:', err);
-            set({
-              error: err,
-              isFetching: false,
-              loading: false,
-              hasInitialized: false, // Cho phép retry
-            });
-          }
-        },
+        // Fetching will ONLY happen in useFriendSocket
+        // after socket is connected
 
         // ============================================
         // FRIEND REQUEST ACTIONS
@@ -269,7 +212,7 @@ const useFriendStore = create(
         },
 
         // ============================================
-        // RESET - 🔥 QUAN TRỌNG CHO LOGOUT
+        // RESET
         // ============================================
         
         reset: () => set({
@@ -279,9 +222,7 @@ const useFriendStore = create(
           loading: false,
           error: null,
           lastFetchTime: null,
-          isFetching: false,
           unseenCount: 0,
-          hasInitialized: false, // 🔥 BẮT BUỘC - Cho phép init lại sau login
         })
       }),
       {
@@ -292,7 +233,6 @@ const useFriendStore = create(
           sentRequests: state.sentRequests,
           lastFetchTime: state.lastFetchTime,
           unseenCount: state.unseenCount,
-          // ⚠️ KHÔNG persist hasInitialized - phải reset mỗi session
         }),
       }
     ),

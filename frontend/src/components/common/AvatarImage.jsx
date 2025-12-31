@@ -3,18 +3,11 @@ import { useState } from "react";
 import { getAvatarUrlWithCache, getUserInitials } from "../../utils/avatarUtils";
 
 /**
- * Reusable Avatar Component
- * Handles:
- * - Avatar URL generation with cache busting
- * - Fallback to initials
- * - Error handling
- * - Loading state
+ * Avatar Component - Production Ready
  * 
- * @param {string} avatar - Avatar path from API
- * @param {string} nickname - User nickname for initials
- * @param {Date|string} avatarUpdatedAt - Last update timestamp
- * @param {string} className - Additional CSS classes
- * @param {string} size - Size variant (sm, md, lg, xl)
+ * ✅ No shadow in header (Telegram/Messenger style)
+ * ✅ No anti-aliasing artifacts
+ * ✅ Clean & Professional
  */
 export default function AvatarImage({ 
   avatar, 
@@ -23,7 +16,8 @@ export default function AvatarImage({
   className = "",
   size = "md",
   showOnlineStatus = false,
-  isOnline = false
+  isOnline = false,
+  variant = "default" // "default" | "header"
 }) {
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
@@ -43,6 +37,9 @@ export default function AvatarImage({
 
   const sizeClass = sizeClasses[size] || sizeClasses.md;
 
+  // Shadow based on variant - NO shadow in header
+  const shadowClass = variant === "header" ? "" : "shadow-sm";
+
   const handleImageError = (e) => {
     console.error("❌ [Avatar] Failed to load:", avatarUrl);
     setImageError(true);
@@ -53,12 +50,26 @@ export default function AvatarImage({
     setImageLoading(false);
   };
 
+  // Check if we have a valid image
+  const hasImage = avatarUrl && !imageError;
+
   return (
     <div className={`relative ${className}`}>
       <div 
-        className={`${sizeClass} rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden shadow-lg`}
+        className={`
+          ${sizeClass} 
+          rounded-full 
+          flex items-center justify-center 
+          text-white font-semibold 
+          overflow-hidden
+          ${shadowClass}
+          ${hasImage 
+            ? "bg-transparent" 
+            : "bg-linear-to-br from-blue-400 to-purple-500"
+          }
+        `}
       >
-        {avatarUrl && !imageError ? (
+        {hasImage ? (
           <>
             {/* Loading skeleton */}
             {imageLoading && (
@@ -69,14 +80,14 @@ export default function AvatarImage({
             <img
               src={avatarUrl}
               alt={nickname || 'User'}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover bg-white rounded-full"
               onError={handleImageError}
               onLoad={handleImageLoad}
               loading="lazy"
             />
           </>
         ) : (
-          // Fallback to initials
+          // Fallback to initials with gradient
           <span className="select-none">{initials}</span>
         )}
       </div>
@@ -84,7 +95,7 @@ export default function AvatarImage({
       {/* Online status indicator */}
       {showOnlineStatus && (
         <span 
-          className={`absolute -bottom-1 -right-1 w-4 h-4 border-2 border-white rounded-full ${
+          className={`absolute bottom-0 right-0 w-4 h-4 border-2 border-white rounded-full ${
             isOnline ? 'bg-green-400' : 'bg-gray-400'
           }`}
           title={isOnline ? 'Online' : 'Offline'}

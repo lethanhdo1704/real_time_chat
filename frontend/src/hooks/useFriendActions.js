@@ -5,7 +5,11 @@ import useFriendStore from '../store/friendStore';
 
 /**
  * Hook để xử lý các actions với friends
- * ✅ CHUẨN - Đơn giản, không cần track userId
+ * 
+ * ⚠️ IMPORTANT NOTES:
+ * - loadFriendsData() CHỈ dùng cho manual refresh (pull-to-refresh, retry button)
+ * - Auto-fetch lúc init được handle bởi useFriendSocket khi socket connected
+ * - KHÔNG gọi loadFriendsData() trong useEffect tự động
  */
 export default function useFriendActions() {
   const [loading, setLoading] = useState(false);
@@ -19,42 +23,31 @@ export default function useFriendActions() {
     removeFriend,
     setFriendsData,
     isCacheValid,
-    isFetching,
-    setFetching,
-    setError: setStoreError
   } = useFriendStore();
 
   // ============================================
-  // LOAD FRIENDS DATA - ✅ WITH CACHING
+  // LOAD FRIENDS DATA - ⚠️ FOR MANUAL REFRESH ONLY
   // ============================================
   const loadFriendsData = async (force = false) => {
-    // ✅ Check if already fetching
-    if (isFetching && !force) {
-      console.log('⏳ Already fetching friends data, skipping...');
-      return;
-    }
-    
-    // ✅ Check cache validity
+    // ✅ Check cache validity (unless forced)
     if (!force && isCacheValid()) {
-      console.log('✅ Using cached friends data');
+      console.log('✅ [useFriendActions] Using cached friends data');
       return;
     }
     
     setLoading(true);
-    setFetching(true);
     setError(null);
     
     try {
-      console.log('📡 Fetching fresh friends data...');
+      console.log('📡 [useFriendActions] Fetching fresh friends data...');
       const data = await friendService.getFriendsList();
       setFriendsData(data);
-      console.log('✅ Friends data loaded successfully');
+      console.log('✅ [useFriendActions] Friends data loaded successfully');
       return data;
     } catch (err) {
       const errorMsg = err.message || 'Không thể tải danh sách bạn bè';
       setError(errorMsg);
-      setStoreError(errorMsg);
-      console.error('Load friends error:', err);
+      console.error('❌ [useFriendActions] Load friends error:', err);
       throw err;
     } finally {
       setLoading(false);
@@ -196,7 +189,7 @@ export default function useFriendActions() {
   return {
     loading,
     error,
-    loadFriendsData,
+    loadFriendsData, // ⚠️ FOR MANUAL REFRESH ONLY
     sendFriendRequest,
     acceptFriendRequest,
     rejectFriendRequest,

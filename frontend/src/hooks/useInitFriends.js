@@ -1,23 +1,20 @@
 // frontend/src/hooks/useInitFriends.js
-import { useEffect, useRef } from 'react';
-import useFriendActions from './useFriendActions';
 import useFriendSocket from './useFriendSocket';
-import friendService from '../services/friendService'; // 🔥 NEW
-import useFriendStore from '../store/friendStore'; // 🔥 NEW
 
+/**
+ * Hook để khởi tạo friend system
+ * 
+ * 🔥 SIMPLIFIED:
+ * - CHỈ setup socket listeners
+ * - Fetching được handle BỞI useFriendSocket khi socket connected
+ * - KHÔNG có logic fetch riêng
+ */
 export default function useInitFriends(user) {
-  const initFriendsOnce = useFriendStore(s => s.initFriendsOnce);
-  const { loadFriendsData } = useFriendActions();
-
-  // socket chỉ setup 1 lần khi component mount
+  // 🔥 CHỈ setup socket listeners - fetching tự động xảy ra trong useFriendSocket
   useFriendSocket();
-
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    initFriendsOnce(
-      loadFriendsData,
-      friendService.getUnseenRequestCount
-    );
-  }, [user?.uid]); // ✅ CHỈ user.uid
+  
+  // That's it! Mọi thứ khác được handle tự động:
+  // 1. useFriendSocket chờ socket connected
+  // 2. Khi connected → tự động fetch friends
+  // 3. Register socket listeners cho realtime updates
 }

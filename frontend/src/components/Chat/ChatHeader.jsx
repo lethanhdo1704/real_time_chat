@@ -2,18 +2,10 @@
 import { useTranslation } from "react-i18next";
 import AvatarImage from "../common/AvatarImage";
 
-/**
- * ChatHeader Component
- * 
- * ✅ Mobile: Back button on the left (Telegram-style)
- * ✅ Desktop: No back button
- * ✅ Consistent max-w-3xl with Body & Input
- * ✅ Using AvatarImage component
- */
 export default function ChatHeader({ 
   receiverName, 
   receiverAvatar,
-  receiverAvatarUpdatedAt, // NEW: For cache busting
+  receiverAvatarUpdatedAt,
   isTyping = false,
   typingUserName,
   isOnline = true,
@@ -26,7 +18,7 @@ export default function ChatHeader({
   const { t } = useTranslation("chat");
 
   return (
-    <div className="bg-white border-b border-gray-200 shadow-sm shrink-0">
+    <div className="bg-white border-b border-gray-200 shrink-0">
       <div className="mx-auto max-w-3xl px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           {/* Left: Back Button (Mobile) + Avatar & Info */}
@@ -59,20 +51,20 @@ export default function ChatHeader({
               </button>
             )}
 
-            {/* Avatar with Status - Using AvatarImage */}
+            {/* Avatar Container - THÊM relative */}
             <div className="relative shrink-0">
               <AvatarImage
                 avatar={receiverAvatar}
                 nickname={receiverName}
                 avatarUpdatedAt={receiverAvatarUpdatedAt}
                 size="md"
-                showOnlineStatus={true}
-                isOnline={isOnline && !isTyping}
+                variant="header"
+                showOnlineStatus={false}
               />
 
               {/* Typing Animation Indicator */}
               {isTyping && (
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 border-2 border-white rounded-full animate-pulse"></span>
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 border-2 border-white rounded-full animate-pulse"></div>
               )}
             </div>
 

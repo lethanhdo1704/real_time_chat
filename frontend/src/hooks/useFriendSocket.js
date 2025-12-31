@@ -1,17 +1,19 @@
 // frontend/src/hooks/useFriendSocket.js
-import { useEffect, useCallback, useContext } from 'react';
-import { SocketContext } from '../context/SocketContext'; // 🔥 Use context instead
+import { useEffect, useCallback, useContext, useRef } from 'react';
+import { SocketContext } from '../context/SocketContext';
 import useFriendStore from '../store/friendStore';
+import friendService from '../services/friendService';
 
 /**
  * Hook để handle tất cả friend socket events
  * 
- * 🔥 FIXES:
- * - Sử dụng SocketContext để đảm bảo socket đã sẵn sàng
- * - Re-register listeners khi socket reconnect
+ * 🔥 ULTIMATE FIX:
+ * - CHỈ fetch khi socket connected (KHÔNG fetch sớm)
+ * - Single source of truth cho friend data fetching
  */
 export default function useFriendSocket() {
-  const { socket, isConnected } = useContext(SocketContext); // 🔥 Get from context
+  const { socket, isConnected } = useContext(SocketContext);
+  const hasFetchedRef = useRef(false);
   
   const { 
     addFriendRequest, 
@@ -20,10 +22,12 @@ export default function useFriendSocket() {
     removeFriend,
     removeSentRequest,
     markRequestAsSeen,
+    setFriendsData,
+    isCacheValid,
   } = useFriendStore();
 
   // ============================================
-  // EVENT HANDLERS - ✅ Stable callbacks
+  // EVENT HANDLERS
   // ============================================
   
   const handleFriendRequestReceived = useCallback((data) => {
@@ -38,7 +42,6 @@ export default function useFriendSocket() {
       seenAt: null
     });
 
-    // Optional: Browser notification
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Lời mời kết bạn mới', {
         body: `${data.nickname} đã gửi lời mời kết bạn`,
@@ -49,7 +52,6 @@ export default function useFriendSocket() {
 
   const handleFriendRequestAccepted = useCallback((data) => {
     console.log('✅ [useFriendSocket] Friend request accepted:', data);
-    
     removeSentRequest(data.uid);
     addFriend({
       uid: data.uid,
@@ -61,7 +63,6 @@ export default function useFriendSocket() {
 
   const handleFriendAdded = useCallback((data) => {
     console.log('👥 [useFriendSocket] Friend added:', data);
-    
     removeFriendRequest(data.uid);
     addFriend({
       uid: data.uid,
@@ -92,19 +93,58 @@ export default function useFriendSocket() {
   }, [markRequestAsSeen]);
 
   // ============================================
-  // 🔥 SOCKET LISTENERS - Wait for connection
+  // 🔥 CRITICAL: ONLY fetch when socket connected
   // ============================================
   
   useEffect(() => {
-    // 🔥 Wait for both socket AND connection
     if (!socket || !isConnected) {
-      console.log('⏳ [useFriendSocket] Waiting for socket connection...', { socket: !!socket, isConnected });
+      console.log('⏳ [useFriendSocket] Waiting for socket connection...');
+      return;
+    }
+
+    // Already fetched
+    if (hasFetchedRef.current) {
+      console.log('⏭️ [useFriendSocket] Already fetched, skip');
+      return;
+    }
+
+    // Valid cache exists
+    if (isCacheValid()) {
+      console.log('✅ [useFriendSocket] Using cached friend data');
+      hasFetchedRef.current = true;
+      return;
+    }
+
+    console.log('🔄 [useFriendSocket] Socket connected → Fetching friends data...');
+    hasFetchedRef.current = true;
+
+    friendService.getFriendsList()
+      .then((data) => {
+        console.log('✅ [useFriendSocket] Friend data fetched:', {
+          friends: data.friends?.length || 0,
+          requests: data.requests?.length || 0,
+          sentRequests: data.sentRequests?.length || 0,
+        });
+        setFriendsData(data);
+      })
+      .catch((err) => {
+        console.error('❌ [useFriendSocket] Failed to fetch friends:', err);
+        hasFetchedRef.current = false; // Allow retry
+      });
+
+  }, [socket, isConnected, setFriendsData, isCacheValid]);
+
+  // ============================================
+  // SOCKET LISTENERS
+  // ============================================
+  
+  useEffect(() => {
+    if (!socket || !isConnected) {
       return;
     }
 
     console.log('🔌 [useFriendSocket] Registering friend socket listeners');
 
-    // Register all listeners
     socket.on('friend_request_received', handleFriendRequestReceived);
     socket.on('friend_request_accepted', handleFriendRequestAccepted);
     socket.on('friend_added', handleFriendAdded);
@@ -113,20 +153,10 @@ export default function useFriendSocket() {
     socket.on('friend_removed', handleFriendRemoved);
     socket.on('friend_request_seen', handleFriendRequestSeen);
     
-    console.log('✅ [useFriendSocket] All friend listeners registered successfully');
+    console.log('✅ [useFriendSocket] All friend listeners registered');
 
-    // 🔥 DEBUG: Catch all socket events (remove in production)
-    const debugHandler = (eventName, ...args) => {
-      if (eventName.startsWith('friend_')) {
-        console.log(`🔔 [Socket Debug] Event: ${eventName}`, args);
-      }
-    };
-    socket.onAny(debugHandler);
-
-    // Cleanup
     return () => {
-      console.log('🧹 [useFriendSocket] Cleaning up friend listeners');
-      
+      console.log('🧹 [useFriendSocket] Cleaning up listeners');
       socket.off('friend_request_received', handleFriendRequestReceived);
       socket.off('friend_request_accepted', handleFriendRequestAccepted);
       socket.off('friend_added', handleFriendAdded);
@@ -134,11 +164,10 @@ export default function useFriendSocket() {
       socket.off('friend_request_cancelled', handleFriendRequestCancelled);
       socket.off('friend_removed', handleFriendRemoved);
       socket.off('friend_request_seen', handleFriendRequestSeen);
-      socket.offAny(debugHandler);
     };
   }, [
     socket,
-    isConnected, // 🔥 Re-register when connection state changes
+    isConnected,
     handleFriendRequestReceived,
     handleFriendRequestAccepted,
     handleFriendAdded,
@@ -147,6 +176,13 @@ export default function useFriendSocket() {
     handleFriendRemoved,
     handleFriendRequestSeen
   ]);
+
+  // Reset fetch flag on disconnect
+  useEffect(() => {
+    if (!isConnected) {
+      hasFetchedRef.current = false;
+    }
+  }, [isConnected]);
 
   return null;
 }
