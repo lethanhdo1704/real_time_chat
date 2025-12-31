@@ -10,7 +10,7 @@ import AvatarImage from "../common/AvatarImage";
  * Displays a conversation in the sidebar
  * Works for both friends and groups
  * Shows: avatar, name, lastMessage, unreadCount, timestamp
- * 🔥 UPDATED: Using AvatarImage component for consistent rendering
+ * 🔥 UPDATED: Gray theme with rounded corners
  */
 export default function ConversationItem({
   conversation,
@@ -21,6 +21,11 @@ export default function ConversationItem({
 }) {
   const { t, i18n } = useTranslation("friendFeature");
   const locale = i18n.language === "vi" ? vi : enUS;
+
+  // ============================================
+  // 🔥 FIX: Normalize conversation ID
+  // ============================================
+  const conversationId = conversation?.conversationId || conversation?._id;
 
   // ============================================
   // GET DISPLAY INFO
@@ -156,28 +161,29 @@ export default function ConversationItem({
   // ============================================
 
   return (
-    <button
-      onClick={onClick}
-      className={`
-        group relative w-full flex items-center gap-3 p-3 rounded-none
-        transition-all duration-200 text-left
-        ${
-          isActive
-            ? "bg-linear-to-r from-blue-600 to-blue-500 border-l-4 border-l-white"
-            : unreadCount > 0
-            ? "bg-white hover:bg-blue-50 border-l-4 border-l-blue-400"
-            : "bg-white hover:bg-gray-50 border-l-4 border-l-transparent"
-        }
-      `}
-    >
-      {/* Avatar with Status - Using AvatarImage Component */}
+    <div className="px-2 py-1">
+      <button
+        onClick={onClick}
+        className={`
+          group relative w-full flex items-center gap-3 p-3 rounded-lg
+          transition-all duration-200 text-left
+          ${
+            isActive
+              ? "bg-gray-200 shadow-md"
+              : unreadCount > 0
+              ? "bg-white hover:bg-gray-50 border border-gray-200"
+              : "bg-white hover:bg-gray-50"
+          }
+        `}
+      >
+      {/* Avatar with Status */}
       <div className="relative shrink-0">
         <div
           className={`
             transition-all
             ${
               isActive
-                ? "ring-4 ring-white shadow-xl"
+                ? "ring-2 ring-gray-400"
                 : unreadCount > 0
                 ? "ring-2 ring-blue-300"
                 : "ring-2 ring-gray-100 group-hover:ring-gray-200"
@@ -205,7 +211,7 @@ export default function ConversationItem({
             rounded-full border-2 border-white shadow-lg
             ${
               isActive
-                ? "bg-white text-blue-600"
+                ? "bg-gray-600 text-white"
                 : "bg-red-500 text-white animate-pulse"
             }
           `}
@@ -222,7 +228,7 @@ export default function ConversationItem({
           <h3
             className={`
             font-semibold truncate text-[15px]
-            ${isActive ? "text-white" : "text-gray-900"}
+            ${isActive ? "text-gray-900" : "text-gray-900"}
           `}
           >
             {name}
@@ -235,7 +241,7 @@ export default function ConversationItem({
               text-[11px] font-medium shrink-0
               ${
                 isActive
-                  ? "text-blue-100"
+                  ? "text-gray-600"
                   : unreadCount > 0
                   ? "text-blue-600 font-semibold"
                   : "text-gray-400"
@@ -257,7 +263,7 @@ export default function ConversationItem({
             text-[13px] truncate flex-1 leading-tight
             ${
               isActive
-                ? "text-blue-100 font-medium"
+                ? "text-gray-700 font-medium"
                 : unreadCount > 0
                 ? "text-gray-900 font-semibold"
                 : messagePreview.isSpecial
@@ -271,16 +277,12 @@ export default function ConversationItem({
           </p>
 
           {/* Unread Indicator Dot */}
-          {unreadCount > 0 && (
-            <div
-              className={`
-              w-2.5 h-2.5 rounded-full shrink-0
-              ${isActive ? "bg-white" : "bg-blue-600 animate-pulse"}
-            `}
-            ></div>
+          {unreadCount > 0 && !isActive && (
+            <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-blue-600 animate-pulse"></div>
           )}
         </div>
       </div>
     </button>
+    </div>
   );
 }

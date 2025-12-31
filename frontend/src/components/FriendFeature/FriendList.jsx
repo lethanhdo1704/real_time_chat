@@ -1,4 +1,4 @@
-// frontend/src/components/FriendFeature/FriendList.jsx
+// frontend/src/components/FriendFeature/FriendList.jsx - FIXED isActive check
 import { useEffect, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import ConversationItem from "../Chat/ConversationItem";
@@ -8,7 +8,7 @@ import useFriendActions from "../../hooks/useFriendActions";
 import { checkConversation } from "../../services/chatApi";
 
 /**
- * FriendList Component - ✅ UPDATED WITH OPTIMIZED SORTING
+ * FriendList Component - ✅ FIXED: isActive check now uses conversationId
  * 
  * Sorting Priority:
  * 1. lastMessageAt (conversation.lastMessage.createdAt) - MỚI NHẤT LÊN ĐẦU
@@ -71,7 +71,6 @@ export default function FriendList({ currentUser, onSelectFriend }) {
       // 🔥 PRIORITY 1: lastMessageAt (NEWEST FIRST)
       // ============================================
       
-      // Get timestamp from lastMessage.createdAt or lastMessageAt
       const timeA = convA?.lastMessage?.createdAt 
         ? new Date(convA.lastMessage.createdAt) 
         : convA?.lastMessageAt 
@@ -86,7 +85,7 @@ export default function FriendList({ currentUser, onSelectFriend }) {
 
       // Both have messages → Compare time (NEWEST FIRST)
       if (timeA && timeB) {
-        const timeDiff = timeB - timeA; // Newer comes first
+        const timeDiff = timeB - timeA;
         
         // ============================================
         // 🔥 PRIORITY 2: unreadCount (IF SAME TIME)
@@ -95,11 +94,9 @@ export default function FriendList({ currentUser, onSelectFriend }) {
           const unreadA = convA?.unreadCount || 0;
           const unreadB = convB?.unreadCount || 0;
           
-          // If same time, unread comes first
           if (unreadA > 0 && unreadB === 0) return -1;
           if (unreadA === 0 && unreadB > 0) return 1;
           
-          // If both have unread or both don't, keep time order
           return 0;
         }
         
@@ -138,7 +135,6 @@ export default function FriendList({ currentUser, onSelectFriend }) {
         // 🔥 CASE A: Conversation exists → Navigate directly
         console.log('📍 [FriendList] Conversation exists, navigating to:', result.conversationId);
         
-        // Call parent handler with conversation info
         if (onSelectFriend) {
           onSelectFriend({
             ...friend,
@@ -150,7 +146,6 @@ export default function FriendList({ currentUser, onSelectFriend }) {
         // 🔥 CASE B: No conversation → Lazy mode
         console.log('💤 [FriendList] No conversation, entering lazy mode');
         
-        // Call parent handler with friend info only
         if (onSelectFriend) {
           onSelectFriend({
             uid: friend.uid,
@@ -257,7 +252,18 @@ export default function FriendList({ currentUser, onSelectFriend }) {
     <div className="flex flex-col flex-1 bg-white">
       {sortedFriends.map((friend) => {
         const conversation = getConversationForFriend(friend.uid);
-        const isActive = conversation?._id === activeConversationId;
+        
+        // 🔥 FIX: Normalize conversation ID for comparison
+        const conversationId = conversation?.conversationId || conversation?._id;
+        const isActive = conversationId === activeConversationId;
+
+        // Debug log (uncomment to debug)
+        // console.log('🔍 [FriendList] Render friend:', {
+        //   friendNickname: friend.nickname,
+        //   conversationId,
+        //   activeConversationId,
+        //   isActive
+        // });
 
         return (
           <ConversationItem
