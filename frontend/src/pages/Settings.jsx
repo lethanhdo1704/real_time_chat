@@ -14,7 +14,7 @@ export default function Settings() {
   const { t } = useTranslation("settings");
   const { user } = useContext(AuthContext);
 
-  // Avatar upload logic
+  // Avatar upload logic - BỎ PARAM user
   const {
     croppedAvatar,
     isUploading,
@@ -22,9 +22,9 @@ export default function Settings() {
     handleAvatarSelect,
     handleUploadAvatar,
     handleCancelAvatar,
-  } = useAvatarUpload(user);
+  } = useAvatarUpload(); // ✅ Không truyền user nữa
 
-  // Profile update logic
+  // Profile update logic - BỎ PARAM user
   const {
     editedNickname,
     setEditedNickname,
@@ -32,7 +32,7 @@ export default function Settings() {
     showSuccess: showProfileSuccess,
     hasNicknameChanged,
     handleSaveProfile,
-  } = useProfileUpdate(user);
+  } = useProfileUpdate(); // ✅ Không truyền user nữa
 
   const showSuccess = showAvatarSuccess || showProfileSuccess;
 

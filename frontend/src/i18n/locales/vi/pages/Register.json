@@ -7,7 +7,7 @@
   "otpCode": "Mã OTP",
   "otpSentSuccess": "OTP đã gửi đến Gmail của bạn (hợp lệ 5 phút)",
   "nickname": "Biệt danh",
-  "nicknamePlaceholder": "Tên hiển thị (2-20 ký tự)",
+  "nicknamePlaceholder": "Tên hiển thị (3-32 ký tự)",
   "password": "Mật khẩu",
   "passwordPlaceholder": "Tối thiểu 6 ký tự, có chữ và số",
   "confirmPassword": "Xác nhận mật khẩu",
@@ -20,14 +20,16 @@
   
   "validation": {
     "emailMustBeGmail": "Email phải là Gmail (@gmail.com)",
-    "nicknameLength": "Biệt danh phải từ 2–20 ký tự",
+    "nicknameLength": "Biệt danh phải từ 3–32 ký tự",
     "passwordMinLength": "Mật khẩu phải từ 6 ký tự",
     "passwordMustHaveLetter": "Mật khẩu phải có chữ",
     "passwordMustHaveNumber": "Mật khẩu phải có số",
     "passwordNotMatch": "Mật khẩu nhập lại không khớp",
     "pleaseVerifyCaptcha": "Vui lòng xác thực reCAPTCHA",
     "pleaseEnterFullOtp": "Vui lòng nhập đủ 6 số OTP",
-    "cannotSendOtp": "Không thể gửi OTP"
+    "cannotSendOtp": "Không thể gửi OTP",
+    "characters": "ký tự",
+    "nicknameMustHaveAlphanumeric": "Biệt danh phải chứa ít nhất 1 chữ hoặc số"
   },
   
   "errors": {

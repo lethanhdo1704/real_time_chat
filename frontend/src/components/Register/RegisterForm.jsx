@@ -101,11 +101,14 @@ export default function RegisterForm() {
                 type="text"
                 placeholder={t("nicknamePlaceholder")}
                 value={nickname}
-                maxLength={20}
+                maxLength={32}
                 onChange={(e) => setNickname(e.target.value)}
                 required
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                {nickname.trim().length}/32 {t("validation.characters")}
+              </p>
             </div>
 
             {/* Password */}
@@ -127,7 +130,7 @@ export default function RegisterForm() {
             {/* reCAPTCHA */}
             <div className="flex justify-center">
               <ReCAPTCHA
-                sitekey="6LesOigsAAAAAMK4CosQAZeI_oK27NRjjJsITMVj"
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
                 onChange={(value) => setCaptcha(value)}
               />
             </div>

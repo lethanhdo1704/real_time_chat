@@ -32,7 +32,8 @@ export default function AvatarImage({
     md: "w-12 h-12 text-base",
     lg: "w-14 h-14 text-lg",
     xl: "w-20 h-20 text-2xl",
-    "2xl": "w-24 h-24 text-3xl"
+    "2xl": "w-24 h-24 text-3xl",
+    full: "w-full h-full" // ✅ THÊM SIZE FULL
   };
 
   const sizeClass = sizeClasses[size] || sizeClasses.md;
@@ -73,14 +74,14 @@ export default function AvatarImage({
           <>
             {/* Loading skeleton */}
             {imageLoading && (
-              <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+              <div className="absolute inset-0 bg-gray-200 animate-pulse rounded-full" />
             )}
             
             {/* Avatar image */}
             <img
               src={avatarUrl}
               alt={nickname || 'User'}
-              className="w-full h-full object-cover bg-white rounded-full"
+              className="w-full h-full object-cover rounded-full"
               onError={handleImageError}
               onLoad={handleImageLoad}
               loading="lazy"

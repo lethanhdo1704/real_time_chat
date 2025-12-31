@@ -1,12 +1,14 @@
 // frontend/src/hooks/settings/useAvatarUpload.js
-import { useState } from "react";
+import { useState, useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 import userService from "../../services/userService";
 
 /**
  * Custom hook for avatar upload functionality
  * Handles file selection, cropping, and uploading to server
  */
-export function useAvatarUpload(user) {
+export function useAvatarUpload() {
+  const { updateUser } = useContext(AuthContext);
   const [croppedAvatar, setCroppedAvatar] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -31,7 +33,14 @@ export function useAvatarUpload(user) {
       formData.append("avatar", blob, "avatar.jpg");
 
       // Upload to server
-      await userService.uploadAvatar(formData);
+      // ✅ userService.uploadAvatar already returns response.data.data || response.data
+      const userData = await userService.uploadAvatar(formData);
+
+      // 🔥 UPDATE USER CONTEXT - BỎ RELOAD
+      updateUser({
+        avatar: userData.avatar,
+        avatarUpdatedAt: userData.avatarUpdatedAt,
+      });
 
       // Show success message
       showSuccessMessage();
@@ -39,11 +48,7 @@ export function useAvatarUpload(user) {
       // Clear cropped avatar (will show new avatar from user.avatar)
       setCroppedAvatar(null);
 
-      // Reload page to get updated avatar
-      // Note: Better approach is to update user context, but this is simpler
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      console.log("✅ [Avatar] Upload successful");
 
     } catch (error) {
       console.error("❌ [Avatar] Upload failed:", error);

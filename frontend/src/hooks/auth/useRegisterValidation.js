@@ -1,6 +1,11 @@
 // frontend/src/hooks/useRegisterValidation.js
 
 export function useRegisterValidation(t) {
+  // Helper function để normalize (giống backend)
+  const normalizeNickname = (nickname) => {
+    return nickname.trim().replace(/\s+/g, " ");
+  };
+
   const validateEmail = (email) => {
     const regex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
     if (!regex.test(email.trim())) {
@@ -10,9 +15,13 @@ export function useRegisterValidation(t) {
   };
 
   const validateNickname = (name) => {
-    const n = name.trim();
-    if (n.length < 2 || n.length > 20) {
+    const n = normalizeNickname(name); // ← Normalize như backend
+    if (n.length < 3 || n.length > 32) {
       return t("validation.nicknameLength");
+    }
+    // Optional: Check có ít nhất 1 chữ/số
+    if (!/[\p{L}\p{N}]/u.test(n)) {
+      return t("validation.nicknameMustHaveAlphanumeric"); 
     }
     return "";
   };
@@ -46,6 +55,7 @@ export function useRegisterValidation(t) {
   };
 
   return {
+    normalizeNickname, // ← Export để dùng khi submit
     validateEmail,
     validateNickname,
     validatePassword,

@@ -7,7 +7,7 @@
   "otpCode": "OTP Code",
   "otpSentSuccess": "OTP sent to your Gmail (valid for 5 minutes)",
   "nickname": "Nickname",
-  "nicknamePlaceholder": "Display name (2-20 characters)",
+  "nicknamePlaceholder": "Display name (3-32 characters)",
   "password": "Password",
   "passwordPlaceholder": "Minimum 6 characters, letters and numbers",
   "confirmPassword": "Confirm Password",
@@ -20,14 +20,16 @@
   
   "validation": {
     "emailMustBeGmail": "Email must be Gmail (@gmail.com)",
-    "nicknameLength": "Nickname must be 2–20 characters",
+    "nicknameLength": "Nickname must be 3–32 characters",
     "passwordMinLength": "Password must be at least 6 characters",
     "passwordMustHaveLetter": "Password must contain letters",
     "passwordMustHaveNumber": "Password must contain numbers",
     "passwordNotMatch": "Passwords do not match",
     "pleaseVerifyCaptcha": "Please verify reCAPTCHA",
     "pleaseEnterFullOtp": "Please enter all 6 OTP digits",
-    "cannotSendOtp": "Cannot send OTP"
+    "cannotSendOtp": "Cannot send OTP",
+    "characters": "characters",
+    "nicknameMustHaveAlphanumeric": "Nickname must contain at least one letter or number"
   },
   
   "errors": {

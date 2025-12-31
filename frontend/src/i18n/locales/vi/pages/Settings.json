@@ -37,6 +37,11 @@
     },
     "toast": {
       "success": "Cập nhật thành công!"
+    },
+    "validation": {
+      "nicknameLength": "Biệt danh phải từ 3-32 ký tự",
+      "nicknameMustHaveAlphanumeric": "Biệt danh phải chứa ít nhất 1 chữ hoặc số",
+      "nicknameValid": "Biệt danh hợp lệ"
     }
   }
 }

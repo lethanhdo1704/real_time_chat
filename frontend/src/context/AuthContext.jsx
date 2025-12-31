@@ -1,4 +1,4 @@
-// frontend/src/context/AuthContext.jsx - FIXED API RESPONSE HANDLING
+// frontend/src/context/AuthContext.jsx
 import { createContext, useState, useEffect } from "react";
 import api from "../services/api";
 import useChatStore from '../store/chat/chatStore';
@@ -59,6 +59,25 @@ export const AuthProvider = ({ children }) => {
   // =========================
   // 🔐 AUTH ACTIONS
   // =========================
+
+  // 🔥 UPDATE USER - Cập nhật một phần thông tin user
+  const updateUser = (partialUser) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      
+      const updated = {
+        ...prev,
+        ...partialUser,
+      };
+      
+      console.log("✅ [Auth] User updated:", {
+        updated: Object.keys(partialUser),
+        uid: updated.uid
+      });
+      
+      return updated;
+    });
+  };
 
   // LOGIN
   const login = async (email, password, rememberMe = false) => {
@@ -174,6 +193,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         logout,
+        updateUser, // 🔥 ADD THIS
         sendRegisterOTP,
         register,
         sendForgotOTP,

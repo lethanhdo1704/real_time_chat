@@ -37,6 +37,11 @@
     },
     "toast": {
       "success": "Updated successfully!"
+    },
+    "validation": {
+      "nicknameLength": "Nickname must be 3-32 characters",
+      "nicknameMustHaveAlphanumeric": "Nickname must contain at least one letter or number",
+      "nicknameValid": "Nickname is valid"
     }
   }
 }

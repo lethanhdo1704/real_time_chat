@@ -17,12 +17,27 @@ export const isValidPassword = (password) => {
   return true;
 };
 
-// Nickname: 2–20 ký tự
+/**
+ * Normalize nickname: trim, collapse multiple spaces
+ */
+export const normalizeNickname = (nickname) => {
+  if (typeof nickname !== "string") return "";
+  return nickname.trim().replace(/\s+/g, " ");
+};
+
+/**
+ * Validate nickname (3-32 chars, allow Unicode + emoji)
+ */
 export const isValidNickname = (nickname) => {
   if (typeof nickname !== "string") return false;
 
-  const name = nickname.trim();
-  if (name.length < 2 || name.length > 20) return false;
+  const name = normalizeNickname(nickname);
+
+  // Check length
+  if (name.length < 3 || name.length > 32) return false;
+
+  // Must have at least 1 visible character (not just spaces/emoji)
+  if (!/[\p{L}\p{N}]/u.test(name)) return false;
 
   return true;
 };

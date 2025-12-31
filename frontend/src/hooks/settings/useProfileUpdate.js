@@ -1,12 +1,14 @@
 // frontend/src/hooks/settings/useProfileUpdate.js
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 import userService from "../../services/userService";
 
 /**
  * Custom hook for profile update functionality
  * Handles nickname editing and saving
  */
-export function useProfileUpdate(user) {
+export function useProfileUpdate() {
+  const { user, updateUser } = useContext(AuthContext);
   const [editedNickname, setEditedNickname] = useState(user?.nickname || "");
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -25,26 +27,31 @@ export function useProfileUpdate(user) {
   const handleSaveProfile = async () => {
     if (!hasNicknameChanged) return;
 
+    const trimmedNickname = editedNickname.trim();
+
     try {
       setIsSaving(true);
 
       // Update nickname on server
       await userService.updateProfile({
-        nickname: editedNickname.trim(),
+        nickname: trimmedNickname,
+      });
+
+      // 🔥 UPDATE USER CONTEXT - BỎ RELOAD
+      updateUser({
+        nickname: trimmedNickname,
       });
 
       // Show success message
       showSuccessMessage();
 
-      // Reload page to get updated user data
-      // Note: Better approach is to update user context, but this is simpler
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      console.log("✅ [Profile] Update successful");
 
     } catch (error) {
       console.error("❌ [Profile] Update failed:", error);
       alert("Cập nhật thất bại. Vui lòng thử lại.");
+      // Revert nickname on error
+      setEditedNickname(user?.nickname || "");
     } finally {
       setIsSaving(false);
     }

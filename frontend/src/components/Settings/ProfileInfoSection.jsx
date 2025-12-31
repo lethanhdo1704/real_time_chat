@@ -1,6 +1,6 @@
 // frontend/src/components/Settings/ProfileInfoSection.jsx
 import { useTranslation } from "react-i18next";
-import { User, Mail, Save } from "lucide-react";
+import { User, Mail, Save, AlertCircle, CheckCircle } from "lucide-react";
 
 export default function ProfileInfoSection({
   user,
@@ -11,6 +11,31 @@ export default function ProfileInfoSection({
   onSaveProfile,
 }) {
   const { t } = useTranslation("settings");
+
+  // Validation function (giống useRegisterValidation)
+  const normalizeNickname = (nickname) => {
+    return nickname.trim().replace(/\s+/g, " ");
+  };
+
+  const validateNickname = (name) => {
+    const n = normalizeNickname(name);
+    if (n.length < 3 || n.length > 32) {
+      return t("settings.validation.nicknameLength");
+    }
+    if (!/[\p{L}\p{N}]/u.test(n)) {
+      return t("settings.validation.nicknameMustHaveAlphanumeric");
+    }
+    return "";
+  };
+
+  const nicknameError = editedNickname ? validateNickname(editedNickname) : "";
+  const isValid = !nicknameError && hasNicknameChanged;
+
+  const handleSave = () => {
+    if (isValid) {
+      onSaveProfile();
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -29,15 +54,41 @@ export default function ProfileInfoSection({
             type="text"
             value={editedNickname}
             onChange={(e) => setEditedNickname(e.target.value)}
-            maxLength={50}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            maxLength={32}
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all ${
+              nicknameError
+                ? "border-red-300 focus:ring-red-500"
+                : "border-gray-300 focus:ring-blue-500"
+            }`}
             placeholder={t("settings.profile.nicknamePlaceholder")}
           />
-          {editedNickname && (
-            <p className="text-xs text-gray-500 mt-1">
-              {editedNickname.length}/50 {t("settings.profile.characters")}
-            </p>
-          )}
+          
+          {/* Character count and validation message */}
+          <div className="mt-2 space-y-1">
+            {editedNickname && (
+              <p className="text-xs text-gray-500">
+                {normalizeNickname(editedNickname).length}/32 {t("settings.profile.characters")}
+              </p>
+            )}
+            
+            {/* Error message */}
+            {nicknameError && (
+              <div className="flex items-start gap-2 text-red-600">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <p className="text-sm">{nicknameError}</p>
+              </div>
+            )}
+            
+            {/* Success message */}
+            {!nicknameError && hasNicknameChanged && (
+              <div className="flex items-start gap-2 text-green-600">
+                <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <p className="text-sm">
+                  {t("settings.validation.nicknameValid")}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Email (Read-only) */}
@@ -64,8 +115,8 @@ export default function ProfileInfoSection({
         {/* Save Button */}
         <div className="pt-4 border-t border-gray-200">
           <button
-            onClick={onSaveProfile}
-            disabled={!hasNicknameChanged || isSaving}
+            onClick={handleSave}
+            disabled={!isValid || isSaving}
             className="w-full sm:w-auto px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
           >
             {isSaving ? (

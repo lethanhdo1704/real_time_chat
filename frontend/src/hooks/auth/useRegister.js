@@ -36,6 +36,7 @@ export function useRegister() {
   } = useOTPInput();
   
   const {
+    normalizeNickname,
     validateEmail,
     validateNickname,
     validatePassword,
@@ -101,7 +102,7 @@ export function useRegister() {
     try {
       setSubmitting(true);
       await register({ 
-        nickname, 
+        nickname: normalizeNickname(nickname), // ← Normalize trước khi gửi
         email, 
         password, 
         otp: getOtpValue() 

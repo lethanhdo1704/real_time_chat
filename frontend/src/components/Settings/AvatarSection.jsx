@@ -1,9 +1,9 @@
 // frontend/src/components/Settings/AvatarSection.jsx
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Camera, Check, X, User } from "lucide-react";
+import { Camera, Check, X } from "lucide-react";
 import AvatarCropModal from "./AvatarCropModal";
-import { getAvatarUrlWithCache, getUserInitials } from "../../utils/avatarUtils";
+import AvatarImage from "../common/AvatarImage";
 
 export default function AvatarSection({
   user,
@@ -16,11 +16,6 @@ export default function AvatarSection({
   const { t } = useTranslation("settings");
   const [showCropModal, setShowCropModal] = useState(false);
   const [originalImage, setOriginalImage] = useState(null);
-  const [imageError, setImageError] = useState(false);
-
-  const currentAvatar = getAvatarUrlWithCache(user.avatar, user.avatarUpdatedAt);
-  const initials = getUserInitials(user.nickname);
-  const displayAvatar = croppedAvatar || currentAvatar;
 
   // Handle file selection
   const handleFileSelect = (e) => {
@@ -37,7 +32,6 @@ export default function AvatarSection({
 
   // Handle crop confirmation
   const handleCropConfirm = (croppedDataUrl) => {
-    setImageError(false); // Reset error when new image selected
     onAvatarSelect(croppedDataUrl);
     setShowCropModal(false);
     setOriginalImage(null);
@@ -47,18 +41,6 @@ export default function AvatarSection({
   const handleCropCancel = () => {
     setShowCropModal(false);
     setOriginalImage(null);
-  };
-
-  // Handle image error
-  const handleImageError = () => {
-    console.error("❌ Avatar failed to load:", displayAvatar);
-    setImageError(true);
-  };
-
-  // Handle image load success
-  const handleImageLoad = () => {
-    console.log("✅ Avatar loaded successfully");
-    setImageError(false);
   };
 
   return (
@@ -73,34 +55,48 @@ export default function AvatarSection({
 
         <div className="flex items-start gap-6">
           {/* Avatar Display */}
-          <div className="relative group">
-            {/* Container với conditional background */}
-            <div className={`w-32 h-32 rounded-full overflow-hidden border-4 border-gray-100 shadow-md ${
-              displayAvatar && !imageError 
-                ? '' // Không cần background khi có ảnh
-                : 'bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center'
-            }`}>
-              {displayAvatar && !imageError ? (
+          <div className="relative group w-32 h-32 shrink-0">
+            {croppedAvatar ? (
+              // Preview của ảnh vừa crop (base64)
+              <div className="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-md">
                 <img
-                  src={displayAvatar}
+                  src={croppedAvatar}
                   alt={t("settings.avatar.alt")}
                   className="w-full h-full object-cover"
-                  onError={handleImageError}
-                  onLoad={handleImageLoad}
-                  style={{ display: 'block' }} // Fix flexbox issue
                 />
-              ) : (
-                // Fallback UI
-                <div className="w-full h-full flex items-center justify-center text-white text-4xl font-bold">
-                  {initials || <User className="w-16 h-16" />}
-                </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              // Avatar hiện tại từ server
+              <div className="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-md">
+                <AvatarImage
+                  avatar={user.avatar}
+                  nickname={user.nickname}
+                  avatarUpdatedAt={user.avatarUpdatedAt}
+                  size="full"
+                  variant="header"
+                  showOnlineStatus={false}
+                  className="w-full h-full"
+                />
+              </div>
+            )}
 
             {/* Upload Button Overlay */}
             {!croppedAvatar && (
-              <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-40 rounded-full cursor-pointer transition-all">
-                <Camera className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              <label
+                className="
+                  absolute inset-0
+                  rounded-full
+                  flex items-center justify-center
+                  cursor-pointer
+                  opacity-0
+                  group-hover:opacity-100
+                  transition-opacity
+                  duration-200
+                "
+              >
+                <div className="bg-black/40 rounded-full p-3">
+                  <Camera className="w-8 h-8 text-white drop-shadow-lg" />
+                </div>
                 <input
                   type="file"
                   accept="image/*"
