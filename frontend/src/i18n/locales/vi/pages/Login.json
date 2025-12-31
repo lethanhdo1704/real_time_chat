@@ -30,5 +30,12 @@
     "invalidCredentials": "Email hoặc mật khẩu không đúng",
     "missingFields": "Thiếu email hoặc mật khẩu",
     "invalidEmail": "Email không hợp lệ"
+  },
+  "footer": {
+    "privacy": "Chính sách quyền riêng tư",
+    "cookies": "Chính sách cookie",
+    "terms": "Điều khoản sử dụng",
+    "language": "Ngôn ngữ", 
+    "selectLanguage": "Chọn ngôn ngữ"
   }
 }
