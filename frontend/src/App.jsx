@@ -1,16 +1,16 @@
 // frontend/src/App.jsx
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
-import { SocketProvider } from "./context/SocketContext";
-import { setViewportHeight } from "./utils/setViewportHeight";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Home from "./pages/Home";
-import Settings from "./pages/Settings";
-import ProtectedRoute from "./components/common/ProtectedRoute";
-import NotFound from "./pages/NotFound";
-import ForgotPassword from "./pages/ForgotPassword";
+import { AuthProvider } from "./user/context/AuthContext";
+import { SocketProvider } from "./user/context/SocketContext";
+import { setViewportHeight } from "./user/utils/setViewportHeight";
+import Login from "./user/pages/Login";
+import Register from "./user/pages/Register";
+import Home from "./user/pages/Home";
+import Settings from "./user/pages/Settings";
+import ProtectedRoute from "./user/components/common/ProtectedRoute";
+import NotFound from "./user/pages/NotFound";
+import ForgotPassword from "./user/pages/ForgotPassword";
 
 function App() {
   // ============================================

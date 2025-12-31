@@ -1,9 +1,8 @@
 // frontend/src/main.jsx
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './styles/index.css'
+import './user/styles/index.css'
 import App from './App.jsx'
-import "./i18n";
+import "./user/i18n";
 
 createRoot(document.getElementById('root')).render(
     <App />
