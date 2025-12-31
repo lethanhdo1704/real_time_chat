@@ -8,13 +8,12 @@ import useFriendActions from "../../hooks/useFriendActions";
 import { checkConversation } from "../../services/chatApi";
 
 /**
- * FriendList Component - ✅ UPDATED WITH CHECK CONVERSATION API
+ * FriendList Component - ✅ UPDATED WITH OPTIMIZED SORTING
  * 
- * New Flow:
- * 1. User clicks friend
- * 2. Call BE API to check if conversation exists
- * 3. If exists → Navigate to /friends/:conversationId
- * 4. If not exists → Lazy mode (call onSelectFriend)
+ * Sorting Priority:
+ * 1. lastMessageAt (conversation.lastMessage.createdAt) - MỚI NHẤT LÊN ĐẦU
+ * 2. unreadCount - Nếu cùng thời gian, unread lên trước
+ * 3. Alphabetical by name - Fallback
  */
 export default function FriendList({ currentUser, onSelectFriend }) {
   const { t } = useTranslation("friendFeature");
@@ -60,7 +59,7 @@ export default function FriendList({ currentUser, onSelectFriend }) {
   }, [conversations]);
 
   // ============================================
-  // SORT FRIENDS BY CONVERSATION PRIORITY
+  // 🔥 OPTIMIZED SORTING BY lastMessageAt + unreadCount
   // ============================================
 
   const sortedFriends = useMemo(() => {
@@ -68,28 +67,62 @@ export default function FriendList({ currentUser, onSelectFriend }) {
       const convA = getConversationForFriend(a.uid);
       const convB = getConversationForFriend(b.uid);
 
-      // 1. Unread messages first
-      const unreadA = convA?.unreadCount || 0;
-      const unreadB = convB?.unreadCount || 0;
-      if (unreadA > 0 && unreadB === 0) return -1;
-      if (unreadA === 0 && unreadB > 0) return 1;
+      // ============================================
+      // 🔥 PRIORITY 1: lastMessageAt (NEWEST FIRST)
+      // ============================================
+      
+      // Get timestamp from lastMessage.createdAt or lastMessageAt
+      const timeA = convA?.lastMessage?.createdAt 
+        ? new Date(convA.lastMessage.createdAt) 
+        : convA?.lastMessageAt 
+        ? new Date(convA.lastMessageAt) 
+        : null;
+        
+      const timeB = convB?.lastMessage?.createdAt 
+        ? new Date(convB.lastMessage.createdAt) 
+        : convB?.lastMessageAt 
+        ? new Date(convB.lastMessageAt) 
+        : null;
 
-      // 2. Sort by lastMessageAt
-      const timeA = convA?.lastMessageAt ? new Date(convA.lastMessageAt) : null;
-      const timeB = convB?.lastMessageAt ? new Date(convB.lastMessageAt) : null;
-      if (timeA && timeB) return timeB - timeA;
+      // Both have messages → Compare time (NEWEST FIRST)
+      if (timeA && timeB) {
+        const timeDiff = timeB - timeA; // Newer comes first
+        
+        // ============================================
+        // 🔥 PRIORITY 2: unreadCount (IF SAME TIME)
+        // ============================================
+        if (timeDiff === 0) {
+          const unreadA = convA?.unreadCount || 0;
+          const unreadB = convB?.unreadCount || 0;
+          
+          // If same time, unread comes first
+          if (unreadA > 0 && unreadB === 0) return -1;
+          if (unreadA === 0 && unreadB > 0) return 1;
+          
+          // If both have unread or both don't, keep time order
+          return 0;
+        }
+        
+        return timeDiff;
+      }
+
+      // Only A has message → A comes first
       if (timeA) return -1;
+      
+      // Only B has message → B comes first
       if (timeB) return 1;
 
-      // 3. Alphabetical by name
-      const nameA = a.nickname || a.uid || "";
-      const nameB = b.nickname || b.uid || "";
-      return nameA.localeCompare(nameB);
+      // ============================================
+      // 🔥 PRIORITY 3: Alphabetical (NO MESSAGES)
+      // ============================================
+      const nameA = a.nickname || a.fullName || a.uid || "";
+      const nameB = b.nickname || b.fullName || b.uid || "";
+      return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
     });
   }, [friends, getConversationForFriend]);
 
   // ============================================
-  // 🔥 NEW: HANDLE FRIEND SELECTION WITH API CHECK
+  // 🔥 HANDLE FRIEND SELECTION WITH API CHECK
   // ============================================
 
   const handleSelectFriend = useCallback(async (friend) => {
@@ -220,23 +253,23 @@ export default function FriendList({ currentUser, onSelectFriend }) {
     );
   }
 
- return (
-  <div className="flex flex-col flex-1 bg-white">
-    {sortedFriends.map((friend) => {
-      const conversation = getConversationForFriend(friend.uid);
-      const isActive = conversation?._id === activeConversationId;
+  return (
+    <div className="flex flex-col flex-1 bg-white">
+      {sortedFriends.map((friend) => {
+        const conversation = getConversationForFriend(friend.uid);
+        const isActive = conversation?._id === activeConversationId;
 
-      return (
-        <ConversationItem
-          key={friend._id || friend.uid}
-          conversation={conversation}
-          friend={friend}
-          isActive={isActive}
-          currentUserId={currentUser?.uid}
-          onClick={() => handleSelectFriend(friend)}
-        />
-      );
-    })}
-  </div>
-);
+        return (
+          <ConversationItem
+            key={friend._id || friend.uid}
+            conversation={conversation}
+            friend={friend}
+            isActive={isActive}
+            currentUserId={currentUser?.uid}
+            onClick={() => handleSelectFriend(friend)}
+          />
+        );
+      })}
+    </div>
+  );
 }
