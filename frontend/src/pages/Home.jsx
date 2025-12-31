@@ -1,4 +1,4 @@
-// frontend/src/pages/Home.jsx - FIXED MOBILE PADDING
+// frontend/src/pages/Home.jsx - FIXED MOBILE PADDING + onLogout for ContextPanel
 import { useContext, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -226,6 +226,7 @@ export default function Home() {
           onSelectFriend={handleSelectFriend}
           onSelectConversation={handleSelectConversationWithRoute}
           onUpdateRequestCount={setRequestCount}
+          onLogout={handleLogout} // ← ADD THIS for mobile menu
         />
       </div>
 
@@ -265,6 +266,7 @@ export default function Home() {
               onSelectConversation={handleSelectConversationWithRoute}
               onUpdateRequestCount={setRequestCount}
               onBack={handleMobileBack}
+              onLogout={handleLogout} // ← ADD THIS for mobile menu
             />
           </div>
         )}
