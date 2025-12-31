@@ -1,4 +1,4 @@
-// frontend/src/components/Login/LoginFooter.jsx
+// frontend/src/user/components/Login/LoginFooter.jsx
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -6,9 +6,9 @@ import { useTranslation } from "react-i18next";
  * LoginFooter Component
  * 
  * Footer for Login/Register pages with:
- * - Privacy Policy
- * - Cookie Policy  
- * - Terms of Service
+ * - Privacy Policy (opens in new tab)
+ * - Cookie Policy (opens in new tab)
+ * - Terms of Service (opens in new tab)
  * - Language Selector
  */
 export default function LoginFooter() {
@@ -29,9 +29,8 @@ export default function LoginFooter() {
   };
 
   const handleLinkClick = (type) => {
-    // TODO: Navigate to policy pages when implemented
-    console.log(`Navigate to: ${type}`);
-    alert(`Trang "${type}" đang được phát triển`);
+    // Open policy pages in new tab
+    window.open(`/policy/${type}`, "_blank", "noopener,noreferrer");
   };
 
   return (

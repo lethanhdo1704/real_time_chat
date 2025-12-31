@@ -1,0 +1,224 @@
+{
+  "privacy": {
+    "title": "Chính Sách Quyền Riêng Tư",
+    "lastUpdated": "Cập nhật lần cuối",
+    "sections": {
+      "intro": {
+        "title": "Giới Thiệu",
+        "content": "Chúng tôi cam kết bảo vệ quyền riêng tư của bạn. Chính sách này giải thích cách chúng tôi thu thập, sử dụng và bảo vệ thông tin cá nhân của bạn khi sử dụng Real Time Chat."
+      },
+      "collection": {
+        "title": "Thông Tin Chúng Tôi Thu Thập",
+        "items": [
+          "Thông tin tài khoản: email, tên người dùng, mật khẩu (đã mã hóa)",
+          "Thông tin hồ sơ: ảnh đại diện, trạng thái, thông tin cá nhân tùy chọn",
+          "Dữ liệu tin nhắn: nội dung tin nhắn, tệp đính kèm, thời gian gửi",
+          "Thông tin thiết bị: địa chỉ IP, trình duyệt, hệ điều hành",
+          "Dữ liệu sử dụng: tần suất đăng nhập, tương tác với ứng dụng"
+        ]
+      },
+      "usage": {
+        "title": "Cách Chúng Tôi Sử Dụng Thông Tin",
+        "items": [
+          "Cung cấp và cải thiện dịch vụ chat",
+          "Xác thực và bảo mật tài khoản",
+          "Gửi thông báo liên quan đến dịch vụ",
+          "Phân tích và cải thiện trải nghiệm người dùng",
+          "Tuân thủ nghĩa vụ pháp lý"
+        ]
+      },
+      "protection": {
+        "title": "Bảo Vệ Dữ Liệu",
+        "content": "Chúng tôi sử dụng mã hóa SSL/TLS cho tất cả truyền tải dữ liệu. Mật khẩu được băm bằng bcrypt. Dữ liệu được lưu trữ trên máy chủ bảo mật với kiểm soát truy cập nghiêm ngặt."
+      },
+      "sharing": {
+        "title": "Chia Sẻ Thông Tin",
+        "content": "Chúng tôi không bán hoặc cho thuê thông tin cá nhân của bạn. Thông tin chỉ được chia sẻ khi:",
+        "items": [
+          "Có sự đồng ý rõ ràng của bạn",
+          "Yêu cầu pháp lý hoặc quy định chính phủ",
+          "Bảo vệ quyền và an toàn của chúng tôi hoặc người khác"
+        ]
+      },
+      "rights": {
+        "title": "Quyền Của Bạn",
+        "items": [
+          "Truy cập và tải xuống dữ liệu cá nhân",
+          "Chỉnh sửa hoặc cập nhật thông tin",
+          "Xóa tài khoản và dữ liệu",
+          "Từ chối xử lý dữ liệu nhất định",
+          "Khiếu nại với cơ quan bảo vệ dữ liệu"
+        ]
+      },
+      "retention": {
+        "title": "Lưu Trữ Dữ Liệu",
+        "content": "Chúng tôi lưu trữ dữ liệu của bạn trong thời gian tài khoản còn hoạt động. Sau khi xóa tài khoản, dữ liệu sẽ được xóa vĩnh viễn trong vòng 30 ngày, trừ khi pháp luật yêu cầu lưu giữ lâu hơn."
+      },
+      "contact": {
+        "title": "Liên Hệ",
+        "content": "Nếu có câu hỏi về chính sách này, vui lòng liên hệ: privacy@realtimechat.com"
+      }
+    }
+  },
+  "cookies": {
+    "title": "Chính Sách Cookie",
+    "lastUpdated": "Cập nhật lần cuối",
+    "sections": {
+      "intro": {
+        "title": "Cookie Là Gì?",
+        "content": "Cookie là các tệp văn bản nhỏ được lưu trữ trên thiết bị của bạn khi bạn truy cập trang web. Chúng giúp trang web ghi nhớ thông tin về lượt truy cập của bạn."
+      },
+      "types": {
+        "title": "Các Loại Cookie Chúng Tôi Sử Dụng",
+        "essential": {
+          "name": "Cookie Thiết Yếu",
+          "description": "Cần thiết để trang web hoạt động. Bao gồm cookie xác thực, phiên đăng nhập và bảo mật.",
+          "examples": "session_token, auth_token, csrf_token"
+        },
+        "functional": {
+          "name": "Cookie Chức Năng",
+          "description": "Ghi nhớ tùy chọn và cài đặt của bạn để cải thiện trải nghiệm.",
+          "examples": "language_preference, theme_mode, notification_settings"
+        },
+        "analytics": {
+          "name": "Cookie Phân Tích",
+          "description": "Giúp chúng tôi hiểu cách người dùng tương tác với ứng dụng.",
+          "examples": "analytics_id, usage_stats, performance_metrics"
+        },
+        "advertising": {
+          "name": "Cookie Quảng Cáo",
+          "description": "Hiện tại chúng tôi không sử dụng cookie quảng cáo hoặc theo dõi của bên thứ ba."
+        }
+      },
+      "thirdParty": {
+        "title": "Cookie Bên Thứ Ba",
+        "content": "Chúng tôi có thể sử dụng dịch vụ của bên thứ ba như Google Analytics. Các bên này có thể đặt cookie riêng của họ. Vui lòng xem chính sách riêng tư của họ để biết thêm thông tin."
+      },
+      "management": {
+        "title": "Quản Lý Cookie",
+        "content": "Bạn có thể kiểm soát cookie thông qua:",
+        "browser": {
+          "title": "Cài Đặt Trình Duyệt",
+          "description": "Hầu hết trình duyệt cho phép bạn chặn hoặc xóa cookie. Kiểm tra menu trợ giúp của trình duyệt."
+        },
+        "settings": {
+          "title": "Cài Đặt Ứng Dụng",
+          "description": "Bạn có thể quản lý tùy chọn cookie trong phần cài đặt tài khoản của mình."
+        }
+      },
+      "duration": {
+        "title": "Thời Gian Lưu Trữ",
+        "session": "Cookie phiên: Bị xóa khi đóng trình duyệt",
+        "persistent": "Cookie lâu dài: Lưu trữ từ 30 ngày đến 1 năm tùy loại"
+      },
+      "updates": {
+        "title": "Cập Nhật Chính Sách",
+        "content": "Chúng tôi có thể cập nhật chính sách cookie này. Thay đổi quan trọng sẽ được thông báo qua email hoặc thông báo trong ứng dụng."
+      }
+    }
+  },
+  "terms": {
+    "title": "Điều Khoản Dịch Vụ",
+    "lastUpdated": "Cập nhật lần cuối",
+    "sections": {
+      "acceptance": {
+        "title": "Chấp Nhận Điều Khoản",
+        "content": "Bằng việc truy cập và sử dụng Real Time Chat, bạn đồng ý bị ràng buộc bởi các điều khoản này. Nếu không đồng ý, vui lòng không sử dụng dịch vụ."
+      },
+      "services": {
+        "title": "Mô Tả Dịch Vụ",
+        "content": "Real Time Chat cung cấp nền tảng nhắn tin trực tuyến cho phép người dùng:",
+        "items": [
+          "Tạo tài khoản và hồ sơ cá nhân",
+          "Gửi và nhận tin nhắn văn bản, hình ảnh, tệp",
+          "Tạo và tham gia các nhóm chat",
+          "Tùy chỉnh trải nghiệm người dùng",
+          "Kết nối với người dùng khác"
+        ]
+      },
+      "account": {
+        "title": "Tài Khoản Người Dùng",
+        "responsibilities": {
+          "title": "Trách Nhiệm Của Bạn",
+          "items": [
+            "Cung cấp thông tin chính xác và cập nhật",
+            "Bảo mật thông tin đăng nhập",
+            "Thông báo ngay về bất kỳ truy cập trái phép nào",
+            "Chịu trách nhiệm về mọi hoạt động dưới tài khoản của bạn"
+          ]
+        },
+        "restrictions": {
+          "title": "Hạn Chế",
+          "items": [
+            "Phải từ 13 tuổi trở lên để sử dụng dịch vụ",
+            "Một người chỉ có một tài khoản",
+            "Không được chia sẻ tài khoản cho người khác",
+            "Không được mạo danh người khác"
+          ]
+        }
+      },
+      "conduct": {
+        "title": "Quy Tắc Ứng Xử",
+        "prohibited": {
+          "title": "Hành Vi Bị Cấm",
+          "items": [
+            "Gửi nội dung bất hợp pháp, đe dọa, quấy rối hoặc lạm dụng",
+            "Spam hoặc quảng cáo không được phép",
+            "Phát tán phần mềm độc hại hoặc virus",
+            "Vi phạm quyền sở hữu trí tuệ",
+            "Thu thập thông tin người dùng mà không có sự cho phép",
+            "Can thiệp hoặc gián đoạn dịch vụ",
+            "Sử dụng bot hoặc công cụ tự động không được phép"
+          ]
+        },
+        "consequences": {
+          "title": "Hậu Quả Vi Phạm",
+          "content": "Vi phạm có thể dẫn đến cảnh cáo, tạm khóa hoặc xóa vĩnh viễn tài khoản mà không cần thông báo trước."
+        }
+      },
+      "content": {
+        "title": "Nội Dung Người Dùng",
+        "ownership": {
+          "title": "Quyền Sở Hữu",
+          "content": "Bạn giữ quyền sở hữu nội dung mà bạn đăng. Tuy nhiên, bạn cấp cho chúng tôi giấy phép không độc quyền để lưu trữ và hiển thị nội dung đó nhằm cung cấp dịch vụ."
+        },
+        "responsibility": {
+          "title": "Trách Nhiệm",
+          "content": "Bạn chịu trách nhiệm hoàn toàn về nội dung bạn chia sẻ. Đảm bảo bạn có quyền chia sẻ và nội dung không vi phạm bất kỳ quyền nào của người khác."
+        }
+      },
+      "intellectual": {
+        "title": "Quyền Sở Hữu Trí Tuệ",
+        "content": "Dịch vụ và tất cả nội dung, tính năng, chức năng của nó (bao gồm nhưng không giới hạn ở thông tin, phần mềm, văn bản, logo, đồ họa) là tài sản của Real Time Chat và được bảo vệ bởi luật bản quyền quốc tế."
+      },
+      "termination": {
+        "title": "Chấm Dứt",
+        "byUser": "Bạn có thể xóa tài khoản bất kỳ lúc nào trong phần cài đặt.",
+        "byUs": "Chúng tôi có quyền tạm ngưng hoặc chấm dứt tài khoản của bạn nếu bạn vi phạm các điều khoản này hoặc vì bất kỳ lý do nào khác."
+      },
+      "disclaimer": {
+        "title": "Từ Chối Trách Nhiệm",
+        "content": "Dịch vụ được cung cấp \"như hiện tại\" và \"sẵn có\". Chúng tôi không đảm bảo dịch vụ sẽ không bị gián đoạn, an toàn hoặc không có lỗi. Chúng tôi không chịu trách nhiệm về bất kỳ mất mát hoặc thiệt hại nào phát sinh từ việc sử dụng dịch vụ."
+      },
+      "limitation": {
+        "title": "Giới Hạn Trách Nhiệm",
+        "content": "Trong phạm vi tối đa được pháp luật cho phép, Real Time Chat sẽ không chịu trách nhiệm về bất kỳ thiệt hại gián tiếp, ngẫu nhiên, đặc biệt, do hậu quả hoặc trừng phạt nào."
+      },
+      "changes": {
+        "title": "Thay Đổi Điều Khoản",
+        "content": "Chúng tôi có thể sửa đổi các điều khoản này bất kỳ lúc nào. Thay đổi quan trọng sẽ được thông báo qua email hoặc thông báo trong ứng dụng. Việc tiếp tục sử dụng sau thay đổi đồng nghĩa với việc bạn chấp nhận điều khoản mới."
+      },
+      "contact": {
+        "title": "Liên Hệ",
+        "content": "Nếu có câu hỏi về các điều khoản này, vui lòng liên hệ: legal@realtimechat.com"
+      }
+    }
+  },
+  "common": {
+    "backToApp": "Quay lại ứng dụng",
+    "lastUpdatedDate": "Ngày {{date}}",
+    "tableOfContents": "Mục Lục",
+    "printPage": "In trang",
+    "downloadPDF": "Tải PDF"
+  }
+}

@@ -4,13 +4,22 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./user/context/AuthContext";
 import { SocketProvider } from "./user/context/SocketContext";
 import { setViewportHeight } from "./user/utils/setViewportHeight";
+
+// Pages
 import Login from "./user/pages/Login";
 import Register from "./user/pages/Register";
 import Home from "./user/pages/Home";
 import Settings from "./user/pages/Settings";
-import ProtectedRoute from "./user/components/common/ProtectedRoute";
-import NotFound from "./user/pages/NotFound";
 import ForgotPassword from "./user/pages/ForgotPassword";
+import NotFound from "./user/pages/NotFound";
+
+// Policy Pages (Standalone)
+import PrivacyPolicy from "./user/pages/LegalPolicies/PrivacyPolicy";
+import CookiesPolicy from "./user/pages/LegalPolicies/CookiesPolicy";
+import TermsOfService from "./user/pages/LegalPolicies/TermsOfService";
+
+// Components
+import ProtectedRoute from "./user/components/common/ProtectedRoute";
 
 function App() {
   // ============================================
@@ -38,12 +47,23 @@ function App() {
             w-screen
           ">
             <Routes>
-              {/* Public Routes */}
+              {/* ========================================== */}
+              {/* PUBLIC ROUTES - Auth Pages                 */}
+              {/* ========================================== */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgotpassword" element={<ForgotPassword />} />
               
-              {/* Protected Routes - Home (Main Chat Interface) */}
+              {/* ========================================== */}
+              {/* PUBLIC ROUTES - Policy Pages (Standalone) */}
+              {/* ========================================== */}
+              <Route path="/policy/privacy" element={<PrivacyPolicy />} />
+              <Route path="/policy/cookies" element={<CookiesPolicy />} />
+              <Route path="/policy/terms" element={<TermsOfService />} />
+              
+              {/* ========================================== */}
+              {/* PROTECTED ROUTES - Home (Main Chat)       */}
+              {/* ========================================== */}
               <Route
                 path="/"
                 element={
@@ -60,7 +80,9 @@ function App() {
                 <Route path="add" element={null} />
               </Route>
               
-              {/* Protected Routes - Settings (Full Page) */}
+              {/* ========================================== */}
+              {/* PROTECTED ROUTES - Settings (Full Page)   */}
+              {/* ========================================== */}
               <Route
                 path="/settings"
                 element={
@@ -70,7 +92,9 @@ function App() {
                 }
               />
               
-              {/* 404 */}
+              {/* ========================================== */}
+              {/* 404 NOT FOUND                             */}
+              {/* ========================================== */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

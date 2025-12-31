@@ -1,0 +1,224 @@
+{
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated",
+    "sections": {
+      "intro": {
+        "title": "Introduction",
+        "content": "We are committed to protecting your privacy. This policy explains how we collect, use, and protect your personal information when using Real Time Chat."
+      },
+      "collection": {
+        "title": "Information We Collect",
+        "items": [
+          "Account information: email, username, password (encrypted)",
+          "Profile information: avatar, status, optional personal details",
+          "Message data: message content, attachments, timestamps",
+          "Device information: IP address, browser, operating system",
+          "Usage data: login frequency, app interactions"
+        ]
+      },
+      "usage": {
+        "title": "How We Use Information",
+        "items": [
+          "Provide and improve chat services",
+          "Authenticate and secure accounts",
+          "Send service-related notifications",
+          "Analyze and improve user experience",
+          "Comply with legal obligations"
+        ]
+      },
+      "protection": {
+        "title": "Data Protection",
+        "content": "We use SSL/TLS encryption for all data transmission. Passwords are hashed using bcrypt. Data is stored on secure servers with strict access controls."
+      },
+      "sharing": {
+        "title": "Information Sharing",
+        "content": "We do not sell or rent your personal information. Information is only shared when:",
+        "items": [
+          "You give explicit consent",
+          "Required by law or government regulations",
+          "Protecting our rights and safety or others'"
+        ]
+      },
+      "rights": {
+        "title": "Your Rights",
+        "items": [
+          "Access and download your personal data",
+          "Edit or update information",
+          "Delete account and data",
+          "Opt-out of certain data processing",
+          "File complaints with data protection authorities"
+        ]
+      },
+      "retention": {
+        "title": "Data Retention",
+        "content": "We retain your data while your account is active. After account deletion, data will be permanently deleted within 30 days, unless required by law to retain longer."
+      },
+      "contact": {
+        "title": "Contact",
+        "content": "For questions about this policy, please contact: privacy@realtimechat.com"
+      }
+    }
+  },
+  "cookies": {
+    "title": "Cookie Policy",
+    "lastUpdated": "Last updated",
+    "sections": {
+      "intro": {
+        "title": "What Are Cookies?",
+        "content": "Cookies are small text files stored on your device when you visit a website. They help the website remember information about your visit."
+      },
+      "types": {
+        "title": "Types of Cookies We Use",
+        "essential": {
+          "name": "Essential Cookies",
+          "description": "Necessary for the website to function. Include authentication, session, and security cookies.",
+          "examples": "session_token, auth_token, csrf_token"
+        },
+        "functional": {
+          "name": "Functional Cookies",
+          "description": "Remember your preferences and settings to improve experience.",
+          "examples": "language_preference, theme_mode, notification_settings"
+        },
+        "analytics": {
+          "name": "Analytics Cookies",
+          "description": "Help us understand how users interact with the application.",
+          "examples": "analytics_id, usage_stats, performance_metrics"
+        },
+        "advertising": {
+          "name": "Advertising Cookies",
+          "description": "We currently do not use advertising or third-party tracking cookies."
+        }
+      },
+      "thirdParty": {
+        "title": "Third-Party Cookies",
+        "content": "We may use third-party services like Google Analytics. These parties may set their own cookies. Please refer to their privacy policies for more information."
+      },
+      "management": {
+        "title": "Managing Cookies",
+        "content": "You can control cookies through:",
+        "browser": {
+          "title": "Browser Settings",
+          "description": "Most browsers allow you to block or delete cookies. Check your browser's help menu."
+        },
+        "settings": {
+          "title": "App Settings",
+          "description": "You can manage cookie preferences in your account settings."
+        }
+      },
+      "duration": {
+        "title": "Storage Duration",
+        "session": "Session cookies: Deleted when browser closes",
+        "persistent": "Persistent cookies: Stored for 30 days to 1 year depending on type"
+      },
+      "updates": {
+        "title": "Policy Updates",
+        "content": "We may update this cookie policy. Significant changes will be notified via email or in-app notification."
+      }
+    }
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated",
+    "sections": {
+      "acceptance": {
+        "title": "Acceptance of Terms",
+        "content": "By accessing and using Real Time Chat, you agree to be bound by these terms. If you do not agree, please do not use the service."
+      },
+      "services": {
+        "title": "Service Description",
+        "content": "Real Time Chat provides an online messaging platform that allows users to:",
+        "items": [
+          "Create accounts and personal profiles",
+          "Send and receive text messages, images, files",
+          "Create and join group chats",
+          "Customize user experience",
+          "Connect with other users"
+        ]
+      },
+      "account": {
+        "title": "User Account",
+        "responsibilities": {
+          "title": "Your Responsibilities",
+          "items": [
+            "Provide accurate and updated information",
+            "Secure login credentials",
+            "Report unauthorized access immediately",
+            "Responsible for all activities under your account"
+          ]
+        },
+        "restrictions": {
+          "title": "Restrictions",
+          "items": [
+            "Must be 13 years or older to use the service",
+            "One account per person",
+            "Cannot share account with others",
+            "Cannot impersonate others"
+          ]
+        }
+      },
+      "conduct": {
+        "title": "Code of Conduct",
+        "prohibited": {
+          "title": "Prohibited Behaviors",
+          "items": [
+            "Sending illegal, threatening, harassing, or abusive content",
+            "Spam or unauthorized advertising",
+            "Distributing malware or viruses",
+            "Violating intellectual property rights",
+            "Collecting user information without permission",
+            "Interfering with or disrupting the service",
+            "Using unauthorized bots or automated tools"
+          ]
+        },
+        "consequences": {
+          "title": "Consequences of Violations",
+          "content": "Violations may result in warnings, temporary suspension, or permanent account deletion without prior notice."
+        }
+      },
+      "content": {
+        "title": "User Content",
+        "ownership": {
+          "title": "Ownership",
+          "content": "You retain ownership of content you post. However, you grant us a non-exclusive license to store and display that content to provide the service."
+        },
+        "responsibility": {
+          "title": "Responsibility",
+          "content": "You are solely responsible for the content you share. Ensure you have the right to share it and that it does not violate any rights of others."
+        }
+      },
+      "intellectual": {
+        "title": "Intellectual Property",
+        "content": "The service and all its content, features, functionality (including but not limited to information, software, text, logos, graphics) are the property of Real Time Chat and protected by international copyright laws."
+      },
+      "termination": {
+        "title": "Termination",
+        "byUser": "You can delete your account at any time in settings.",
+        "byUs": "We reserve the right to suspend or terminate your account if you violate these terms or for any other reason."
+      },
+      "disclaimer": {
+        "title": "Disclaimer",
+        "content": "The service is provided \"as is\" and \"as available\". We do not guarantee the service will be uninterrupted, secure, or error-free. We are not liable for any loss or damage arising from use of the service."
+      },
+      "limitation": {
+        "title": "Limitation of Liability",
+        "content": "To the maximum extent permitted by law, Real Time Chat shall not be liable for any indirect, incidental, special, consequential, or punitive damages."
+      },
+      "changes": {
+        "title": "Changes to Terms",
+        "content": "We may modify these terms at any time. Significant changes will be notified via email or in-app notification. Continued use after changes constitutes acceptance of the new terms."
+      },
+      "contact": {
+        "title": "Contact",
+        "content": "For questions about these terms, please contact: legal@realtimechat.com"
+      }
+    }
+  },
+  "common": {
+    "backToApp": "Back to app",
+    "lastUpdatedDate": "{{date}}",
+    "tableOfContents": "Table of Contents",
+    "printPage": "Print page",
+    "downloadPDF": "Download PDF"
+  }
+}
