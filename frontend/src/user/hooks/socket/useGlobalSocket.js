@@ -1,8 +1,8 @@
 // frontend/src/hooks/useGlobalSocket.js
 import { useEffect, useContext, useCallback, useRef } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { SocketContext } from "../context/SocketContext"; // 🔥 Use context
-import useChatStore from "../store/chat/chatStore";
+import { AuthContext } from "../../context/AuthContext";
+import { SocketContext } from "../../context/SocketContext"; // 🔥 Use context
+import useChatStore from "../../store/chat/chatStore";
 
 /**
  * Global socket listener for sidebar updates

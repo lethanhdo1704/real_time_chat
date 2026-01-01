@@ -1,6 +1,6 @@
 // frontend/src/hooks/useFriendRequestCount.js
 import { useEffect, useMemo } from "react";
-import useFriendStore from "../store/friendStore";
+import useFriendStore from "../../store/friendStore";
 import useFriendActions from "./useFriendActions";
 
 /**

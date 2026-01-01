@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import useFriendStore from "../../store/friendStore";
-import useFriendActions from "../../hooks/useFriendActions";
+import useFriendActions from "../../hooks/friends/useFriendActions";
 import friendService from "../../services/friendService";
 import AvatarImage from "../common/AvatarImage";
 

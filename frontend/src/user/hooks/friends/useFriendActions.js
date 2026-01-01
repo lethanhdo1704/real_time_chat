@@ -1,7 +1,7 @@
 // frontend/src/hooks/useFriendActions.js
 import { useState } from 'react';
-import friendService from '../services/friendService';
-import useFriendStore from '../store/friendStore';
+import friendService from '../../services/friendService';
+import useFriendStore from '../../store/friendStore';
 
 /**
  * Hook để xử lý các actions với friends

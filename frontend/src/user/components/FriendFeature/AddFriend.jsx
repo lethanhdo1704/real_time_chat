@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import friendService from "../../services/friendService";
-import useFriendActions from "../../hooks/useFriendActions";
+import useFriendActions from "../../hooks/friends/useFriendActions";
 import AvatarImage from "../common/AvatarImage";
 
 /**

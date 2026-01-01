@@ -1,8 +1,8 @@
 // frontend/src/hooks/useFriendSocket.js
 import { useEffect, useCallback, useContext, useRef } from 'react';
-import { SocketContext } from '../context/SocketContext';
-import useFriendStore from '../store/friendStore';
-import friendService from '../services/friendService';
+import { SocketContext } from '../../context/SocketContext';
+import useFriendStore from '../../store/friendStore';
+import friendService from '../../services/friendService';
 
 /**
  * Hook để handle tất cả friend socket events

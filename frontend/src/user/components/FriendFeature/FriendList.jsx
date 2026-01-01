@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import ConversationItem from "../Chat/ConversationItem";
 import useChatStore from "../../store/chat/chatStore";
 import useFriendStore from "../../store/friendStore";
-import useFriendActions from "../../hooks/useFriendActions";
+import useFriendActions from "../../hooks/friends/useFriendActions";
 import { checkConversation } from "../../services/chatApi";
 
 /**

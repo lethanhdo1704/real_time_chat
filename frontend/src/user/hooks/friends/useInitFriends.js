@@ -1,5 +1,5 @@
 // frontend/src/hooks/useInitFriends.js
-import useFriendSocket from './useFriendSocket';
+import useFriendSocket from '../socket/useFriendSocket';
 
 /**
  * Hook để khởi tạo friend system
