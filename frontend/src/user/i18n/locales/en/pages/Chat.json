@@ -47,7 +47,7 @@
     "copy": "Copy",
     "forward": "Forward",
     "edit": "Edit",
-    "recall": "Recall"
+    "recallButton": "Recall"
   },
   "hide": {
     "title": "Hide Message",
@@ -67,6 +67,10 @@
       "description": "The message will be removed from your chat only.",
       "cancel": "Cancel",
       "confirm": "Recall"
-    }
+    },
+    "cancel": "Cancel",
+    "confirm": "Recall",
+    "title": "Recall Message",
+    "subtitle": "Do you want to recall this message for everyone or just for yourself?"
   }
 }
