@@ -1,7 +1,11 @@
 {
   "header": {
     "typing": "Đang nhập...",
-    "online": "Online"
+    "online": "Online",
+    "offline": "Offline",
+    "voiceCall": "Cuộc gọi thoại",
+    "videoCall": "Cuộc gọi video",
+    "moreOptions": "Tùy chọn khác"
   },
   "message": {
     "read": "Đã xem",
@@ -43,6 +47,28 @@
     "copy": "Sao chép",
     "forward": "Chuyển tiếp",
     "edit": "Chỉnh sửa",
-    "delete": "Xóa"
+    "hideButton": "Ẩn tin nhắn",
+    "recallButton": "Thu hồi"
+  },
+  "hide": {
+    "title": "Ẩn tin nhắn",
+    "description": "Tin nhắn sẽ bị ẩn khỏi cuộc trò chuyện của bạn nhưng vẫn hiển thị với người khác.",
+    "cancel": "Hủy",
+    "confirm": "Ẩn"
+  },
+  "recall": {
+    "forEveryone": {
+      "title": "Thu hồi tin nhắn",
+      "description": "Tin nhắn này sẽ bị thu hồi với mọi người trong đoạn chat. Những người khác có thể đã xem hoặc chuyển tiếp tin nhắn đó. Tin nhắn đã thu hồi vẫn có thể bị báo cáo."
+    },
+    "forMe": {
+      "title": "Xóa tin nhắn",
+      "description": "Tin nhắn này sẽ bị gỡ khỏi thiết bị của bạn, nhưng vẫn hiển thị với các thành viên khác trong đoạn chat."
+    },
+    "cancel": "Hủy",
+    "confirm": "Gỡ",
+    "title": "Xác nhận thu hồi",
+    "subtitle": "Bạn muốn thu hồi tin nhắn này cho ai?"
   }
+
 }

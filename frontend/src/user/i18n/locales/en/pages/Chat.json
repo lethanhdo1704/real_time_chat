@@ -1,7 +1,11 @@
 {
   "header": {
     "typing": "Typing...",
-    "online": "Online"
+    "online": "Online",
+    "offline": "Offline",
+    "voiceCall": "Voice Call",
+    "videoCall": "Video Call",
+    "moreOptions": "More Options"
   },
   "message": {
     "read": "Seen",
@@ -43,6 +47,26 @@
     "copy": "Copy",
     "forward": "Forward",
     "edit": "Edit",
-    "delete": "Delete"
+    "recall": "Recall"
+  },
+  "hide": {
+    "title": "Hide Message",
+    "description": "The message will be hidden from your chat but will still be visible to others.",
+    "cancel": "Cancel",
+    "confirm": "Hide"
+  },
+  "recall": {
+    "forEveryone": {
+      "title": "Recall Message for Everyone",
+      "description": "The message will be removed from the chat for all participants.",
+      "cancel": "Cancel",
+      "confirm": "Recall"
+    },
+    "forMe": {
+      "title": "Recall Message for Me",
+      "description": "The message will be removed from your chat only.",
+      "cancel": "Cancel",
+      "confirm": "Recall"
+    }
   }
 }
