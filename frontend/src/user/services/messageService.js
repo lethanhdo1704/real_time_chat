@@ -55,13 +55,14 @@ export const messageService = {
   },
 
   /**
-   * Send a message
+   * Send a message - WITH REPLY SUPPORT
    * @param {string} conversationId - Conversation ID
    * @param {string} content - Message content
    * @param {string} token - Auth token
    * @param {string} type - Message type (text, image, file)
-   * @param {string|null} replyTo - Message ID being replied to
+   * @param {string|null} replyTo - Message ID being replied to (🔥 NEW)
    * @param {Array} attachments - File attachments
+   * @param {string|null} clientMessageId - Client-side message ID for deduplication
    */
   async sendMessage(
     conversationId,
@@ -69,18 +70,30 @@ export const messageService = {
     token,
     type = "text",
     replyTo = null,
-    attachments = []
+    attachments = [],
+    clientMessageId = null
   ) {
+    const body = {
+      conversationId,
+      content,
+      type,
+      attachments,
+    };
+
+    // 🔥 Include replyTo if provided
+    if (replyTo) {
+      body.replyTo = replyTo;
+    }
+
+    // Include clientMessageId for deduplication
+    if (clientMessageId) {
+      body.clientMessageId = clientMessageId;
+    }
+
     const res = await fetch(`${API_BASE_URL}/messages`, {
       method: "POST",
       headers: authHeaders(token),
-      body: JSON.stringify({
-        conversationId,
-        content,
-        type,
-        replyTo,
-        attachments,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -89,7 +102,7 @@ export const messageService = {
     }
 
     const response = await res.json();
-    return response.data; // Message object
+    return response.data; // { message: {...}, conversation: {...} (if new) }
   },
 
   /**

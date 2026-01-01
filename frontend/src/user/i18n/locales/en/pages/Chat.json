@@ -12,7 +12,8 @@
     "placeholder": "Type a message...",
     "selectEmoji": "Select emoji",
     "send": "Send",
-    "uploadImage": "Upload Image"
+    "uploadImage": "Upload Image",
+    "replyingTo": "Replying to"
   },
   "emoji": {
     "search": "Search emoji...",

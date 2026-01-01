@@ -69,18 +69,32 @@ export default function useChatWindowLogic() {
   });
 
   // ============================================
-  // HANDLERS
+  // 🔥 HANDLERS (FIXED - accept replyToId)
   // ============================================
-  const handleSendMessage = async (text) => {
+  const handleSendMessage = async (text, replyToId = null) => {
     if (!text.trim()) return;
 
+    console.log("📤 [useChatWindowLogic] Sending message:", {
+      conversationId: activeConversationId,
+      hasReply: !!replyToId,
+      replyToId,
+    });
+
     try {
+      // 🔥 Get full reply data if replyToId provided
+      let replyToData = null;
+      if (replyToId) {
+        replyToData = useChatStore.getState().findMessageById(activeConversationId, replyToId);
+        console.log("🔍 [useChatWindowLogic] Found reply message:", replyToData);
+      }
+
       const result = await sendMessage(
         activeConversationId,
         activeFriend?.uid,
         {
           content: text.trim(),
           type: "text",
+          replyTo: replyToData, // 🔥 Pass full reply data
         }
       );
 
@@ -176,7 +190,7 @@ export default function useChatWindowLogic() {
     hookMessagesEndRef,
 
     // Handlers
-    handleSendMessage,
+    handleSendMessage, // 🔥 Now accepts (text, replyToId)
     handleTypingChange,
     handleRetryMessage,
     scrollToBottom,

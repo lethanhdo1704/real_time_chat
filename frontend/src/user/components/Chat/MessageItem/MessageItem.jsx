@@ -1,5 +1,4 @@
 // frontend/src/components/Chat/MessageItem/MessageItem.jsx
-import { useState } from "react";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { isBigEmoji } from "../../../utils/emoji";
@@ -7,25 +6,46 @@ import MessageSenderInfo from "./MessageSenderInfo";
 import MessageBubble from "./MessageBubble";
 import MessageActions from "./MessageActions";
 import MessageStatus from "./MessageStatus";
+import useChatStore from "../../../store/chat/chatStore";
 
+/**
+ * MessageItem Component - With Reply Feature
+ * 
+ * ✅ FIXED: Receive conversationId from props (not from store)
+ * ✅ Reply button in actions menu
+ * ✅ Set replyingTo in store
+ * ✅ Pass replyTo data to bubble
+ * ✅ Scroll to replied message on click
+ */
 export default function MessageItem({
   message,
+  conversationId, // ✅ RECEIVE AS PROP
   isMe,
   isGroupChat,
   isPrivateChat,
   showSender = false,
   isLastInGroup = true,
   onRetryMessage,
+  isHighlighted = false,
 }) {
   const { t } = useTranslation("chat");
+
+  // ============================================
+  // 🔥 STORE ACTIONS (NO LONGER READ activeConversation)
+  // ============================================
+  const setReplyingTo = useChatStore((state) => state.setReplyingTo);
+  const setHighlightedMessage = useChatStore((state) => state.setHighlightedMessage);
+
+  // ❌ REMOVED: const activeConversation = useChatStore(...)
+  // ❌ REMOVED: const conversationId = activeConversation?._id || ...
 
   // ============================================
   // MESSAGE DATA
   // ============================================
   const messageText = message.content || message.text || "";
   const isBig = isBigEmoji(messageText);
-  const isPending = message.status === "pending";
-  const isFailed = message.status === "failed";
+  const isPending = message.status === "pending" || message._status === "sending";
+  const isFailed = message.status === "failed" || message._status === "failed";
 
   // ============================================
   // SENDER INFO
@@ -56,21 +76,54 @@ export default function MessageItem({
   const readStatus = getReadStatus();
 
   // ============================================
-  // HANDLERS
+  // 🔥 REPLY HANDLERS (NOW USES PROP conversationId)
   // ============================================
   const handleReply = () => {
-    console.log("Reply to message:", message._id);
-    // TODO: Implement reply logic
+    if (!conversationId) {
+      console.error("❌ No conversationId provided to MessageItem");
+      return;
+    }
+
+    const messageData = {
+      messageId: message.messageId || message._id,
+      content: message.content,
+      type: message.type || "text",
+      sender: message.sender,
+      createdAt: message.createdAt,
+    };
+
+    console.log("✅ Setting reply with prop conversationId:", conversationId);
+    setReplyingTo(conversationId, messageData);
   };
 
+  const handleReplyClick = (replyToId) => {
+    if (!conversationId) return;
+
+    console.log("🎯 Scrolling to replied message:", replyToId);
+
+    const messageElement = document.getElementById(`message-${replyToId}`);
+    
+    if (messageElement) {
+      messageElement.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
+      setHighlightedMessage(conversationId, replyToId);
+    } else {
+      console.warn("⚠️ Replied message not found in DOM:", replyToId);
+    }
+  };
+
+  // ============================================
+  // OTHER HANDLERS
+  // ============================================
   const handleEdit = () => {
     console.log("Edit message:", message._id);
-    // TODO: Implement edit logic
   };
 
   const handleDelete = () => {
     console.log("Delete message:", message._id);
-    // TODO: Implement delete logic
   };
 
   const handleCopy = () => {
@@ -79,7 +132,6 @@ export default function MessageItem({
 
   const handleForward = () => {
     console.log("Forward message:", message._id);
-    // TODO: Implement forward logic
   };
 
   const handleRetry = () => {
@@ -100,7 +152,14 @@ export default function MessageItem({
   // RENDER
   // ============================================
   return (
-    <div className={`flex w-full ${isMe ? "justify-end" : "justify-start"} group relative`}>
+    <div 
+      id={`message-${message.messageId || message._id}`}
+      className={`
+        flex w-full ${isMe ? "justify-end" : "justify-start"} 
+        group relative transition-all duration-300
+        ${isHighlighted ? 'animate-highlight' : ''}
+      `}
+    >
       <div className={`flex w-full flex-col ${isMe ? "items-end" : "items-start"} max-w-[85%] sm:max-w-[75%]`}>
         
         {/* Sender Info */}
@@ -116,6 +175,8 @@ export default function MessageItem({
             isFailed={isFailed}
             isLastInGroup={isLastInGroup}
             editedAt={message.editedAt}
+            replyTo={message.replyTo}
+            onReplyClick={handleReplyClick}
             t={t}
           />
           

@@ -1,13 +1,15 @@
 // frontend/src/store/chat/messageSlice.js
 
 /**
- * Message Slice - PRODUCTION READY
+ * Message Slice - PRODUCTION READY + REPLY FEATURE
  * 
  * Features:
  * ✅ Message deduplication by ID
  * ✅ Optimistic message handling
  * ✅ Proper prepend for pagination
  * ✅ No duplicate messages on load more
+ * ✅ Reply state management (NEW)
+ * ✅ Scroll to replied message (NEW)
  */
 export const createMessageSlice = (set, get) => ({
   // ============================================
@@ -19,6 +21,22 @@ export const createMessageSlice = (set, get) => ({
   hasMoreMessages: new Map(),
   messagesError: new Map(),
   optimisticMessages: new Map(),
+
+  // ============================================
+  // 🔥 NEW: REPLY STATE
+  // ============================================
+  
+  /**
+   * Current message being replied to per conversation
+   * Map<conversationId, replyToMessage>
+   */
+  replyingTo: new Map(),
+
+  /**
+   * Highlighted message after scrolling to it
+   * Map<conversationId, messageId>
+   */
+  highlightedMessage: new Map(),
 
   // ============================================
   // 🔥 HELPER: DEDUPE MESSAGES
@@ -316,5 +334,101 @@ export const createMessageSlice = (set, get) => ({
       optimisticMessages: optimistic,
       messages: messagesMap,
     });
+  },
+
+  // ============================================
+  // 🔥 NEW: REPLY ACTIONS
+  // ============================================
+
+  /**
+   * Set the message being replied to
+   */
+  setReplyingTo: (conversationId, message) => {
+    console.log('💬 [messageSlice] setReplyingTo:', conversationId, message?.messageId);
+    
+    const replyingToMap = new Map(get().replyingTo);
+    
+    if (message) {
+      replyingToMap.set(conversationId, message);
+    } else {
+      replyingToMap.delete(conversationId);
+    }
+    
+    set({ replyingTo: replyingToMap });
+  },
+
+  /**
+   * Clear reply state for a conversation
+   */
+  clearReplyingTo: (conversationId) => {
+    console.log('🧹 [messageSlice] clearReplyingTo:', conversationId);
+    
+    const replyingToMap = new Map(get().replyingTo);
+    replyingToMap.delete(conversationId);
+    
+    set({ replyingTo: replyingToMap });
+  },
+
+  /**
+   * Get current reply-to message for a conversation
+   */
+  getReplyingTo: (conversationId) => {
+    return get().replyingTo.get(conversationId) || null;
+  },
+
+  /**
+   * Highlight a message (after scrolling to it)
+   */
+  setHighlightedMessage: (conversationId, messageId) => {
+    console.log('✨ [messageSlice] setHighlightedMessage:', conversationId, messageId);
+    
+    const highlightedMap = new Map(get().highlightedMessage);
+    
+    if (messageId) {
+      highlightedMap.set(conversationId, messageId);
+      
+      // Auto-clear highlight after 2 seconds
+      setTimeout(() => {
+        const currentHighlighted = get().highlightedMessage.get(conversationId);
+        if (currentHighlighted === messageId) {
+          get().clearHighlightedMessage(conversationId);
+        }
+      }, 2000);
+    } else {
+      highlightedMap.delete(conversationId);
+    }
+    
+    set({ highlightedMessage: highlightedMap });
+  },
+
+  /**
+   * Clear highlighted message
+   */
+  clearHighlightedMessage: (conversationId) => {
+    console.log('🧹 [messageSlice] clearHighlightedMessage:', conversationId);
+    
+    const highlightedMap = new Map(get().highlightedMessage);
+    highlightedMap.delete(conversationId);
+    
+    set({ highlightedMessage: highlightedMap });
+  },
+
+  /**
+   * Get highlighted message ID
+   */
+  getHighlightedMessage: (conversationId) => {
+    return get().highlightedMessage.get(conversationId) || null;
+  },
+
+  /**
+   * Find a message by ID in a conversation
+   * Useful for scroll-to-message feature
+   */
+  findMessageById: (conversationId, messageId) => {
+    const messages = get().messages.get(conversationId) || [];
+    return messages.find(m => {
+      const id = m.messageId || m._id;
+      return id === messageId;
+    }) || null;
   },
 });

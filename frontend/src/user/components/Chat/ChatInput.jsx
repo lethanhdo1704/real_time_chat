@@ -2,13 +2,16 @@
 import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
 import { useTranslation } from "react-i18next";
 import EmojiPicker from "./EmojiPicker";
+import useChatStore from "../../store/chat/chatStore";
 
 /**
- * ChatInput Component - Flexbox Layout
+ * ChatInput Component - With Reply Feature
  * 
- * ✅ FIXED: Removed <style jsx> - moved to index.css
- * ✅ Emoji picker closes when clicking emoji button or outside
- * ✅ FIXED: Emoji insertion doesn't lose typed text
+ * ✅ Reply preview UI
+ * ✅ Clear reply button
+ * ✅ Focus input after setting reply
+ * ✅ Pass replyTo to sendMessage
+ * ✅ FIXED: Use activeConversationId (string) from store
  */
 const ChatInput = forwardRef(({ 
   onSendMessage, 
@@ -25,6 +28,17 @@ const ChatInput = forwardRef(({
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const emojiButtonRef = useRef(null);
+
+  // ============================================
+  // 🔥 REPLY STATE (FIXED - use activeConversationId)
+  // ============================================
+  const conversationId = useChatStore((state) => state.activeConversationId);
+  const clearReplyingTo = useChatStore((state) => state.clearReplyingTo);
+
+  // ✅ Get reply state using conversationId
+  const replyingTo = useChatStore((state) => 
+    conversationId ? state.replyingTo.get(conversationId) : null
+  );
 
   // ============================================
   // EXPOSE FOCUS METHOD TO PARENT
@@ -45,6 +59,17 @@ const ChatInput = forwardRef(({
       }, 100);
     }
   }, [disabled, sending]);
+
+  // ============================================
+  // 🔥 AUTO FOCUS WHEN REPLY IS SET
+  // ============================================
+  useEffect(() => {
+    if (replyingTo && textareaRef.current) {
+      setTimeout(() => {
+        textareaRef.current?.focus({ preventScroll: true });
+      }, 100);
+    }
+  }, [replyingTo]);
 
   // ============================================
   // GLOBAL KEYDOWN → AUTO FOCUS
@@ -74,7 +99,7 @@ const ChatInput = forwardRef(({
   }, [disabled, sending]);
 
   // ============================================
-  // EMOJI PICKER - 🔥 FIXED: Use ref to get current text value
+  // EMOJI PICKER
   // ============================================
   const handleEmojiClick = useCallback((emojiObject) => {
     const textarea = textareaRef.current;
@@ -84,7 +109,6 @@ const ChatInput = forwardRef(({
     const end = textarea.selectionEnd;
     const emoji = emojiObject.emoji;
     
-    // 🔥 Get current value from textarea directly instead of stale state
     const currentText = textarea.value;
     const newText = currentText.substring(0, start) + emoji + currentText.substring(end);
 
@@ -98,13 +122,8 @@ const ChatInput = forwardRef(({
       textarea.style.height = "auto";
       textarea.style.height = Math.min(textarea.scrollHeight, 180) + "px";
     }, 0);
+  }, []);
 
-    // Keep picker open for multiple emoji selections
-  }, []); // 🔥 Remove 'text' dependency - use textarea.value instead
-
-  // ============================================
-  // TOGGLE EMOJI PICKER
-  // ============================================
   const toggleEmojiPicker = useCallback(() => {
     setShowEmojiPicker(prev => !prev);
   }, []);
@@ -156,15 +175,41 @@ const ChatInput = forwardRef(({
   }, [onTypingChange]);
 
   // ============================================
-  // SEND MESSAGE
+  // 🔥 CLEAR REPLY
+  // ============================================
+  const handleClearReply = useCallback(() => {
+    if (conversationId) {
+      console.log("🧹 [ChatInput] Clearing reply for:", conversationId);
+      clearReplyingTo(conversationId);
+      textareaRef.current?.focus({ preventScroll: true });
+    }
+  }, [conversationId, clearReplyingTo]);
+
+  // ============================================
+  // 🔥 SEND MESSAGE WITH REPLY
   // ============================================
   const sendMessage = useCallback(() => {
     if (!text.trim() || disabled || sending) return;
 
     const textarea = textareaRef.current;
 
-    onSendMessage(text);
+    // 🔥 Pass replyTo messageId if exists
+    const replyToId = replyingTo?.messageId || null;
+    
+    console.log("📤 [ChatInput] Sending message with reply:", {
+      conversationId,
+      replyToId,
+      hasReplyData: !!replyingTo
+    });
+
+    onSendMessage(text, replyToId);
+    
     setText("");
+
+    // 🔥 Clear reply state after sending
+    if (replyToId && conversationId) {
+      clearReplyingTo(conversationId);
+    }
 
     if (onTypingChange) {
       onTypingChange(false);
@@ -180,17 +225,44 @@ const ChatInput = forwardRef(({
         textarea.focus({ preventScroll: true });
       });
     }
-  }, [text, disabled, sending, onSendMessage, onTypingChange]);
+  }, [text, disabled, sending, replyingTo, conversationId, onSendMessage, clearReplyingTo, onTypingChange]);
 
   // ============================================
   // KEYBOARD SHORTCUTS
   // ============================================
   const handleKeyPress = useCallback((e) => {
+    // ESC to cancel reply
+    if (e.key === "Escape" && replyingTo) {
+      e.preventDefault();
+      handleClearReply();
+      return;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
-  }, [sendMessage]);
+  }, [sendMessage, replyingTo, handleClearReply]);
+
+  // ============================================
+  // 🔥 TRUNCATE TEXT FOR PREVIEW
+  // ============================================
+  const truncateText = (text, maxLength = 50) => {
+    if (!text) return "";
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + "...";
+  };
+
+  // ============================================
+  // 🔥 DEBUG: Log replyingTo changes
+  // ============================================
+  useEffect(() => {
+    console.log("📊 [ChatInput] State:", {
+      conversationId,
+      hasReplyingTo: !!replyingTo,
+      replyingToData: replyingTo
+    });
+  }, [conversationId, replyingTo]);
 
   // ============================================
   // RENDER
@@ -199,6 +271,59 @@ const ChatInput = forwardRef(({
     <div className="bg-white border-t border-gray-200 shrink-0">
       {/* Centered Content Wrapper */}
       <div className="mx-auto max-w-3xl px-4 py-3 sm:py-4">
+        
+        {/* 🔥 REPLY PREVIEW */}
+        {replyingTo && (
+          <div className="mb-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2.5 animate-in slide-in-from-bottom-2 duration-200">
+            {/* Reply Icon */}
+            <svg
+              className="h-4 w-4 shrink-0 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+              />
+            </svg>
+
+            {/* Reply Info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-700">
+                {t("input.replyingTo") || "Replying to"} {replyingTo.sender?.nickname || "Unknown"}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {truncateText(replyingTo.content, 60)}
+              </p>
+            </div>
+
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={handleClearReply}
+              className="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors"
+              title={t("input.cancelReply") || "Cancel reply"}
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Hidden File Input */}
         <input
           ref={fileInputRef}
@@ -278,6 +403,8 @@ const ChatInput = forwardRef(({
                   ? t("input.disabled") || "Select a conversation to start chatting"
                   : sending
                   ? t("input.sending") || "Sending..."
+                  : replyingTo
+                  ? t("input.replyPlaceholder") || "Type your reply..."
                   : t("input.placeholder") || "Type a message...")
               }
               className={`

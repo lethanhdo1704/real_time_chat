@@ -15,7 +15,7 @@ export function sanitizeContent(content) {
 
 /**
  * Create message with sanitization
- * ✅ FIXED: Proper message creation without session
+ * ✅ COMPLETE: Supports replyTo with proper population
  */
 export async function createMessage({
   conversationId,
@@ -44,11 +44,11 @@ export async function createMessage({
     content: sanitizedContent,
     clientMessageId,
     type,
-    replyTo,
+    replyTo, // ✅ Will be validated by verifyReplyToMessage() before calling this
     attachments,
   };
 
-  // ✅ FIX: Create message properly based on session
+  // ✅ Create message properly based on session
   let message;
   if (session) {
     // With session, must use array syntax
@@ -61,24 +61,33 @@ export async function createMessage({
 
   // Validate message was created with _id
   if (!message._id) {
-    console.error('❌ Message created without _id:', message);
-    throw new Error('Message creation failed - no _id');
+    console.error("❌ Message created without _id:", message);
+    throw new Error("Message creation failed - no _id");
   }
 
-  console.log('✅ Message created with _id:', message._id);
+  console.log("✅ Message created:", {
+    messageId: message._id,
+    hasReply: !!message.replyTo,
+    clientMessageId: message.clientMessageId,
+  });
 
   // Populate sender data
   await message.populate("sender", "uid nickname avatar");
 
-  // Populate replyTo with sender info
+  // ✅ Populate replyTo with full sender info
   if (message.replyTo) {
     await message.populate({
       path: "replyTo",
-      select: "content sender createdAt",
+      select: "content sender createdAt type", // ✅ Include type for UI rendering
       populate: {
         path: "sender",
         select: "uid nickname avatar",
       },
+    });
+
+    console.log("✅ ReplyTo populated:", {
+      replyToId: message.replyTo._id,
+      replyToSender: message.replyTo.sender?.nickname,
     });
   }
 
@@ -87,13 +96,13 @@ export async function createMessage({
 
 /**
  * Format message for response
- * ✅ Includes clientMessageId for optimistic UI
+ * ✅ COMPLETE: Full replyTo formatting with type support
  */
 export function formatMessageResponse(message) {
-  return {
-    messageId: message._id.toString(), // 🔥 FIX: Convert ObjectId to string
+  const formatted = {
+    messageId: message._id.toString(),
     clientMessageId: message.clientMessageId || null,
-    conversation: message.conversation.toString(), // 🔥 FIX: Convert to string
+    conversation: message.conversation.toString(),
     sender: message.sender
       ? {
           uid: message.sender.uid,
@@ -103,21 +112,29 @@ export function formatMessageResponse(message) {
       : null,
     content: message.content,
     type: message.type,
-    replyTo: message.replyTo
-      ? {
-          messageId: message.replyTo._id.toString(), // 🔥 FIX: Convert to string
-          content: message.replyTo.content,
-          sender: message.replyTo.sender
-            ? {
-                uid: message.replyTo.sender.uid,
-                nickname: message.replyTo.sender.nickname,
-              }
-            : null,
-          createdAt: message.replyTo.createdAt,
-        }
-      : null,
     attachments: message.attachments,
     createdAt: message.createdAt,
     editedAt: message.editedAt || null,
   };
+
+  // ✅ Format replyTo with complete information
+  if (message.replyTo) {
+    formatted.replyTo = {
+      messageId: message.replyTo._id.toString(),
+      content: message.replyTo.content,
+      type: message.replyTo.type || "text", // ✅ Include type for proper rendering
+      sender: message.replyTo.sender
+        ? {
+            uid: message.replyTo.sender.uid,
+            nickname: message.replyTo.sender.nickname,
+            avatar: message.replyTo.sender.avatar,
+          }
+        : null,
+      createdAt: message.replyTo.createdAt,
+    };
+  } else {
+    formatted.replyTo = null;
+  }
+
+  return formatted;
 }

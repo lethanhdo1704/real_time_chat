@@ -12,7 +12,8 @@
     "placeholder": "Nhập tin nhắn...",
     "selectEmoji": "Chọn emoji",
     "send": "Gửi",
-    "uploadImage": "Tải ảnh lên"
+    "uploadImage": "Tải ảnh lên",
+    "replyingTo": "Đang trả lời"
   },
   "emoji": {
     "search": "Tìm emoji...",

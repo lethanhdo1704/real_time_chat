@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import ConversationMember from "../../models/ConversationMember.js";
 import Conversation from "../../models/Conversation.js";
 import Friend from "../../models/Friend.js";
+import Message from "../../models/Message.js";
 
 export const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -77,4 +78,54 @@ export function verifyEditTimeLimit(message, maxMinutes = 15) {
   if (Date.now() - message.createdAt.getTime() > timeLimit) {
     throw new Error(`Cannot edit message older than ${maxMinutes} minutes`);
   }
+}
+
+/**
+ * ✅ NEW: Verify reply-to message exists and belongs to conversation
+ * 
+ * @param {string} replyToId - Message ID to reply to
+ * @param {string} conversationId - Current conversation ID
+ * @param {object} session - MongoDB session (optional)
+ * @returns {object|null} Reply-to message or null if not provided
+ * @throws {Error} If replyTo message is invalid, not found, or deleted
+ */
+export async function verifyReplyToMessage(replyToId, conversationId, session = null) {
+  // If no replyTo provided, skip validation
+  if (!replyToId) {
+    return null;
+  }
+
+  // Validate ObjectId format
+  if (!isValidObjectId(replyToId)) {
+    throw new Error("Invalid replyTo messageId format");
+  }
+
+  // Find message with session support
+  const query = {
+    _id: replyToId,
+    conversation: conversationId,
+    deletedAt: null, // ✅ Cannot reply to deleted messages
+  };
+
+  const replyToMessage = session
+    ? await Message.findOne(query).session(session).lean()
+    : await Message.findOne(query).lean();
+
+  // Message must exist
+  if (!replyToMessage) {
+    throw new Error("Reply-to message not found or has been deleted");
+  }
+
+  // ✅ Additional security: Verify message belongs to the same conversation
+  if (replyToMessage.conversation.toString() !== conversationId.toString()) {
+    throw new Error("Reply-to message does not belong to this conversation");
+  }
+
+  console.log("✅ [Validator] Reply-to message verified:", {
+    replyToId,
+    conversationId,
+    messageContent: replyToMessage.content.substring(0, 50),
+  });
+
+  return replyToMessage;
 }

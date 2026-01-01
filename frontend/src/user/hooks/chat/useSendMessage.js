@@ -7,12 +7,12 @@ import useChatStore from '../../store/chat/chatStore';
 import chatApi from '../../services/chatApi';
 
 /**
- * useSendMessage Hook
+ * useSendMessage Hook - With Reply Support
  * 
- * ✅ FINAL FIX (v2):
- * - SET activeConversation IMMEDIATELY after creating new conversation
- * - SET activeFriend to null to exit lazy mode
- * - THEN navigate (UI will already be in correct state)
+ * ✅ Accepts replyTo parameter
+ * ✅ Includes replyTo in optimistic message
+ * ✅ Passes replyTo to API
+ * ✅ Preserves reply data in confirmed message
  */
 const useSendMessage = () => {
   const { user } = useContext(AuthContext);
@@ -50,7 +50,7 @@ const useSendMessage = () => {
       const clientMessageId = `${user.uid}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const tempConversationId = conversationId || 'pending';
 
-      // Create optimistic message
+      // 🔥 Create optimistic message WITH replyTo
       const optimisticMessage = {
         messageId: clientMessageId,
         clientMessageId,
@@ -62,7 +62,7 @@ const useSendMessage = () => {
         },
         content: content.trim(),
         type,
-        replyTo,
+        replyTo: replyTo || null, // 🔥 Include reply data
         attachments: attachments || [],
         createdAt: new Date().toISOString(),
         _optimistic: true,
@@ -80,16 +80,18 @@ const useSendMessage = () => {
           conversationId: conversationId || 'NEW',
           recipientId,
           clientMessageId,
+          hasReply: !!replyTo,
+          replyToId: replyTo?.messageId,
         });
 
-        // Call API with clientMessageId
+        // 🔥 Call API with replyTo
         const response = await chatApi.sendMessage({
           conversationId,
           recipientId,
           content: content.trim(),
           clientMessageId,
           type,
-          replyTo,
+          replyTo: replyTo?.messageId || null, // 🔥 Send only messageId
           attachments,
         });
 
@@ -99,9 +101,10 @@ const useSendMessage = () => {
           clientMessageId,
           messageId: realMessage.messageId,
           conversationCreated: !!newConversation,
+          hasReply: !!realMessage.replyTo,
         });
 
-        // 🔥 FIX: If conversation was just created
+        // If conversation was just created
         if (newConversation && !conversationId) {
           console.log('🆕 New conversation created:', newConversation._id);
           
@@ -123,12 +126,12 @@ const useSendMessage = () => {
             _status: 'sent',
           });
           
-          // 🔥 5️⃣ SET STORE STATE BEFORE NAVIGATE
+          // 5️⃣ SET STORE STATE BEFORE NAVIGATE
           console.log('🎯 Setting active conversation:', actualConversationId);
           setActiveConversation(actualConversationId);
-          setActiveFriend(null); // Clear lazy mode
+          setActiveFriend(null);
           
-          // 6️⃣ Navigate (UI already in correct state)
+          // 6️⃣ Navigate
           setTimeout(() => {
             const tab = newConversation.type === 'group' ? 'groups' : 'friends';
             navigate(`/${tab}/${actualConversationId}`, { replace: true });
@@ -190,7 +193,7 @@ const useSendMessage = () => {
       const convId = conversationId || 'pending';
       removeOptimisticMessage(failedClientMessageId, convId);
 
-      // Resend
+      // Resend with replyTo
       return sendMessage(conversationId, recipientId, {
         content,
         type,

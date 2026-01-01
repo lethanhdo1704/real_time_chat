@@ -3,10 +3,11 @@ import { useMemo } from "react";
 import { format, isToday, isYesterday, isSameDay } from "date-fns";
 import { vi, enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
-import MessageItem from "./MessageItem";
+import MessageItem from "./MessageItem/MessageItem";
 
 export default function MessageList({
   messages,
+  conversationId, // ✅ RECEIVE conversationId as prop
   activeUser,
   isGroupChat,
   isPrivateChat,
@@ -64,7 +65,7 @@ export default function MessageList({
       {groupedMessages.map((group, groupIndex) => (
         <div key={groupIndex} className="flex flex-col gap-1">
           
-          {/* ✅ Date Separator - WRAPPED in max-w-3xl px-4 */}
+          {/* Date Separator */}
           <div className="mx-auto w-full max-w-3xl px-4">
             <div className="flex items-center justify-center my-4">
               <div className="bg-white/80 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm border border-gray-200">
@@ -75,7 +76,7 @@ export default function MessageList({
             </div>
           </div>
 
-          {/* ✅ Messages - EACH wrapped in max-w-3xl px-4 */}
+          {/* Messages */}
           {group.messages.map((msg, msgIndex) => {
             const isMe =
               msg.sender?.uid === activeUser?.uid ||
@@ -100,6 +101,7 @@ export default function MessageList({
               >
                 <MessageItem
                   message={msg}
+                  conversationId={conversationId}
                   isMe={isMe}
                   isGroupChat={isGroupChat}
                   isPrivateChat={isPrivateChat}

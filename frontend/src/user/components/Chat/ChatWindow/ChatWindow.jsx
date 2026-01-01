@@ -12,6 +12,8 @@ import useChatStore from "../../../store/chat/chatStore.js";
 /**
  * ChatWindow Component - Main Container
  * 
+ * ✅ FIXED: Use activeConversationId (string) instead of activeConversation (object)
+ * 
  * Responsibilities:
  * - Layout structure
  * - Compose child components
@@ -23,6 +25,13 @@ export default function ChatWindow() {
   const inputRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // ============================================
+  // 🔥 GET CONVERSATION ID (FIXED - use activeConversationId)
+  // ============================================
+  const conversationId = useChatStore((state) => state.activeConversationId);
+
+  console.log("🔍 [ChatWindow] conversationId:", conversationId);
 
   // ============================================
   // ALL LOGIC IN CUSTOM HOOK
@@ -133,6 +142,7 @@ export default function ChatWindow() {
         typingIndicatorRef={typingIndicatorRef}
         hookMessagesEndRef={hookMessagesEndRef}
         messages={messages}
+        conversationId={conversationId} // ✅ PASS conversationId (string)
         loading={loading}
         hasMore={hasMore}
         displayInfo={displayInfo}

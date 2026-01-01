@@ -7,6 +7,7 @@ export default function ChatWindowBody({
   typingIndicatorRef,
   hookMessagesEndRef,
   messages,
+  conversationId, // ✅ RECEIVE conversationId as prop
   loading,
   hasMore,
   displayInfo,
@@ -97,6 +98,7 @@ export default function ChatWindowBody({
         {messages.length > 0 && (
           <MessageList
             messages={messages}
+            conversationId={conversationId} // ✅ PASS conversationId to MessageList
             activeUser={currentUser}
             isPrivateChat={displayInfo.type === "private"}
             isGroupChat={displayInfo.type === "group"}

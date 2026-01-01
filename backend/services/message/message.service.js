@@ -10,6 +10,7 @@ import {
   verifyConversationAccess,
   verifyMessageOwnership,
   verifyEditTimeLimit,
+  verifyReplyToMessage, // ✅ NEW
 } from "./validators.js";
 import {
   createMessage,
@@ -31,9 +32,7 @@ import socketEmitter from "../socketEmitter.service.js";
 class MessageService {
   /**
    * 🔥 SEND MESSAGE (CORE FUNCTION)
-   * 
-   * ✅ FIXED: Remove transaction for development (standalone MongoDB)
-   * ⚠️ TODO: Add transaction back in production with replica set
+   * ✅ UPDATED: Added replyTo validation
    */
   async sendMessage({
     conversationId,
@@ -49,23 +48,29 @@ class MessageService {
     }
 
     try {
-      // 1️⃣ Verify access (without session)
+      // 1️⃣ Verify access
       const { conversation, member } = await verifyConversationAccess(
         conversationId,
         senderId,
-        null // No session
+        null
       );
 
-      // 2️⃣ Create message (without session)
+      // ✅ 1.5️⃣ NEW: Verify replyTo message if provided
+      if (replyTo) {
+        await verifyReplyToMessage(replyTo, conversationId, null);
+        console.log("✅ [MessageService] Reply-to message validated:", replyTo);
+      }
+
+      // 2️⃣ Create message
       const message = await createMessage({
         conversationId,
         senderId,
         content,
         clientMessageId,
         type,
-        replyTo,
+        replyTo, // ✅ Pass validated replyTo
         attachments,
-        session: null, // No session
+        session: null,
       });
 
       // 3️⃣ Update conversation's lastMessage
@@ -73,7 +78,7 @@ class MessageService {
         conversationId,
         message._id,
         message.createdAt,
-        null // No session
+        null
       );
 
       // 4️⃣ Update sender's read status (unread = 0)
@@ -95,6 +100,12 @@ class MessageService {
         memberUpdates
       );
 
+      console.log("✅ [MessageService] Message sent:", {
+        messageId: messageResponse.messageId,
+        isReply: !!messageResponse.replyTo,
+        replyToId: messageResponse.replyTo?.messageId,
+      });
+
       return { message: messageResponse };
     } catch (error) {
       console.error("❌ [MessageService] sendMessage error:", error);
@@ -103,12 +114,8 @@ class MessageService {
   }
 
   /**
-   * 🔥 GET MESSAGES - CURSOR-BASED PAGINATION (CHUẨN)
-   * 
-   * ✅ Query dựa trên createdAt, không dùng page
-   * ✅ before = messageId → lấy tin CŨ HƠN tin đó
-   * ✅ Fetch limit + 1 để check hasMore
-   * ✅ KHÔNG BAO GIỜ TRÙNG
+   * 🔥 GET MESSAGES - CURSOR-BASED PAGINATION
+   * ✅ UPDATED: Enhanced replyTo population
    */
   async getMessages(conversationId, userId, options = {}) {
     const { before = null, limit = 50 } = options;
@@ -126,16 +133,16 @@ class MessageService {
       throw new Error("Not a member");
     }
 
-    // ✅ Build query
+    // Build query
     const query = {
       conversation: conversationId,
       deletedAt: null,
     };
 
-    // ✅ CURSOR-BASED: Nếu có 'before', chỉ lấy tin CŨ HƠN tin đó
+    // Cursor-based: Get messages older than 'before'
     if (before && isValidObjectId(before)) {
       const beforeMessage = await Message.findById(before).lean();
-      
+
       if (beforeMessage) {
         query.createdAt = { $lt: beforeMessage.createdAt };
       } else {
@@ -150,15 +157,22 @@ class MessageService {
       hasCreatedAtFilter: !!query.createdAt,
     });
 
-    // ✅ Fetch limit + 1 để check hasMore
+    // Fetch limit + 1 to check hasMore
     const messages = await Message.find(query)
-      .sort({ createdAt: -1 }) // Mới nhất trước
+      .sort({ createdAt: -1 })
       .limit(parseInt(limit) + 1)
       .populate("sender", "uid nickname avatar")
-      .populate("replyTo", "content sender")
+      .populate({
+        path: "replyTo",
+        select: "content sender createdAt type", // ✅ Include type
+        populate: {
+          path: "sender",
+          select: "uid nickname avatar", // ✅ Full sender info
+        },
+      })
       .lean();
 
-    // ✅ Check hasMore
+    // Check hasMore
     const hasMore = messages.length > parseInt(limit);
     const finalMessages = hasMore ? messages.slice(0, parseInt(limit)) : messages;
 
@@ -166,22 +180,19 @@ class MessageService {
       fetched: messages.length,
       returned: finalMessages.length,
       hasMore,
-      firstCreatedAt: finalMessages[0]?.createdAt,
-      lastCreatedAt: finalMessages[finalMessages.length - 1]?.createdAt,
-      firstMessageId: finalMessages[0]?._id,
-      lastMessageId: finalMessages[finalMessages.length - 1]?._id,
+      repliesCount: finalMessages.filter((m) => m.replyTo).length,
     });
 
-    // ✅ Reverse để trả về theo thứ tự cũ → mới (như chat)
+    // Reverse to return in chronological order (old → new)
     return {
       messages: finalMessages.reverse().map(formatMessageResponse),
       hasMore,
-      oldestMessageId: finalMessages[0]?._id || null, // Message cũ nhất (để làm cursor cho lần sau)
+      oldestMessageId: finalMessages[0]?._id || null,
     };
   }
 
   /**
-   * 🔥 MARK AS READ (CORE FUNCTION)
+   * 🔥 MARK AS READ
    */
   async markAsRead(conversationId, userId) {
     if (!isValidObjectId(conversationId)) {
@@ -228,6 +239,7 @@ class MessageService {
 
   /**
    * Get last messages for sidebar
+   * ✅ UPDATED: Include reply indicator
    */
   async getLastMessages(conversationIds, userId) {
     if (!Array.isArray(conversationIds) || conversationIds.length === 0) {
@@ -279,6 +291,7 @@ class MessageService {
           content: { $first: "$content" },
           type: { $first: "$type" },
           sender: { $first: "$sender" },
+          replyTo: { $first: "$replyTo" }, // ✅ Include reply indicator
           createdAt: { $first: "$createdAt" },
           editedAt: { $first: "$editedAt" },
         },
@@ -307,6 +320,7 @@ class MessageService {
               avatar: msg.sender.avatar,
             }
           : null,
+        isReply: !!msg.replyTo, // ✅ Flag for frontend to show reply icon
         createdAt: msg.createdAt,
         editedAt: msg.editedAt || null,
         unreadCount: memberData.unreadCount,
@@ -339,6 +353,18 @@ class MessageService {
 
     await message.populate("sender", "uid nickname avatar");
 
+    // ✅ Populate replyTo if exists
+    if (message.replyTo) {
+      await message.populate({
+        path: "replyTo",
+        select: "content sender createdAt type",
+        populate: {
+          path: "sender",
+          select: "uid nickname avatar",
+        },
+      });
+    }
+
     const messageResponse = formatMessageResponse(message);
 
     // Emit socket event
@@ -352,8 +378,6 @@ class MessageService {
 
   /**
    * Delete message (soft delete)
-   * 
-   * ✅ FIXED: Remove transaction for development
    */
   async deleteMessage(messageId, userId) {
     if (!isValidObjectId(messageId)) {
@@ -377,7 +401,7 @@ class MessageService {
       const prevMessage = await updateConversationAfterDeletion(
         message.conversation,
         messageId,
-        null // No session
+        null
       );
 
       let memberUpdates = {};
