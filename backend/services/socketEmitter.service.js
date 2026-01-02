@@ -40,9 +40,10 @@ class SocketEmitter {
       try {
         // 🔥 Emit to user:{PUBLIC_UID}, NOT user:{MONGODB_ID}
         this.io.to(`user:${userUid}`).emit('message_received', {
+          conversationId,
           message: {
             messageId: message.messageId || message._id,
-            conversation: message.conversation,
+            conversation: message.conversation || conversationId,
             content: message.content,
             type: message.type,
             sender: message.sender,
@@ -53,12 +54,14 @@ class SocketEmitter {
             clientMessageId: message.clientMessageId || null
           },
           conversationUpdate: {
+            conversationId,
             lastMessage: {
               messageId: message.messageId || message._id,
               content: message.content,
               sender: message.sender,
               createdAt: message.createdAt
             },
+            lastMessageAt: message.createdAt,
             unreadCount: update.unreadCount,
             lastSeenMessage: update.lastSeenMessage
           }
@@ -81,13 +84,17 @@ class SocketEmitter {
     
     memberIds.forEach(userId => {
       try {
-        this.io.to(`user:${userId}`).emit('message_read', {
-          conversationId,
-          readBy: readByUserId,
-          conversationUpdate: {
-            unreadCount: userId === readByUserId ? 0 : undefined
-          }
-        });
+        // Don't emit to the user who marked as read
+        if (userId !== readByUserId) {
+          this.io.to(`user:${userId}`).emit('message_read', {
+            conversationId,
+            readBy: readByUserId,
+            timestamp: new Date(),
+            conversationUpdate: {
+              unreadCount: userId === readByUserId ? 0 : undefined
+            }
+          });
+        }
       } catch (error) {
         console.error(`❌ [SocketEmitter] Failed to emit to user ${userId}:`, error.message);
       }
@@ -137,38 +144,64 @@ class SocketEmitter {
   }
 
   /**
-   * 🔥 Message deleted with per-user updates
+   * 🆕 Message recalled (KIỂU 3: Thu hồi)
+   * Broadcasts to all conversation members
+   */
+  emitMessageRecalled(conversationId, messageId, recalledBy) {
+    if (!this.isIOAvailable()) return;
+
+    console.log(`📡 [SocketEmitter] Emitting message_recalled to room: ${conversationId}`);
+    
+    try {
+      this.io.to(conversationId).emit('message_recalled', {
+        conversationId,
+        messageId,
+        recalledBy,
+        recalledAt: new Date()
+      });
+    } catch (error) {
+      console.error('❌ [SocketEmitter] Failed to emit message_recalled:', error.message);
+    }
+  }
+
+  /**
+   * 🔥 Message deleted with per-user updates (PRIORITY 1: Admin delete)
    */
   emitMessageDeleted(conversationId, messageId, deletedBy, memberUpdates) {
     if (!this.isIOAvailable()) return;
 
     console.log(`📡 [SocketEmitter] Emitting message_deleted to ${Object.keys(memberUpdates || {}).length} users`);
     
-    if (!memberUpdates || Object.keys(memberUpdates).length === 0) {
+    // If memberUpdates provided, emit to each user with their specific updates
+    if (memberUpdates && Object.keys(memberUpdates).length > 0) {
+      Object.entries(memberUpdates).forEach(([userId, update]) => {
+        try {
+          this.io.to(`user:${userId}`).emit('message_deleted', {
+            conversationId,
+            messageId,
+            deletedBy,
+            conversationUpdate: {
+              conversationId,
+              lastMessage: update.lastMessage,
+              unreadCount: update.unreadCount
+            }
+          });
+        } catch (error) {
+          console.error(`❌ [SocketEmitter] Failed to emit to user ${userId}:`, error.message);
+        }
+      });
+    } else {
+      // Fallback: broadcast to entire conversation room
       try {
         this.io.to(conversationId).emit('message_deleted', {
-          messageId,
           conversationId,
+          messageId,
           deletedBy
         });
       } catch (error) {
         console.error('❌ [SocketEmitter] Failed to emit message_deleted:', error.message);
       }
-      return;
     }
-
-    Object.entries(memberUpdates).forEach(([userId, update]) => {
-      try {
-        this.io.to(`user:${userId}`).emit('message_deleted', {
-          messageId,
-          conversationId,
-          deletedBy,
-          conversationUpdate: update
-        });
-      } catch (error) {
-        console.error(`❌ [SocketEmitter] Failed to emit to user ${userId}:`, error.message);
-      }
-    });
   }
 
   /**
@@ -230,6 +263,25 @@ class SocketEmitter {
   }
 
   /**
+   * 🆕 Conversation created - notify all members
+   */
+  emitConversationCreated(conversation, memberIds) {
+    if (!this.isIOAvailable()) return;
+
+    console.log(`📡 [SocketEmitter] Emitting conversation_created to ${memberIds.length} users`);
+    
+    memberIds.forEach(memberId => {
+      try {
+        this.io.to(`user:${memberId}`).emit('conversation_created', {
+          conversation
+        });
+      } catch (error) {
+        console.error(`❌ [SocketEmitter] Failed to emit to user ${memberId}:`, error.message);
+      }
+    });
+  }
+
+  /**
    * ✅ Member added to group
    */
   emitMemberAdded(conversationId, newMembers) {
@@ -243,6 +295,7 @@ class SocketEmitter {
         members: newMembers
       });
 
+      // Notify each new member individually
       newMembers.forEach(member => {
         this.io.to(`user:${member.uid}`).emit('conversation_joined', {
           conversationId,
@@ -278,7 +331,7 @@ class SocketEmitter {
     }
   }
 
-    /**
+  /**
    * ✅ Generic emit to a single user (soft realtime)
    * Used for: user:update, profile/avatar changes, system events
    */
@@ -286,7 +339,7 @@ class SocketEmitter {
     if (!this.isIOAvailable()) return;
 
     if (!uid || !event) {
-      console.warn('⚠️ [SocketEmitter] emitToUser missing uid or event');
+      console.warn('⚠️  [SocketEmitter] emitToUser missing uid or event');
       return;
     }
 

@@ -3,7 +3,7 @@ import Message from "../../../models/Message.js";
 import ConversationMember from "../../../models/ConversationMember.js";
 import { isValidObjectId, verifyMembership } from "../validators.js";
 import { resetUnreadCount } from "../unread.manager.js";
-import socketEmitter from "../socket.emitter.js";
+import socketEmitter from "../../socketEmitter.service.js";
 import { ValidationError } from "../../../middleware/errorHandler.js";
 
 /**

@@ -6,7 +6,7 @@ import {
   verifyEditTimeLimit,
 } from "../validators.js";
 import { formatMessageResponse, sanitizeContent } from "../message.creator.js";
-import socketEmitter from "../socket.emitter.js";
+import socketEmitter from "../../socketEmitter.service.js";
 import { ValidationError, NotFoundError, AppError } from "../../../middleware/errorHandler.js";
 
 /**

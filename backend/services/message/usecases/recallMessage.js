@@ -1,7 +1,7 @@
 // backend/services/message/usecases/recallMessage.js
 import Message from "../../../models/Message.js";
 import { isValidObjectId, verifyMessageOwnership } from "../validators.js";
-import socketEmitter from "../socket.emitter.js";
+import socketEmitter from "../../socketEmitter.service.js";
 import { ValidationError, NotFoundError, AppError } from "../../../middleware/errorHandler.js";
 
 /**

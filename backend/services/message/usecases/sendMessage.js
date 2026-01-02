@@ -16,7 +16,7 @@ import {
 import {
   updateConversationLastMessage,
 } from "../conversation.helper.js";
-import socketEmitter from "../socket.emitter.js";
+import socketEmitter from "../../socketEmitter.service.js";
 import { ValidationError } from "../../../middleware/errorHandler.js";
 
 /**
