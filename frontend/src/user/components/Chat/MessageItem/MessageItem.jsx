@@ -1,4 +1,4 @@
-// frontend/src/components/Chat/MessageItem/MessageItem.jsx
+// frontend/src/user/components/Chat/MessageItem/MessageItem.jsx
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { isBigEmoji } from "../../../utils/emoji";
@@ -9,17 +9,16 @@ import MessageStatus from "./MessageStatus";
 import useChatStore from "../../../store/chat/chatStore";
 
 /**
- * MessageItem Component - With Reply Feature
+ * MessageItem Component - WITH DELETE FEATURES
  * 
- * ✅ FIXED: Receive conversationId from props (not from store)
- * ✅ Reply button in actions menu
- * ✅ Set replyingTo in store
- * ✅ Pass replyTo data to bubble
- * ✅ Scroll to replied message on click
+ * ✅ Reply feature
+ * ✅ Recalled message placeholder
+ * ✅ Hide/Delete/Recall actions
+ * ✅ Pass conversationId to MessageActions
  */
 export default function MessageItem({
   message,
-  conversationId, // ✅ RECEIVE AS PROP
+  conversationId,
   isMe,
   isGroupChat,
   isPrivateChat,
@@ -30,20 +29,20 @@ export default function MessageItem({
 }) {
   const { t } = useTranslation("chat");
 
-  // ============================================
-  // 🔥 STORE ACTIONS (NO LONGER READ activeConversation)
-  // ============================================
+  // Store actions
   const setReplyingTo = useChatStore((state) => state.setReplyingTo);
   const setHighlightedMessage = useChatStore((state) => state.setHighlightedMessage);
 
-  // ❌ REMOVED: const activeConversation = useChatStore(...)
-  // ❌ REMOVED: const conversationId = activeConversation?._id || ...
+  // ============================================
+  // 🔥 CHECK IF MESSAGE IS RECALLED
+  // ============================================
+  const isRecalled = message.isRecalled || false;
 
   // ============================================
   // MESSAGE DATA
   // ============================================
   const messageText = message.content || message.text || "";
-  const isBig = isBigEmoji(messageText);
+  const isBig = !isRecalled && isBigEmoji(messageText);
   const isPending = message.status === "pending" || message._status === "sending";
   const isFailed = message.status === "failed" || message._status === "failed";
 
@@ -76,11 +75,16 @@ export default function MessageItem({
   const readStatus = getReadStatus();
 
   // ============================================
-  // 🔥 REPLY HANDLERS (NOW USES PROP conversationId)
+  // REPLY HANDLERS
   // ============================================
   const handleReply = () => {
     if (!conversationId) {
       console.error("❌ No conversationId provided to MessageItem");
+      return;
+    }
+
+    // Don't allow reply to recalled messages
+    if (isRecalled) {
       return;
     }
 
@@ -122,10 +126,6 @@ export default function MessageItem({
     console.log("Edit message:", message._id);
   };
 
-  const handleDelete = () => {
-    console.log("Delete message:", message._id);
-  };
-
   const handleCopy = () => {
     navigator.clipboard.writeText(messageText);
   };
@@ -149,7 +149,61 @@ export default function MessageItem({
   };
 
   // ============================================
-  // RENDER
+  // 🔥 RECALLED MESSAGE RENDER
+  // ============================================
+  if (isRecalled) {
+    return (
+      <div 
+        id={`message-${message.messageId || message._id}`}
+        className={`
+          flex w-full ${isMe ? "justify-end" : "justify-start"} 
+          group relative
+        `}
+      >
+        <div className={`flex w-full flex-col ${isMe ? "items-end" : "items-start"} max-w-[85%] sm:max-w-[75%]`}>
+          
+          {/* Sender Info (if not me) */}
+          {senderInfo && <MessageSenderInfo {...senderInfo} />}
+
+          {/* Recalled Message Bubble */}
+          <div className={`
+            inline-flex items-center gap-2 rounded-2xl 
+            ${isMe ? "rounded-br-md" : "rounded-bl-md"}
+            px-4 py-2.5 
+            bg-gray-100 text-gray-500 border border-gray-200
+          `}>
+            <svg
+              className="w-4 h-4 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+              />
+            </svg>
+            <span className="text-sm italic">
+              {isMe 
+                ? (t("message.youRecalled") || "Bạn đã thu hồi tin nhắn")
+                : (t("message.recalled") || "Tin nhắn đã được thu hồi")
+              }
+            </span>
+          </div>
+
+          {/* Time */}
+          <div className={`text-xs text-gray-400 mt-1 px-1 ${isMe ? "text-right" : "text-left"}`}>
+            {formatTime(message.recalledAt || message.createdAt)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================
+  // NORMAL MESSAGE RENDER
   // ============================================
   return (
     <div 
@@ -180,14 +234,17 @@ export default function MessageItem({
             t={t}
           />
           
+          {/* 🔥 PASS REQUIRED PROPS TO MessageActions */}
           <MessageActions
+            message={message}
+            conversationId={conversationId}
             isMe={isMe}
             isFailed={isFailed}
             onReply={handleReply}
             onCopy={handleCopy}
             onEdit={handleEdit}
-            onDelete={handleDelete}
             onForward={handleForward}
+            isOneToOneChat={isPrivateChat}
           />
         </div>
 

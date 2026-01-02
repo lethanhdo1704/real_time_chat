@@ -9,10 +9,6 @@ const authHeaders = (token) => ({
 export const messageService = {
   /**
    * Get messages with pagination
-   * @param {string} conversationId - Conversation ID
-   * @param {string} token - Auth token
-   * @param {string|null} before - Cursor for pagination (messageId)
-   * @param {number} limit - Number of messages to fetch
    */
   async getMessages(conversationId, token, before = null, limit = 50) {
     const params = new URLSearchParams({ limit: limit.toString() });
@@ -31,13 +27,11 @@ export const messageService = {
     }
 
     const response = await res.json();
-    return response.data; // { messages: [], hasMore: boolean }
+    return response.data;
   },
 
   /**
    * Get last messages for multiple conversations (batch)
-   * @param {string[]} conversationIds - Array of conversation IDs
-   * @param {string} token - Auth token
    */
   async getLastMessages(conversationIds, token) {
     const res = await fetch(`${API_BASE_URL}/messages/last-messages`, {
@@ -51,18 +45,11 @@ export const messageService = {
     }
 
     const response = await res.json();
-    return response.data; // { [conversationId]: lastMessage }
+    return response.data;
   },
 
   /**
    * Send a message - WITH REPLY SUPPORT
-   * @param {string} conversationId - Conversation ID
-   * @param {string} content - Message content
-   * @param {string} token - Auth token
-   * @param {string} type - Message type (text, image, file)
-   * @param {string|null} replyTo - Message ID being replied to (🔥 NEW)
-   * @param {Array} attachments - File attachments
-   * @param {string|null} clientMessageId - Client-side message ID for deduplication
    */
   async sendMessage(
     conversationId,
@@ -80,12 +67,10 @@ export const messageService = {
       attachments,
     };
 
-    // 🔥 Include replyTo if provided
     if (replyTo) {
       body.replyTo = replyTo;
     }
 
-    // Include clientMessageId for deduplication
     if (clientMessageId) {
       body.clientMessageId = clientMessageId;
     }
@@ -102,13 +87,11 @@ export const messageService = {
     }
 
     const response = await res.json();
-    return response.data; // { message: {...}, conversation: {...} (if new) }
+    return response.data;
   },
 
   /**
    * Mark messages as read
-   * @param {string} conversationId - Conversation ID
-   * @param {string} token - Auth token
    */
   async markAsRead(conversationId, token) {
     const res = await fetch(`${API_BASE_URL}/messages/read`, {
@@ -128,9 +111,6 @@ export const messageService = {
 
   /**
    * Edit message
-   * @param {string} messageId - Message ID
-   * @param {string} content - New content
-   * @param {string} token - Auth token
    */
   async editMessage(messageId, content, token) {
     const res = await fetch(`${API_BASE_URL}/messages/${messageId}`, {
@@ -148,12 +128,78 @@ export const messageService = {
     return response.data;
   },
 
+  // ============================================
+  // 🆕 3 LOẠI XÓA TIN NHẮN
+  // ============================================
+
   /**
-   * Delete message
-   * @param {string} messageId - Message ID
-   * @param {string} token - Auth token
+   * 🔥 KIỂU 1: Hide Message (Gỡ tin nhắn)
+   * POST /api/messages/:messageId/hide
+   * Anyone can hide any message from their view
+   */
+  async hideMessage(messageId, token) {
+    const res = await fetch(`${API_BASE_URL}/messages/${messageId}/hide`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "Failed to hide message");
+    }
+
+    const response = await res.json();
+    return response;
+  },
+
+  /**
+   * 🔥 KIỂU 2: Delete For Me (Xóa tin nhắn của mình)
+   * DELETE /api/messages/:messageId/delete-for-me
+   * Only sender can delete their own message
+   */
+  async deleteForMe(messageId, token) {
+    const res = await fetch(`${API_BASE_URL}/messages/${messageId}/delete-for-me`, {
+      method: "DELETE",
+      headers: authHeaders(token),
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "Failed to delete message");
+    }
+
+    const response = await res.json();
+    return response;
+  },
+
+  /**
+   * 🔥 KIỂU 3: Recall Message (Thu hồi)
+   * POST /api/messages/:messageId/recall
+   * Only sender can recall within 15 minutes
+   * Socket event broadcasts to all members
+   */
+  async recallMessage(messageId, token) {
+    const res = await fetch(`${API_BASE_URL}/messages/${messageId}/recall`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "Failed to recall message");
+    }
+
+    const response = await res.json();
+    return response;
+  },
+
+  /**
+   * ⚠️ DEPRECATED: Old delete (now admin delete)
+   * Use hideMessage or deleteForMe instead
    */
   async deleteMessage(messageId, token) {
+    console.warn("⚠️ deleteMessage is deprecated, use hideMessage or deleteForMe");
+    
     const res = await fetch(`${API_BASE_URL}/messages/${messageId}`, {
       method: "DELETE",
       headers: authHeaders(token),

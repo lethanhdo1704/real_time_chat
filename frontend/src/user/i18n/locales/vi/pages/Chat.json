@@ -10,7 +10,9 @@
   "message": {
     "read": "Đã xem",
     "sent": "Đã gửi",
-    "retry": "Thử lại"
+    "retry": "Thử lại",
+    "youRecalled": "Bạn đã thu hồi tin nhắn này",
+    "recalled": "Tin nhắn đã bị thu hồi,"
   },
   "input": {
     "startConversation": "Bắt đầu cuộc trò chuyện mới",

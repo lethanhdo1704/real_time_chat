@@ -2,15 +2,17 @@
 import { useEffect, useCallback, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import { getSocket } from "../../services/socketService";
+import useChatStore from "../../store/chat/chatStore";
 
 /**
- * Chat socket hook - Manages chat-specific socket events
+ * Chat socket hook - WITH MESSAGE DELETION EVENTS
  * 
  * @param {Object} params
  * @param {string} params.activeConversationId - Current conversation ID
  * @param {Function} params.onMessageReceived - Callback for new messages
  * @param {Function} params.onMessageEdited - Callback for edited messages
- * @param {Function} params.onMessageDeleted - Callback for deleted messages
+ * @param {Function} params.onMessageDeleted - Callback for deleted messages (admin)
+ * @param {Function} params.onMessageRecalled - 🆕 Callback for recalled messages
  * @param {Function} params.onTyping - Callback for typing indicators
  * @param {Function} params.onMessageRead - Callback for read receipts
  */
@@ -19,10 +21,15 @@ export const useChatSocket = ({
   onMessageReceived,
   onMessageEdited,
   onMessageDeleted,
+  onMessageRecalled, // 🆕 NEW
   onTyping,
   onMessageRead,
 }) => {
   const { user } = useContext(AuthContext);
+  
+  // 🆕 Get store actions for message deletion
+  const recallMessageFromSocket = useChatStore((state) => state.recallMessageFromSocket);
+  const deleteMessageFromSocket = useChatStore((state) => state.deleteMessageFromSocket);
 
   // ============================================
   // EMIT FUNCTIONS
@@ -61,36 +68,19 @@ export const useChatSocket = ({
 
     console.log("💬 [useChatSocket] Setting up listeners for:", activeConversationId);
 
-    // 🔥 DEBUG: Test if socket can receive ANY event
-    const testHandler = (eventName) => (data) => {
-      console.log(`🔥 [DEBUG] Event "${eventName}" received:`, data);
-    };
-
-    // ✅ Message received handler with full debug
+    // ✅ Message received handler
     const handleMessageReceived = (data) => {
-      console.log("🔥 [DEBUG] message_received RAW data:", data);
+      console.log("🔥 [DEBUG] message_received:", data);
       
-      // Check data structure
-      if (!data) {
-        console.error("❌ [DEBUG] No data received");
-        return;
-      }
-      
-      const { message, conversationUpdate } = data;
+      const { message } = data;
       
       if (!message) {
-        console.error("❌ [DEBUG] No message in data:", data);
+        console.error("❌ [DEBUG] No message in data");
         return;
       }
-      
-      console.log("🔥 [DEBUG] Message conversation:", message.conversation);
-      console.log("🔥 [DEBUG] Active conversation:", activeConversationId);
-      console.log("🔥 [DEBUG] Match:", message.conversation === activeConversationId);
       
       if (message.conversation !== activeConversationId) {
         console.warn("⚠️ [DEBUG] Message for different conversation");
-        console.log("   Expected:", activeConversationId);
-        console.log("   Got:", message.conversation);
         return;
       }
       
@@ -98,17 +88,14 @@ export const useChatSocket = ({
         messageId: message.messageId,
         from: message.sender?.nickname,
         isOwn: message.sender?.uid === user?.uid,
-        content: message.content
       });
 
       if (onMessageReceived) {
-        console.log("✅ [DEBUG] Calling onMessageReceived callback");
         onMessageReceived(message);
-      } else {
-        console.warn("⚠️ [DEBUG] onMessageReceived callback is null/undefined");
       }
     };
 
+    // ✅ Message edited handler
     const handleMessageEdited = (data) => {
       console.log("🔥 [DEBUG] message_edited:", data);
       const { message } = data;
@@ -116,13 +103,35 @@ export const useChatSocket = ({
       onMessageEdited?.(message);
     };
 
+    // ✅ Message deleted handler (admin delete - PRIORITY 1)
     const handleMessageDeleted = (data) => {
       console.log("🔥 [DEBUG] message_deleted:", data);
       const { messageId, conversationId } = data;
+      
       if (conversationId !== activeConversationId) return;
+      
+      // Update Redux store
+      deleteMessageFromSocket(conversationId, messageId);
+      
+      // Call callback if provided
       onMessageDeleted?.(messageId);
     };
 
+    // 🆕 Message recalled handler (PRIORITY 2)
+    const handleMessageRecalled = (data) => {
+      console.log("🔥 [DEBUG] message_recalled:", data);
+      const { conversationId, messageId, recalledBy, recalledAt } = data;
+      
+      if (conversationId !== activeConversationId) return;
+      
+      // Update Redux store
+      recallMessageFromSocket(conversationId, messageId, recalledBy, recalledAt);
+      
+      // Call callback if provided
+      onMessageRecalled?.(data);
+    };
+
+    // ✅ Typing indicator handler
     const handleUserTyping = (data) => {
       console.log("🔥 [DEBUG] user_typing:", data);
       const { conversationId, user: typingUser, isTyping } = data;
@@ -131,6 +140,7 @@ export const useChatSocket = ({
       }
     };
 
+    // ✅ Message read handler
     const handleMessageRead = (data) => {
       console.log("🔥 [DEBUG] message_read:", data);
       const { conversationId, user: readByUser, lastSeenMessage } = data;
@@ -144,6 +154,7 @@ export const useChatSocket = ({
     socket.on("message_received", handleMessageReceived);
     socket.on("message_edited", handleMessageEdited);
     socket.on("message_deleted", handleMessageDeleted);
+    socket.on("message_recalled", handleMessageRecalled); // 🆕 NEW
     socket.on("user_typing", handleUserTyping);
     socket.on("message_read", handleMessageRead);
     console.log("✅ [DEBUG] All listeners registered");
@@ -152,13 +163,6 @@ export const useChatSocket = ({
     console.log("📥 [DEBUG] Emitting join_conversation:", activeConversationId);
     socket.emit("join_conversation", { conversationId: activeConversationId });
 
-    // Test: Listen to ANY event
-    socket.onAny((eventName, ...args) => {
-      if (eventName.startsWith('message') || eventName.startsWith('user')) {
-        console.log(`🌐 [DEBUG] ANY EVENT: "${eventName}"`, args);
-      }
-    });
-
     // Cleanup
     return () => {
       console.log("🧹 [DEBUG] Cleaning up listeners for:", activeConversationId);
@@ -166,9 +170,9 @@ export const useChatSocket = ({
       socket.off("message_received", handleMessageReceived);
       socket.off("message_edited", handleMessageEdited);
       socket.off("message_deleted", handleMessageDeleted);
+      socket.off("message_recalled", handleMessageRecalled); // 🆕 NEW
       socket.off("user_typing", handleUserTyping);
       socket.off("message_read", handleMessageRead);
-      socket.offAny();
       
       socket.emit("leave_conversation", { conversationId: activeConversationId });
       console.log("💬 [DEBUG] Cleaned up for:", activeConversationId);
@@ -179,8 +183,11 @@ export const useChatSocket = ({
     onMessageReceived,
     onMessageEdited,
     onMessageDeleted,
+    onMessageRecalled, // 🆕 NEW
     onTyping,
-    onMessageRead
+    onMessageRead,
+    recallMessageFromSocket, // 🆕 Store action
+    deleteMessageFromSocket, // 🆕 Store action
   ]);
 
   return {

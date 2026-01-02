@@ -1,64 +1,93 @@
-// frontend/src/components/Chat/MessageItem/MessageActions.jsx
-import { useState, useRef, useEffect } from "react";
+// frontend/src/user/components/Chat/MessageItem/MessageActions.jsx
+import { useState, useRef, useEffect, useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { AuthContext } from "../../../context/AuthContext";
+import { messageService } from "../../../services/messageService";
+import useChatStore from "../../../store/chat/chatStore";
 import RecallMessageModal from "./RecallMessageModal";
 import HideMessageModal from "./HideMessageModal";
 
 export default function MessageActions({
+  message,
+  conversationId,
   isMe,
   isFailed,
   onReply,
   onCopy,
   onEdit,
-  onDelete,
   onForward,
   onReact,
-  onHide, // 🔥 NEW: Hide message for other's messages
-  isOneToOneChat = true, // 🔥 NEW: Check if it's 1-1 chat
+  isOneToOneChat = true,
 }) {
   const { t } = useTranslation("chat");
+  const { token } = useContext(AuthContext);
+  
+  // Store actions
+  const hideMessageLocal = useChatStore((state) => state.hideMessageLocal);
+  
   const [showMenu, setShowMenu] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [showRecallModal, setShowRecallModal] = useState(false);
-  const [showHideConfirm, setShowHideConfirm] = useState(false); // 🔥 NEW: Hide confirmation
+  const [showHideModal, setShowHideModal] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // 🔥 NEW: Smart positioning state
-  const [menuPosition, setMenuPosition] = useState("top"); // 'top' or 'bottom'
-  const [reactionsPosition, setReactionsPosition] = useState("top"); // 'top' or 'bottom'
+  const [menuPosition, setMenuPosition] = useState("top");
+  const [reactionsPosition, setReactionsPosition] = useState("top");
 
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
   const reactionsRef = useRef(null);
 
-  // 🔥 NEW: Calculate position when menu opens
+  // ============================================
+  // PERMISSION CHECKS
+  // ============================================
+
+  // Check if message can be recalled (within 15 minutes)
+  const canRecall = () => {
+    if (!isMe) return false;
+    if (message.isRecalled) return false;
+    if (message.deletedAt) return false;
+
+    const messageTime = new Date(message.createdAt).getTime();
+    const now = Date.now();
+    const fifteenMinutes = 15 * 60 * 1000;
+
+    return now - messageTime <= fifteenMinutes;
+  };
+
+  const canHide = !message.deletedAt && !message.isRecalled;
+  const canDeleteForMe = isMe && !message.deletedAt && !message.isRecalled;
+
+  // ============================================
+  // POSITION CALCULATION
+  // ============================================
+
   useEffect(() => {
     if (showMenu && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       const spaceAbove = rect.top;
       const spaceBelow = window.innerHeight - rect.bottom;
-
-      // If not enough space above (less than 250px), show below
       setMenuPosition(
         spaceAbove < 250 && spaceBelow > spaceAbove ? "bottom" : "top"
       );
     }
   }, [showMenu]);
 
-  // 🔥 NEW: Calculate position for reactions
   useEffect(() => {
     if (showReactions && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       const spaceAbove = rect.top;
       const spaceBelow = window.innerHeight - rect.bottom;
-
-      // If not enough space above (less than 60px), show below
       setReactionsPosition(
         spaceAbove < 60 && spaceBelow > spaceAbove ? "bottom" : "top"
       );
     }
   }, [showReactions]);
 
-  // Close menu when clicking outside
+  // ============================================
+  // CLICK OUTSIDE HANDLER
+  // ============================================
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -89,6 +118,10 @@ export default function MessageActions({
     };
   }, [showMenu, showReactions]);
 
+  // ============================================
+  // HANDLERS
+  // ============================================
+
   const handleAction = (action) => {
     action();
     setShowMenu(false);
@@ -101,33 +134,81 @@ export default function MessageActions({
     setShowReactions(false);
   };
 
-  // 🔥 Handle recall button click
+  /**
+   * 🔥 KIỂU 3: Recall Message (Thu hồi)
+   */
   const handleRecallClick = () => {
     setShowMenu(false);
     setShowRecallModal(true);
   };
 
-  // 🔥 Handle recall confirmation
-  const handleRecallConfirm = (recallType) => {
-    if (onDelete) {
-      // recallType: 'everyone' or 'me'
-      onDelete(recallType);
-    }
+  const handleRecallConfirm = async (recallType) => {
     setShowRecallModal(false);
+    
+    if (loading) return;
+    setLoading(true);
+
+    try {
+      const messageId = message.messageId || message._id;
+
+      if (recallType === "everyone") {
+        // KIỂU 3: Thu hồi cho mọi người
+        console.log("↩️ Recalling message for everyone:", messageId);
+        
+        await messageService.recallMessage(messageId, token);
+        
+        // Socket event will update all clients
+        console.log("✅ Message recalled successfully");
+        
+      } else {
+        // KIỂU 2: Xóa cho mình
+        console.log("🗑️ Deleting for me:", messageId);
+        
+        await messageService.deleteForMe(messageId, token);
+        
+        // Update local state only
+        hideMessageLocal(conversationId, messageId);
+        console.log("✅ Message deleted for me");
+      }
+    } catch (error) {
+      console.error("❌ Error:", error);
+      alert(error.message || "Có lỗi xảy ra");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 🔥 NEW: Handle hide message click
+  /**
+   * 🔥 KIỂU 1: Hide Message (Gỡ tin nhắn)
+   */
   const handleHideClick = () => {
     setShowMenu(false);
-    setShowHideConfirm(true);
+    setShowHideModal(true);
   };
 
-  // 🔥 NEW: Handle hide confirmation
-  const handleHideConfirm = () => {
-    if (onHide) {
-      onHide();
+  const handleHideConfirm = async () => {
+    setShowHideModal(false);
+    
+    if (loading) return;
+    setLoading(true);
+
+    try {
+      const messageId = message.messageId || message._id;
+      
+      console.log("👁️‍🗨️ Hiding message:", messageId);
+      
+      await messageService.hideMessage(messageId, token);
+      
+      // Update local state only
+      hideMessageLocal(conversationId, messageId);
+      console.log("✅ Message hidden successfully");
+      
+    } catch (error) {
+      console.error("❌ Hide message error:", error);
+      alert(error.message || "Không thể gỡ tin nhắn");
+    } finally {
+      setLoading(false);
     }
-    setShowHideConfirm(false);
   };
 
   const reactions = ["❤️", "😂", "😮", "😢", "😡", "👍"];
@@ -162,7 +243,7 @@ export default function MessageActions({
             </svg>
           </button>
 
-          {/* 🔥 IMPROVED: Reactions Picker with Smart Positioning */}
+          {/* Reactions Picker */}
           {showReactions && (
             <div
               ref={reactionsRef}
@@ -239,7 +320,7 @@ export default function MessageActions({
           </svg>
         </button>
 
-        {/* 🔥 IMPROVED: Dropdown Menu with Smart Positioning */}
+        {/* Dropdown Menu */}
         {showMenu && (
           <div
             ref={menuRef}
@@ -277,10 +358,12 @@ export default function MessageActions({
             )}
 
             {/* Divider */}
-            {isMe && <div className="h-px bg-gray-200 my-1" />}
+            {(isMe || (!isMe && isOneToOneChat && canHide)) && (
+              <div className="h-px bg-gray-200 my-1" />
+            )}
 
-            {/* 🔥 RECALL (Replace Delete - Only for own messages) */}
-            {isMe && (
+            {/* 🔥 RECALL (Only for own messages within 15 min) */}
+            {isMe && canRecall() && (
               <MenuItem
                 icon={<RecallIcon />}
                 label={t("actions.recallButton") || "Thu hồi"}
@@ -289,22 +372,19 @@ export default function MessageActions({
               />
             )}
 
-            {/* 🔥 NEW: HIDE (Only for other's messages in 1-1 chat) */}
-            {!isMe && isOneToOneChat && (
-              <>
-                <div className="h-px bg-gray-200 my-1" />
-                <MenuItem
-                  icon={<HideIcon />}
-                  label={t("actions.hideButton") || "Ẩn tin nhắn"}
-                  onClick={handleHideClick}
-                  danger
-                />
-              </>
+            {/* 🔥 HIDE (Only for other's messages in 1-1 chat) */}
+            {!isMe && isOneToOneChat && canHide && (
+              <MenuItem
+                icon={<HideIcon />}
+                label={t("actions.hideButton") || "Gỡ tin nhắn"}
+                onClick={handleHideClick}
+                danger
+              />
             )}
           </div>
         )}
 
-        {/* Global keyframes */}
+        {/* Animations */}
         {(showMenu || showReactions) && (
           <style
             dangerouslySetInnerHTML={{
@@ -332,10 +412,10 @@ export default function MessageActions({
         onConfirm={handleRecallConfirm}
       />
 
-      {/* 🔥 NEW: HIDE MESSAGE MODAL */}
+      {/* 🔥 HIDE MESSAGE MODAL */}
       <HideMessageModal
-        isOpen={showHideConfirm}
-        onClose={() => setShowHideConfirm(false)}
+        isOpen={showHideModal}
+        onClose={() => setShowHideModal(false)}
         onConfirm={handleHideConfirm}
       />
     </>
