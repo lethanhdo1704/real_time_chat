@@ -10,7 +10,9 @@
   "message": {
     "read": "Seen",
     "sent": "Sent",
-    "retry": "Retry"
+    "retry": "Retry",
+    "youRecalled": "You have recalled this message",
+    "recalled": "This message has been recalled"
   },
   "input": {
     "startConversation": "Start a new conversation",

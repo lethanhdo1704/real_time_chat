@@ -1,4 +1,3 @@
-// frontend/src/components/Chat/MessageItem/HideMessageModal.jsx
 import { useTranslation } from "react-i18next";
 
 export default function HideMessageModal({ isOpen, onClose, onConfirm }) {
@@ -77,35 +76,37 @@ export default function HideMessageModal({ isOpen, onClose, onConfirm }) {
       </div>
 
       {/* Animations */}
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
+      <style>
+        {`
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+            }
+            to {
+              opacity: 1;
+            }
           }
-          to {
-            opacity: 1;
-          }
-        }
 
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px) scale(0.95);
+          @keyframes slideUp {
+            from {
+              opacity: 0;
+              transform: translateY(20px) scale(0.95);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
           }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
+
+          .animate-fadeIn {
+            animation: fadeIn 0.2s ease-out;
           }
-        }
 
-        .animate-fadeIn {
-          animation: fadeIn 0.2s ease-out;
-        }
-
-        .animate-slideUp {
-          animation: slideUp 0.3s ease-out;
-        }
-      `}</style>
+          .animate-slideUp {
+            animation: slideUp 0.3s ease-out;
+          }
+        `}
+      </style>
     </>
   );
 }
