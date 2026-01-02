@@ -9,7 +9,8 @@
   },
   "message": {
     "read": "Seen",
-    "sent": "Sent"
+    "sent": "Sent",
+    "retry": "Retry"
   },
   "input": {
     "startConversation": "Start a new conversation",

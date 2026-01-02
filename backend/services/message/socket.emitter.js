@@ -11,23 +11,23 @@ class SocketEmitter {
   }
 
   /**
-   * ✅ FIXED: Emit new message with proper structure
+   * Emit new message with proper structure
    */
   emitNewMessage(conversationId, message, memberUpdates) {
     if (!this.io) return;
 
     console.log(`📤 [Socket] Emitting new message to conversation: ${conversationId}`);
 
-    // ✅ Emit to each member with their specific unread count
+    // Emit to each member with their specific unread count
     Object.keys(memberUpdates).forEach((userId) => {
       const updateData = {
-        conversationId,  // ✅ Already at top level - GOOD!
+        conversationId,
         message: {
           ...message,
-          conversation: conversationId  // ✅ Also add inside message for safety
+          conversation: conversationId
         },
         conversationUpdate: {
-          conversationId,  // ✅ Duplicate for extra safety
+          conversationId,
           lastMessage: {
             content: message.content,
             createdAt: message.createdAt,
@@ -49,7 +49,7 @@ class SocketEmitter {
   }
 
   /**
-   * ✅ FIXED: Emit message read with proper structure
+   * Emit message read with proper structure
    */
   emitMessageRead(conversationId, readByUserId, memberIds) {
     if (!this.io) return;
@@ -59,7 +59,7 @@ class SocketEmitter {
     memberIds.forEach((memberId) => {
       if (memberId !== readByUserId) {
         this.io.to(`user:${memberId}`).emit("message_read", {
-          conversationId,  // ✅ Add conversationId
+          conversationId,
           readBy: readByUserId,
           timestamp: new Date(),
         });
@@ -68,7 +68,7 @@ class SocketEmitter {
   }
 
   /**
-   * ✅ FIXED: Emit message edited with conversationId
+   * Emit message edited with conversationId
    */
   emitMessageEdited(conversationId, message) {
     if (!this.io) return;
@@ -76,13 +76,31 @@ class SocketEmitter {
     console.log(`✏️  [Socket] Emitting message_edited for conversation: ${conversationId}`);
 
     this.io.to(conversationId).emit("message_edited", {
-      conversationId,  // ✅ Add this
+      conversationId,
       message,
     });
   }
 
   /**
-   * ✅ FIXED: Emit message deleted with proper structure
+   * 🆕 Emit message recalled (KIỂU 3: Thu hồi)
+   * Broadcasts to all conversation members
+   */
+  emitMessageRecalled(conversationId, messageId, recalledBy) {
+    if (!this.io) return;
+
+    console.log(`↩️  [Socket] Emitting message_recalled for conversation: ${conversationId}`);
+
+    this.io.to(conversationId).emit("message_recalled", {
+      conversationId,
+      messageId,
+      recalledBy,
+      recalledAt: new Date(),
+    });
+  }
+
+  /**
+   * Emit message deleted with proper structure
+   * This is for admin delete (PRIORITY 1)
    */
   emitMessageDeleted(conversationId, messageId, deletedBy, memberUpdates) {
     if (!this.io) return;
@@ -92,10 +110,10 @@ class SocketEmitter {
     if (Object.keys(memberUpdates).length > 0) {
       Object.keys(memberUpdates).forEach((userId) => {
         this.io.to(`user:${userId}`).emit("message_deleted", {
-          conversationId,  // ✅ Keep at top level
+          conversationId,
           messageId,
           deletedBy,
-          conversationUpdate: {  // ✅ Wrap in conversationUpdate
+          conversationUpdate: {
             conversationId,
             lastMessage: memberUpdates[userId].lastMessage,
             unreadCount: memberUpdates[userId].unreadCount
@@ -104,7 +122,7 @@ class SocketEmitter {
       });
     } else {
       this.io.to(conversationId).emit("message_deleted", {
-        conversationId,  // ✅ Add this
+        conversationId,
         messageId,
         deletedBy,
       });

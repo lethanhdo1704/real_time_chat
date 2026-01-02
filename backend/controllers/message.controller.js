@@ -9,7 +9,7 @@ class MessageController {
     try {
       const {
         conversationId,
-        recipientId, // 🔥 For lazy conversation creation
+        recipientId,
         content,
         clientMessageId,
         type,
@@ -42,30 +42,25 @@ class MessageController {
       let finalConversationId = conversationId;
       let newConversation = null;
 
-      // If no conversationId, create conversation with recipientId
       if (!conversationId && recipientId) {
         console.log("🆕 [MessageController] Creating conversation with:", recipientId);
 
         try {
-          // ✅ FIX: Use req.user.uid (not req.user.id)
-          // Service expects uid string, not ObjectId
           const conversationData = await conversationService.createPrivate(
-            req.user.uid,  // ✅ FIXED: uid string
-            recipientId    // uid string
+            req.user.uid,
+            recipientId
           );
 
           finalConversationId = conversationData.conversationId;
 
           console.log("✅ [MessageController] Conversation created:", finalConversationId);
 
-          // Fetch conversation with members
           newConversation = await Conversation.findById(finalConversationId).lean();
 
           if (!newConversation) {
             throw new Error("Failed to fetch created conversation");
           }
 
-          // Get conversation members with user info
           const members = await ConversationMember.find({
             conversation: finalConversationId,
             leftAt: null,
@@ -73,7 +68,6 @@ class MessageController {
             .populate("user", "uid nickname avatar fullName status")
             .lean();
 
-          // Add members to conversation object
           newConversation.participants = members.map((m) => ({
             user: m.user,
             role: m.role,
@@ -103,18 +97,13 @@ class MessageController {
       console.log("📤 [MessageController] Sending message:", {
         conversationId: finalConversationId,
         clientMessageId,
-        senderId: req.user.id,  // ✅ Keep using id (ObjectId) for message sender
+        senderId: req.user.id,
         contentLength: content.length,
       });
 
-      // Service handles EVERYTHING:
-      // - Create message
-      // - Format response (returns messageId, not _id)
-      // - Update unreadCount
-      // - Emit socket events
       const result = await messageService.sendMessage({
         conversationId: finalConversationId,
-        senderId: req.user.id,  // ✅ Keep using id for message operations
+        senderId: req.user.id,
         content,
         clientMessageId,
         type,
@@ -161,7 +150,7 @@ class MessageController {
 
       const result = await messageService.getMessages(
         conversationId,
-        req.user.id,  // ✅ Keep using id for message queries
+        req.user.id,
         {
           before,
           limit: parseInt(limit),
@@ -206,7 +195,7 @@ class MessageController {
 
       const result = await messageService.markAsRead(
         conversationId,
-        req.user.id  // ✅ Keep using id
+        req.user.id
       );
 
       console.log(
@@ -247,7 +236,7 @@ class MessageController {
 
       const result = await messageService.getLastMessages(
         conversationIds,
-        req.user.id  // ✅ Keep using id
+        req.user.id
       );
 
       res.json({
@@ -283,7 +272,7 @@ class MessageController {
 
       const result = await messageService.editMessage(
         messageId,
-        req.user.id,  // ✅ Keep using id
+        req.user.id,
         content
       );
 
@@ -300,18 +289,106 @@ class MessageController {
   }
 
   /**
-   * Delete message (soft delete)
+   * 🆕 KIỂU 1: Hide message (Gỡ tin nhắn - bất kỳ message nào)
+   * POST /api/messages/:messageId/hide
+   * Business rule: Anyone can hide any message from their view
+   */
+  async hideMessage(req, res, next) {
+    try {
+      const { messageId } = req.params;
+
+      console.log("👁️‍🗨️ [MessageController] Hiding message:", messageId);
+
+      const result = await messageService.hideMessage(
+        messageId,
+        req.user.id
+      );
+
+      console.log("✅ [MessageController] Message hidden");
+
+      res.json({
+        success: true,
+        message: "Message hidden successfully",
+        data: result,
+      });
+    } catch (error) {
+      console.error("❌ [MessageController] hideMessage error:", error.message);
+      next(error);
+    }
+  }
+
+  /**
+   * 🆕 KIỂU 2: Delete for me (Xóa tin nhắn của chính mình - chỉ mình tôi thấy)
+   * DELETE /api/messages/:messageId/delete-for-me
+   * Business rule: Only sender can delete their own message from their view
+   */
+  async deleteForMe(req, res, next) {
+    try {
+      const { messageId } = req.params;
+
+      console.log("🗑️  [MessageController] Delete for me:", messageId);
+
+      const result = await messageService.deleteForMe(
+        messageId,
+        req.user.id
+      );
+
+      console.log("✅ [MessageController] Message deleted for user");
+
+      res.json({
+        success: true,
+        message: "Message deleted for you successfully",
+        data: result,
+      });
+    } catch (error) {
+      console.error("❌ [MessageController] deleteForMe error:", error.message);
+      next(error);
+    }
+  }
+
+  /**
+   * 🆕 KIỂU 3: Recall message (Thu hồi - mọi người thấy)
+   * POST /api/messages/:messageId/recall
+   * Business rule: Only sender can recall within 15 minutes
+   */
+  async recallMessage(req, res, next) {
+    try {
+      const { messageId } = req.params;
+
+      console.log("↩️  [MessageController] Recalling message:", messageId);
+
+      const result = await messageService.recallMessage(
+        messageId,
+        req.user.id
+      );
+
+      console.log("✅ [MessageController] Message recalled");
+
+      res.json({
+        success: true,
+        message: "Message recalled successfully",
+        data: result,
+      });
+    } catch (error) {
+      console.error("❌ [MessageController] recallMessage error:", error.message);
+      next(error);
+    }
+  }
+
+  /**
+   * 🔧 PRIORITY 1: Admin delete message (highest priority)
    * DELETE /api/messages/:messageId
+   * Business rule: Only admin/owner can permanently delete
    */
   async deleteMessage(req, res, next) {
     try {
       const { messageId } = req.params;
 
-      console.log("🗑️  [MessageController] Deleting message:", messageId);
+      console.log("🗑️  [MessageController] Admin deleting message:", messageId);
 
-      const result = await messageService.deleteMessage(
+      const result = await messageService.adminDeleteMessage(
         messageId, 
-        req.user.id  // ✅ Keep using id
+        req.user.id
       );
 
       console.log("✅ [MessageController] Message deleted");

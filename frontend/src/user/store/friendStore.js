@@ -47,16 +47,6 @@ const useFriendStore = create(
           const age = Date.now() - state.lastFetchTime;
           return age < CACHE_DURATION;
         },
-
-        // ============================================
-        // 🔥 REMOVED: initFriendsOnce - NO AUTO FETCH!
-        // ============================================
-        // Fetching will ONLY happen in useFriendSocket
-        // after socket is connected
-
-        // ============================================
-        // FRIEND REQUEST ACTIONS
-        // ============================================
         
         addFriendRequest: (request) => set((state) => {
           if (state.friendRequests.some(r => r.uid === request.uid)) {

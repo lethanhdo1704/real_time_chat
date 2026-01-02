@@ -46,7 +46,12 @@ const messageSchema = new Schema(
       },
     ],
 
-    // Soft delete
+    // ============================================
+    // 🆕 3 KIỂU DELETE (THEO THỨ TỰ ƯU TIÊN)
+    // ============================================
+    
+    // PRIORITY 1: Admin delete (highest priority)
+    // Tin nhắn bị xóa bởi admin → không ai thấy
     deletedAt: {
       type: Date,
       default: null,
@@ -56,6 +61,25 @@ const messageSchema = new Schema(
       ref: "User",
       default: null,
     },
+    
+    // PRIORITY 2: Recall (sender delete for all)
+    // Thu hồi tin nhắn → tất cả đều thấy "Tin nhắn đã được thu hồi"
+    isRecalled: {
+      type: Boolean,
+      default: false,
+    },
+    recalledAt: {
+      type: Date,
+      default: null,
+    },
+    
+    // PRIORITY 3: Hidden (user-specific delete)
+    // Gỡ tin nhắn → chỉ user trong array này không thấy
+    // 🔧 Renamed from hiddenFrom → hiddenFor (better semantics)
+    hiddenFor: [{
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    }],
 
     // Edit tracking
     editedAt: {
@@ -68,7 +92,6 @@ const messageSchema = new Schema(
     toJSON: {
       virtuals: true,
       transform: (doc, ret) => {
-        // Add messageId virtual for frontend
         ret.messageId = ret._id;
         delete ret.__v;
         return ret;
@@ -84,13 +107,10 @@ const messageSchema = new Schema(
 // Main query: Get messages by conversation (pagination)
 messageSchema.index({ conversation: 1, _id: -1 });
 
-// Filter deleted messages
-messageSchema.index({ conversation: 1, deletedAt: 1 });
-
 // User activity
 messageSchema.index({ sender: 1, createdAt: -1 });
 
-// 🔥 Client message ID lookup (for optimistic UI confirmation)
+// Client message ID lookup
 messageSchema.index({ clientMessageId: 1 }, { sparse: true });
 
 // Alternative: If using createdAt for pagination
@@ -105,20 +125,63 @@ messageSchema.virtual("messageId").get(function () {
 });
 
 // ============================================
+// INSTANCE METHODS
+// ============================================
+
+/**
+ * Check if message is hidden for a specific user
+ */
+messageSchema.methods.isHiddenFor = function(userId) {
+  return this.hiddenFor.some(id => id.toString() === userId.toString());
+};
+
+/**
+ * Check if message is visible for a specific user
+ * Follows priority: deletedAt > isRecalled > hiddenFor
+ */
+messageSchema.methods.isVisibleFor = function(userId) {
+  // Priority 1: Admin deleted → never visible
+  if (this.deletedAt) return false;
+  
+  // Priority 2: Recalled → visible but as placeholder
+  // (handled by frontend)
+  
+  // Priority 3: Hidden for this user → not visible
+  if (this.isHiddenFor(userId)) return false;
+  
+  return true;
+};
+
+/**
+ * Get message state for frontend
+ * 🔧 Returns raw data instead of formatted content
+ */
+messageSchema.methods.getState = function() {
+  return {
+    isDeleted: !!this.deletedAt,
+    isRecalled: this.isRecalled,
+    recalledAt: this.recalledAt,
+  };
+};
+
+// ============================================
 // STATIC METHODS
 // ============================================
 
 /**
  * Get conversation messages with pagination
+ * 🆕 Filters based on user visibility
  */
 messageSchema.statics.getConversationMessages = async function (
   conversationId,
+  userId,
   before = null,
   limit = 50
 ) {
   const query = {
     conversation: conversationId,
-    deletedAt: null,
+    deletedAt: null, // Exclude admin-deleted messages
+    hiddenFor: { $ne: userId }, // Exclude messages hidden by this user
   };
 
   if (before && mongoose.Types.ObjectId.isValid(before)) {
@@ -131,7 +194,7 @@ messageSchema.statics.getConversationMessages = async function (
     .populate("sender", "uid nickname avatar")
     .populate({
       path: "replyTo",
-      select: "content sender createdAt",
+      select: "content sender createdAt isRecalled recalledAt",
       populate: {
         path: "sender",
         select: "uid nickname avatar",
@@ -153,6 +216,68 @@ messageSchema.statics.findByClientId = async function (clientMessageId) {
 messageSchema.statics.clientIdExists = async function (clientMessageId) {
   const count = await this.countDocuments({ clientMessageId });
   return count > 0;
+};
+
+/**
+ * 🆕 Hide message for a specific user (KIỂU 1 & 2)
+ * Note: Business rules (permissions) should be checked in service layer
+ */
+messageSchema.statics.hideForUser = async function (messageId, userId) {
+  const result = await this.findByIdAndUpdate(
+    messageId,
+    { 
+      $addToSet: { hiddenFor: userId } // Prevent duplicates
+    },
+    { new: true }
+  );
+  
+  return result;
+};
+
+/**
+ * 🆕 Recall message for everyone (KIỂU 3)
+ * Note: Business rules (sender check, time limit) should be in service layer
+ * 
+ * 🧠 Optional enhancement: Clear hiddenFor when recalling
+ */
+messageSchema.statics.recallMessage = async function (messageId, clearHidden = true) {
+  const update = { 
+    isRecalled: true,
+    recalledAt: new Date(),
+  };
+  
+  // Optional: Clear hidden state since recall is global
+  if (clearHidden) {
+    update.hiddenFor = [];
+  }
+  
+  const result = await this.findByIdAndUpdate(
+    messageId,
+    update,
+    { new: true }
+  );
+  
+  return result;
+};
+
+/**
+ * 🆕 Admin delete message (KIỂU ADMIN)
+ * Clears all other states since this is highest priority
+ */
+messageSchema.statics.adminDelete = async function (messageId, adminId) {
+  const result = await this.findByIdAndUpdate(
+    messageId,
+    { 
+      deletedAt: new Date(),
+      deletedBy: adminId,
+      // Clear other states
+      hiddenFor: [],
+      isRecalled: false,
+    },
+    { new: true }
+  );
+  
+  return result;
 };
 
 export default mongoose.model("Message", messageSchema);

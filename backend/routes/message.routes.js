@@ -32,9 +32,9 @@ router.post('/last-messages', messageController.getLastMessages);
 // Rate limited: 20 messages/minute per user
 router.post(
   '/',
-  messageLimiter,           // Rate limit
-  sanitizeMessage,          // Sanitize content
-  sanitizeFileMetadata,     // Sanitize attachments
+  messageLimiter,
+  sanitizeMessage,
+  sanitizeFileMetadata,
   messageController.sendMessage
 );
 
@@ -43,17 +43,53 @@ router.post(
 // Rate limited: 10 edits/minute per user
 router.put(
   '/:messageId',
-  messageActionLimiter,     // Rate limit for edit/delete
-  sanitizeMessage,          // Sanitize new content
+  messageActionLimiter,
+  sanitizeMessage,
   messageController.editMessage
 );
 
-// Delete message (soft delete)
+// ===========================
+// 🆕 DELETE ACTIONS (3 TYPES + 1 ADMIN)
+// ===========================
+
+// KIỂU 1: Hide message (Gỡ tin nhắn - bất kỳ message nào)
+// POST /api/messages/:messageId/hide
+// Business rule: Anyone can hide any message from their view
+// UI: "Tin nhắn đã được gỡ"
+router.post(
+  '/:messageId/hide',
+  messageActionLimiter,
+  messageController.hideMessage
+);
+
+// KIỂU 2: Delete for me (Xóa tin nhắn của chính mình - chỉ mình tôi thấy)
+// DELETE /api/messages/:messageId/delete-for-me
+// Business rule: Only sender can delete their own message from their view
+// UI: "Bạn đã xóa tin nhắn này"
+router.delete(
+  '/:messageId/delete-for-me',
+  messageActionLimiter,
+  messageController.deleteForMe
+);
+
+// KIỂU 3: Recall message (Thu hồi - mọi người thấy)
+// POST /api/messages/:messageId/recall
+// Business rule: Only sender can recall within 15 minutes
+// UI: "Tin nhắn đã được thu hồi" (shows to everyone)
+router.post(
+  '/:messageId/recall',
+  messageActionLimiter,
+  messageController.recallMessage
+);
+
+// PRIORITY 1: Admin delete (highest priority - permanent deletion)
 // DELETE /api/messages/:messageId
-// Rate limited: 10 deletes/minute per user
+// Business rule: Only admin/owner can permanently delete
+// UI: Message disappears completely for everyone
+// TODO: Add admin role check middleware if needed
 router.delete(
   '/:messageId',
-  messageActionLimiter,     // Rate limit for edit/delete
+  messageActionLimiter,
   messageController.deleteMessage
 );
 
@@ -65,7 +101,7 @@ router.delete(
 // GET /api/messages/:conversationId?before=messageId&limit=50
 router.get(
   '/:conversationId',
-  checkMembership,          // Verify user is member
+  checkMembership,
   messageController.getMessages
 );
 

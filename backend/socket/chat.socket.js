@@ -4,6 +4,55 @@ import ConversationMember from "../models/ConversationMember.js";
 import Friend from "../models/Friend.js";
 import User from "../models/User.js";
 
+/**
+ * ============================================
+ * SOCKET EVENTS DOCUMENTATION
+ * ============================================
+ * 
+ * CLIENT → SERVER (Incoming):
+ * - join_conversation: Join a conversation room
+ * - leave_conversation: Leave a conversation room
+ * - typing: Broadcast typing indicator
+ * 
+ * SERVER → CLIENT (Outgoing):
+ * - message_received: New message (sent via REST API + socket)
+ * - message_edited: Message edited
+ * - message_recalled: Message recalled by sender (🆕)
+ * - message_deleted: Message deleted by admin
+ * - user_typing: Typing indicator
+ * - user_online: Friend came online
+ * - user_offline: Friend went offline
+ * - conversation_created: New conversation
+ * - joined_conversation: Confirmation of room join
+ * - left_conversation: Confirmation of room leave
+ * - error: Error events
+ * 
+ * ============================================
+ * MESSAGE DELETE TYPES (Priority Order):
+ * ============================================
+ * 
+ * PRIORITY 1: message_deleted (Admin delete - highest)
+ * - Sent by: Admin/Owner
+ * - Effect: Message completely removed for everyone
+ * - Event: "message_deleted"
+ * - Data: { conversationId, messageId, deletedBy, conversationUpdate }
+ * 
+ * PRIORITY 2: message_recalled (Recall - sender only)
+ * - Sent by: Message sender
+ * - Effect: Shows "Message recalled" placeholder
+ * - Event: "message_recalled" (🆕)
+ * - Data: { conversationId, messageId, recalledBy, recalledAt }
+ * - Time limit: 15 minutes
+ * 
+ * PRIORITY 3: Hide (User-specific delete)
+ * - Sent by: Any user
+ * - Effect: Hidden only for that user
+ * - Event: None (local client-side only)
+ * - No socket broadcast needed
+ * 
+ * ============================================
+ */
+
 export default function setupChatSocket(io) {
   // ============================================
   // AUTHENTICATION MIDDLEWARE

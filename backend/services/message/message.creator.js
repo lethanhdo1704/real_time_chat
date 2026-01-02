@@ -44,18 +44,16 @@ export async function createMessage({
     content: sanitizedContent,
     clientMessageId,
     type,
-    replyTo, // ✅ Will be validated by verifyReplyToMessage() before calling this
+    replyTo,
     attachments,
   };
 
-  // ✅ Create message properly based on session
+  // Create message properly based on session
   let message;
   if (session) {
-    // With session, must use array syntax
     const messages = await Message.create([messageData], { session });
     message = messages[0];
   } else {
-    // Without session, create single document
     message = await Message.create(messageData);
   }
 
@@ -74,11 +72,11 @@ export async function createMessage({
   // Populate sender data
   await message.populate("sender", "uid nickname avatar");
 
-  // ✅ Populate replyTo with full sender info
+  // ✅ Populate replyTo with full sender info + recall state
   if (message.replyTo) {
     await message.populate({
       path: "replyTo",
-      select: "content sender createdAt type", // ✅ Include type for UI rendering
+      select: "content sender createdAt type isRecalled recalledAt", // ✅ Include recall state
       populate: {
         path: "sender",
         select: "uid nickname avatar",
@@ -88,6 +86,7 @@ export async function createMessage({
     console.log("✅ ReplyTo populated:", {
       replyToId: message.replyTo._id,
       replyToSender: message.replyTo.sender?.nickname,
+      isRecalled: message.replyTo.isRecalled || false,
     });
   }
 
@@ -96,7 +95,7 @@ export async function createMessage({
 
 /**
  * Format message for response
- * ✅ COMPLETE: Full replyTo formatting with type support
+ * ✅ UPDATED: Include recall state and message state
  */
 export function formatMessageResponse(message) {
   const formatted = {
@@ -115,14 +114,18 @@ export function formatMessageResponse(message) {
     attachments: message.attachments,
     createdAt: message.createdAt,
     editedAt: message.editedAt || null,
+    
+    // ✅ Include message state for frontend
+    isRecalled: message.isRecalled || false,
+    recalledAt: message.recalledAt || null,
   };
 
-  // ✅ Format replyTo with complete information
+  // ✅ Format replyTo with recall state
   if (message.replyTo) {
     formatted.replyTo = {
       messageId: message.replyTo._id.toString(),
       content: message.replyTo.content,
-      type: message.replyTo.type || "text", // ✅ Include type for proper rendering
+      type: message.replyTo.type || "text",
       sender: message.replyTo.sender
         ? {
             uid: message.replyTo.sender.uid,
@@ -131,6 +134,8 @@ export function formatMessageResponse(message) {
           }
         : null,
       createdAt: message.replyTo.createdAt,
+      isRecalled: message.replyTo.isRecalled || false, // ✅ For "Message recalled" placeholder
+      recalledAt: message.replyTo.recalledAt || null,
     };
   } else {
     formatted.replyTo = null;

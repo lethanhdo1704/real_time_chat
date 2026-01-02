@@ -9,7 +9,8 @@
   },
   "message": {
     "read": "Đã xem",
-    "sent": "Đã gửi"
+    "sent": "Đã gửi",
+    "retry": "Thử lại"
   },
   "input": {
     "startConversation": "Bắt đầu cuộc trò chuyện mới",
