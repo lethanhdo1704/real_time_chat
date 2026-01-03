@@ -161,7 +161,7 @@ export const useChatSocket = ({
 
     // Join conversation room
     console.log("📥 [DEBUG] Emitting join_conversation:", activeConversationId);
-    socket.emit("join_conversation", { conversationId: activeConversationId });
+    socket.emit("join_conversation", activeConversationId);;
 
     // Cleanup
     return () => {
@@ -174,7 +174,7 @@ export const useChatSocket = ({
       socket.off("user_typing", handleUserTyping);
       socket.off("message_read", handleMessageRead);
       
-      socket.emit("leave_conversation", { conversationId: activeConversationId });
+      socket.emit("leave_conversation", activeConversationId);
       console.log("💬 [DEBUG] Cleaned up for:", activeConversationId);
     };
   }, [

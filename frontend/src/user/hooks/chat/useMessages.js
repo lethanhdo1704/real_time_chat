@@ -1,16 +1,25 @@
 // frontend/src/hooks/chat/useMessages.js - CURSOR-BASED PAGINATION
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import useChatStore from '../../store/chat/chatStore';
 import chatApi from '../../services/chatApi';
 
 /**
- * useMessages Hook - CURSOR-BASED PAGINATION
+ * 🔥 useMessages Hook - CHUẨN HÓA
  * 
- * ✅ Không dùng page số nữa
- * ✅ Dùng oldestMessageId làm cursor
- * ✅ KHÔNG BAO GIỜ TRÙNG
- * ✅ Store-level lock (hasJoinedConversation)
- * ✅ Socket checks inside effect (not in deps)
+ * TRÁCH NHIỆM:
+ * ✅ Fetch messages (cursor-based pagination)
+ * ✅ Handle message_received (add to chat)
+ * ✅ Handle message_recalled (update UI)
+ * ✅ Handle message_deleted (remove from chat)
+ * ✅ Handle message_edited (update content)
+ * ✅ Join/leave conversation socket rooms
+ * 
+ * NGUYÊN TẮC:
+ * - Single source of truth for message content
+ * - Cursor-based pagination (no page numbers)
+ * - Store-level lock (hasJoinedConversation)
+ * - Socket listeners inside effect
+ * - Ignore own messages from socket
  */
 
 const EMPTY_ARRAY = [];
@@ -19,7 +28,7 @@ const useMessages = (conversationId) => {
   const hasFetchedRef = useRef(false);
   const messagesEndRef = useRef(null);
   
-  // 🔥 CURSOR-BASED: Track oldest message ID (thay vì page)
+  // 🔥 CURSOR-BASED: Track oldest message ID
   const oldestMessageIdRef = useRef(null);
 
   // ============================================
@@ -56,7 +65,7 @@ const useMessages = (conversationId) => {
     async (isInitial = false) => {
       if (!conversationId) return;
 
-      // 🔥 Nếu không phải initial load và không có cursor → skip
+      // If not initial and no cursor → skip
       if (!isInitial && !oldestMessageIdRef.current) {
         console.log('⏭️ [useMessages] No cursor available, skipping');
         return;
@@ -69,7 +78,7 @@ const useMessages = (conversationId) => {
         setMessagesLoading(conversationId, true);
         setMessagesError(conversationId, null);
 
-        // 🔥 CURSOR-BASED: Gửi 'before' thay vì 'page'
+        // CURSOR-BASED: Send 'before' instead of 'page'
         const params = { limit: 50 };
         if (!isInitial && oldestMessageIdRef.current) {
           params.before = oldestMessageIdRef.current;
@@ -84,15 +93,12 @@ const useMessages = (conversationId) => {
 
         const data = await chatApi.getMessages(conversationId, params);
 
-        // 🔥 DEBUG: Log API response
         console.log('📦 [useMessages] API returned:', {
           messagesCount: data.messages.length,
           hasMore: data.hasMore,
-          firstMessageId: data.messages[0]?.messageId || data.messages[0]?._id,
-          lastMessageId: data.messages[data.messages.length - 1]?.messageId || data.messages[data.messages.length - 1]?._id,
         });
 
-        // 🔥 CRITICAL: Nếu không có messages mới → dừng lại
+        // No more messages → stop
         if (data.messages.length === 0) {
           console.log('⏹️ [useMessages] No more messages');
           setMessagesLoading(conversationId, false);
@@ -101,8 +107,8 @@ const useMessages = (conversationId) => {
           return;
         }
 
-        // 🔥 UPDATE CURSOR: Lấy message CŨ NHẤT làm cursor cho lần sau
-        const oldestMessage = data.messages[0]; // messages đã được reverse ở backend
+        // UPDATE CURSOR: Get oldest message as cursor for next load
+        const oldestMessage = data.messages[0];
         oldestMessageIdRef.current = oldestMessage?.messageId || oldestMessage?._id;
 
         console.log('🔖 [useMessages] Updated cursor:', oldestMessageIdRef.current);
@@ -142,7 +148,7 @@ const useMessages = (conversationId) => {
     }
 
     console.log('📄 [useMessages] Loading more messages...');
-    fetchMessages(false); // false = not initial load
+    fetchMessages(false);
   }, [loading, hasMore, fetchMessages]);
 
   // ============================================
@@ -156,16 +162,13 @@ const useMessages = (conversationId) => {
   }, []);
 
   // ============================================
-  // 🔥 SINGLE EFFECT - STORE-LEVEL LOCK
+  // 🔥 MAIN EFFECT - STORE-LEVEL LOCK
   // ============================================
 
   useEffect(() => {
-    // Guard: no conversationId
-    if (!conversationId) {
-      return;
-    }
+    if (!conversationId) return;
 
-    // 🔥 STORE-LEVEL LOCK: Check if already joined
+    // STORE-LEVEL LOCK: Check if already joined
     const { hasJoinedConversation, markConversationJoined } = useChatStore.getState();
     
     if (hasJoinedConversation(conversationId)) {
@@ -175,10 +178,10 @@ const useMessages = (conversationId) => {
 
     console.log('🔌 [useMessages] Initializing conversation:', conversationId);
 
-    // 🔥 MARK AS JOINED IMMEDIATELY (before async operations)
+    // MARK AS JOINED IMMEDIATELY
     markConversationJoined(conversationId);
 
-    // Get socket inside effect (not from deps)
+    // Get socket inside effect
     const getSocketSafe = async () => {
       const { getSocket } = await import('../../services/socketService');
       return getSocket();
@@ -200,8 +203,11 @@ const useMessages = (conversationId) => {
       socket.emit('join_conversation', { conversationId });
 
       // 2. Setup listeners
-      console.log('🔌 [useMessages] Setting up listeners');
+      console.log('🔌 [useMessages] Setting up message listeners');
 
+      // ============================================
+      // 🔥 MESSAGE_RECEIVED - SINGLE SOURCE OF TRUTH
+      // ============================================
       const handleMessageReceived = (data) => {
         const { message } = data;
 
@@ -212,9 +218,9 @@ const useMessages = (conversationId) => {
 
         const { currentUser, addMessage } = useChatStore.getState();
 
-        // Ignore own messages
+        // ✅ CRITICAL: Ignore own messages (already added optimistically)
         if (currentUser && message.sender?.uid === currentUser.uid) {
-          console.log('⚠️ [useMessages] Ignoring own message:', message.messageId);
+          console.log('⏭️ [useMessages] Ignoring own message:', message.messageId);
           return;
         }
 
@@ -224,6 +230,28 @@ const useMessages = (conversationId) => {
         setTimeout(() => scrollToBottom(), 100);
       };
 
+      // ============================================
+      // MESSAGE_RECALLED
+      // ============================================
+      const handleMessageRecalled = (data) => {
+        const { messageId, conversationId: dataConvId, recalledBy, recalledAt } = data;
+        
+        if (!messageId) return;
+        if (dataConvId && dataConvId !== conversationId) return;
+
+        console.log('↩️ [useMessages] Message recalled:', messageId);
+
+        const { updateMessage } = useChatStore.getState();
+        updateMessage(conversationId, messageId, {
+          isRecalled: true,
+          recalledBy,
+          recalledAt,
+        });
+      };
+
+      // ============================================
+      // MESSAGE_EDITED
+      // ============================================
       const handleMessageEdited = (data) => {
         const { message } = data;
         if (!message) return;
@@ -244,16 +272,14 @@ const useMessages = (conversationId) => {
         });
       };
 
+      // ============================================
+      // MESSAGE_DELETED
+      // ============================================
       const handleMessageDeleted = (data) => {
-        const { messageId, message } = data;
+        const { messageId, conversationId: dataConvId } = data;
+        
         if (!messageId) return;
-
-        const messageConvId = 
-          data.conversationId || 
-          message?.conversation || 
-          message?.conversationId;
-
-        if (!messageConvId || messageConvId !== conversationId) return;
+        if (dataConvId && dataConvId !== conversationId) return;
 
         console.log('🗑️ [useMessages] Message deleted:', messageId);
 
@@ -261,16 +287,18 @@ const useMessages = (conversationId) => {
         removeMessage(conversationId, messageId);
       };
 
+      // Register all listeners
       socket.on('message_received', handleMessageReceived);
+      socket.on('message_recalled', handleMessageRecalled);
       socket.on('message_edited', handleMessageEdited);
       socket.on('message_deleted', handleMessageDeleted);
 
-      console.log('✅ [useMessages] All listeners registered');
+      console.log('✅ [useMessages] All message listeners registered');
 
       // 3. Fetch initial messages
       hasFetchedRef.current = false;
-      oldestMessageIdRef.current = null; // 🔥 Reset cursor for new conversation
-      fetchMessages(true); // true = initial load
+      oldestMessageIdRef.current = null;
+      fetchMessages(true);
 
       // Cleanup function
       cleanup = () => {
@@ -279,6 +307,7 @@ const useMessages = (conversationId) => {
         if (socket) {
           socket.emit('leave_conversation', { conversationId });
           socket.off('message_received', handleMessageReceived);
+          socket.off('message_recalled', handleMessageRecalled);
           socket.off('message_edited', handleMessageEdited);
           socket.off('message_deleted', handleMessageDeleted);
         }
@@ -287,16 +316,13 @@ const useMessages = (conversationId) => {
 
     initialize();
 
-    // Return cleanup
     return () => {
       if (cleanup) cleanup();
     };
   }, [conversationId, fetchMessages, scrollToBottom]);
 
   // ============================================
-  // 🔥 AUTO SCROLL - REMOVED
-  // useChatScroll đã xử lý auto-scroll rồi
-  // Effect này gây conflict → BỎ HOÀN TOÀN
+  // RETURN
   // ============================================
 
   return {

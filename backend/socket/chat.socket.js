@@ -17,41 +17,38 @@ import User from "../models/User.js";
  * SERVER → CLIENT (Outgoing):
  * - message_received: New message (sent via REST API + socket)
  * - message_edited: Message edited
- * - message_recalled: Message recalled by sender (🆕)
+ * - message_recalled: Message recalled by sender
  * - message_deleted: Message deleted by admin
  * - user_typing: Typing indicator
  * - user_online: Friend came online
  * - user_offline: Friend went offline
  * - conversation_created: New conversation
+ * - conversation_update: Unread count updates
  * - joined_conversation: Confirmation of room join
  * - left_conversation: Confirmation of room leave
  * - error: Error events
  * 
  * ============================================
- * MESSAGE DELETE TYPES (Priority Order):
+ * ROOM NAMING CONVENTION (CRITICAL)
  * ============================================
  * 
- * PRIORITY 1: message_deleted (Admin delete - highest)
- * - Sent by: Admin/Owner
- * - Effect: Message completely removed for everyone
- * - Event: "message_deleted"
- * - Data: { conversationId, messageId, deletedBy, conversationUpdate }
+ * 🟥 CONVERSATION EVENTS → conversation:{id}
+ * - message_received, message_recalled, message_deleted, message_edited
+ * - typing, conversation_updated, member_added, member_removed
  * 
- * PRIORITY 2: message_recalled (Recall - sender only)
- * - Sent by: Message sender
- * - Effect: Shows "Message recalled" placeholder
- * - Event: "message_recalled" (🆕)
- * - Data: { conversationId, messageId, recalledBy, recalledAt }
- * - Time limit: 15 minutes
- * 
- * PRIORITY 3: Hide (User-specific delete)
- * - Sent by: Any user
- * - Effect: Hidden only for that user
- * - Event: None (local client-side only)
- * - No socket broadcast needed
+ * 🟦 USER-SPECIFIC EVENTS → user:{uid}
+ * - conversation_update (unread counts)
+ * - user_online, user_offline
+ * - conversation_created, conversation_joined, conversation_left
  * 
  * ============================================
  */
+
+/**
+ * 🔥 HELPER: Get standardized room names
+ */
+const getConversationRoom = (conversationId) => `conversation:${conversationId}`;
+const getUserRoom = (uid) => `user:${uid}`;
 
 export default function setupChatSocket(io) {
   // ============================================
@@ -86,13 +83,15 @@ export default function setupChatSocket(io) {
     
     try {
       // ============================================
-      // 1️⃣ JOIN USER ROOM (for per-user events)
+      // 1️⃣ JOIN USER ROOM (for user-specific events)
       // ============================================
-      socket.join(`user:${socket.uid}`);
-      console.log(`  ↳ Joined user room: user:${socket.uid}`);
+      const userRoom = getUserRoom(socket.uid);
+      socket.join(userRoom);
+      console.log(`  ↳ Joined user room: ${userRoom}`);
       
       // ============================================
       // 2️⃣ AUTO-JOIN ALL USER'S CONVERSATIONS
+      // 🔥 FIXED: Use conversation:${id} format
       // ============================================
       const conversations = await ConversationMember.find({
         user: socket.userId,
@@ -100,8 +99,9 @@ export default function setupChatSocket(io) {
       }).select('conversation').lean();
       
       conversations.forEach(conv => {
-        const roomId = conv.conversation.toString();
-        socket.join(roomId);
+        const conversationId = conv.conversation.toString();
+        const room = getConversationRoom(conversationId);
+        socket.join(room);
       });
       
       console.log(`✅ User ${socket.uid} auto-joined ${conversations.length} conversations`);
@@ -117,11 +117,22 @@ export default function setupChatSocket(io) {
     
     // ============================================
     // EVENT: JOIN CONVERSATION (Manual)
-    // Used when user opens a conversation
+    // 🔥 FIXED: Use conversation:${id} format
     // ============================================
     socket.on('join_conversation', async (data) => {
       try {
+        console.log("🔥 [DEBUG] join_conversation RAW DATA:", data);
+        
         const { conversationId } = data;
+        
+        if (!conversationId) {
+          console.error("❌ [DEBUG] No conversationId in join_conversation data!");
+          socket.emit('error', { 
+            code: 'INVALID_DATA',
+            message: 'conversationId is required' 
+          });
+          return;
+        }
         
         console.log(`📥 join_conversation: ${socket.uid} → ${conversationId}`);
         
@@ -140,8 +151,16 @@ export default function setupChatSocket(io) {
           return;
         }
         
-        socket.join(conversationId);
-        console.log(`✅ User ${socket.uid} joined conversation ${conversationId}`);
+        // 🔥 CRITICAL FIX: Join with prefix
+        const room = getConversationRoom(conversationId);
+        socket.join(room);
+        console.log(`✅ User ${socket.uid} joined room: ${room}`);
+        
+        // 🔥 VERIFY ROOM MEMBERSHIP
+        const roomMembers = io.sockets.adapter.rooms.get(room);
+        if (roomMembers) {
+          console.log(`👥 Room ${room} now has ${roomMembers.size} members`);
+        }
         
         socket.emit('joined_conversation', { conversationId });
         
@@ -156,12 +175,14 @@ export default function setupChatSocket(io) {
     
     // ============================================
     // EVENT: LEAVE CONVERSATION
+    // 🔥 FIXED: Use conversation:${id} format
     // ============================================
     socket.on('leave_conversation', (data) => {
       try {
         const { conversationId } = data;
-        socket.leave(conversationId);
-        console.log(`👋 User ${socket.uid} left conversation ${conversationId}`);
+        const room = getConversationRoom(conversationId);
+        socket.leave(room);
+        console.log(`👋 User ${socket.uid} left room: ${room}`);
         
         socket.emit('left_conversation', { conversationId });
       } catch (error) {
@@ -171,8 +192,7 @@ export default function setupChatSocket(io) {
     
     // ============================================
     // EVENT: TYPING INDICATOR
-    // This is the ONLY real-time action in socket
-    // Messages are sent via REST API
+    // 🔥 FIXED: Emit to conversation:${id} room
     // ============================================
     socket.on('typing', async (data) => {
       try {
@@ -188,21 +208,21 @@ export default function setupChatSocket(io) {
         
         if (!isMember) {
           console.log(`❌ User ${socket.uid} not a member, cannot emit typing`);
-          return; // Silent fail for typing - not critical
+          return;
         }
         
-        // Broadcast to other users in conversation
-        socket.to(conversationId).emit('user_typing', {
+        // 🔥 CRITICAL FIX: Emit to conversation room
+        const room = getConversationRoom(conversationId);
+        socket.to(room).emit('user_typing', {
           conversationId,
           user: { uid: socket.uid },
           isTyping: isTyping !== undefined ? isTyping : true
         });
         
-        console.log(`✅ Typing indicator broadcasted for ${conversationId}`);
+        console.log(`✅ Typing indicator broadcasted to ${room}`);
         
       } catch (error) {
         console.error('❌ Typing error:', error);
-        // Silent fail - typing is not critical
       }
     });
     
@@ -213,7 +233,6 @@ export default function setupChatSocket(io) {
       console.log(`❌ User disconnected: ${socket.uid} (${socket.id})`);
       
       try {
-        // Broadcast offline status
         await broadcastOnlineStatus(socket, io, false);
       } catch (error) {
         console.error('❌ Disconnect broadcast error:', error);
@@ -250,10 +269,11 @@ async function broadcastOnlineStatus(socket, io, isOnline) {
       lastSeen: new Date()
     });
     
-    // Broadcast to friends
+    // Broadcast to friends using user rooms
     const eventName = isOnline ? 'user_online' : 'user_offline';
     friendUids.forEach(friendUid => {
-      io.to(`user:${friendUid}`).emit(eventName, {
+      const userRoom = getUserRoom(friendUid);
+      io.to(userRoom).emit(eventName, {
         uid: socket.uid,
         timestamp: new Date()
       });

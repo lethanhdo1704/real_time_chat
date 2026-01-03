@@ -22,38 +22,58 @@ class SocketEmitter {
   }
 
   /**
-   * 🔥 CRITICAL FIX: Emit using PUBLIC UID, not MongoDB _id
-   * memberUpdates keys MUST be public UIDs
+   * 🔥 HELPER: Get standardized room name
+   */
+  getConversationRoom(conversationId) {
+    return `conversation:${conversationId}`;
+  }
+
+  getUserRoom(uid) {
+    return `user:${uid}`;
+  }
+
+  /**
+   * ============================================
+   * MESSAGE EVENTS (CONVERSATION-BASED)
+   * ============================================
+   */
+
+  /**
+   * 🔥 FIXED: Emit to CONVERSATION ROOM, not individual users
+   * This ensures ALL message events are consistent
    */
   emitNewMessage(conversationId, message, memberUpdates) {
     if (!this.isIOAvailable()) return;
 
-    if (!memberUpdates || Object.keys(memberUpdates).length === 0) {
-      console.warn('⚠️  [SocketEmitter] No memberUpdates provided for message_received');
-      return;
-    }
+    const room = this.getConversationRoom(conversationId);
 
-    console.log(`📡 [SocketEmitter] Emitting message_received to ${Object.keys(memberUpdates).length} users`);
-    
-    // 🔥 CRITICAL: memberUpdates keys MUST be public UIDs (e.g. a0cf73f6-...)
-    Object.entries(memberUpdates).forEach(([userUid, update]) => {
-      try {
-        // 🔥 Emit to user:{PUBLIC_UID}, NOT user:{MONGODB_ID}
-        this.io.to(`user:${userUid}`).emit('message_received', {
-          conversationId,
-          message: {
-            messageId: message.messageId || message._id,
-            conversation: message.conversation || conversationId,
-            content: message.content,
-            type: message.type,
-            sender: message.sender,
-            createdAt: message.createdAt,
-            editedAt: message.editedAt || null,
-            replyTo: message.replyTo || null,
-            attachments: message.attachments || [],
-            clientMessageId: message.clientMessageId || null
-          },
-          conversationUpdate: {
+    console.log(`📡 [SocketEmitter] message_received → ${room}`);
+
+    // 🔥 CRITICAL FIX: Emit to conversation room, not user rooms
+    this.io.to(room).emit('message_received', {
+      conversationId,
+      message: {
+        messageId: message.messageId || message._id,
+        conversation: message.conversation || conversationId,
+        content: message.content,
+        type: message.type,
+        sender: message.sender,
+        createdAt: message.createdAt,
+        editedAt: message.editedAt || null,
+        replyTo: message.replyTo || null,
+        attachments: message.attachments || [],
+        clientMessageId: message.clientMessageId || null
+      }
+    });
+
+    // 🔥 SEPARATE: Emit unread counts to individual users
+    // This keeps user-specific data separate from conversation events
+    if (memberUpdates && Object.keys(memberUpdates).length > 0) {
+      console.log(`📡 [SocketEmitter] Emitting unread updates to ${Object.keys(memberUpdates).length} users`);
+      
+      Object.entries(memberUpdates).forEach(([userUid, update]) => {
+        try {
+          this.io.to(this.getUserRoom(userUid)).emit('conversation_update', {
             conversationId,
             lastMessage: {
               messageId: message.messageId || message._id,
@@ -64,29 +84,141 @@ class SocketEmitter {
             lastMessageAt: message.createdAt,
             unreadCount: update.unreadCount,
             lastSeenMessage: update.lastSeenMessage
-          }
-        });
+          });
+        } catch (error) {
+          console.error(`❌ [SocketEmitter] Failed to emit unread to user ${userUid}:`, error.message);
+        }
+      });
+    }
+  }
 
-        console.log(`   → user:${userUid} (unread: ${update.unreadCount})`);
-      } catch (error) {
-        console.error(`❌ [SocketEmitter] Failed to emit to user ${userUid}:`, error.message);
+  /**
+   * ✅ Message recalled - CONVERSATION ROOM
+   */
+  emitMessageRecalled(conversationId, messageId, recalledBy) {
+    if (!this.isIOAvailable()) return;
+
+    const room = this.getConversationRoom(conversationId);
+
+    console.log(`📡 [SocketEmitter] message_recalled → ${room}`);
+
+    this.io.to(room).emit('message_recalled', {
+      conversationId,
+      messageId,
+      recalledBy,
+      recalledAt: new Date()
+    });
+  }
+
+  /**
+   * 🔥 FIXED: Message deleted - CONVERSATION ROOM
+   * Admin delete affects everyone, so emit to conversation
+   */
+  emitMessageDeleted(conversationId, messageId, deletedBy, memberUpdates) {
+    if (!this.isIOAvailable()) return;
+
+    const room = this.getConversationRoom(conversationId);
+
+    console.log(`📡 [SocketEmitter] message_deleted → ${room}`);
+
+    // Emit deletion to conversation room
+    this.io.to(room).emit('message_deleted', {
+      conversationId,
+      messageId,
+      deletedBy
+    });
+
+    // Separately emit lastMessage updates to individual users if needed
+    if (memberUpdates && Object.keys(memberUpdates).length > 0) {
+      console.log(`📡 [SocketEmitter] Emitting lastMessage updates to ${Object.keys(memberUpdates).length} users`);
+      
+      Object.entries(memberUpdates).forEach(([userId, update]) => {
+        try {
+          this.io.to(this.getUserRoom(userId)).emit('conversation_update', {
+            conversationId,
+            lastMessage: update.lastMessage,
+            unreadCount: update.unreadCount
+          });
+        } catch (error) {
+          console.error(`❌ [SocketEmitter] Failed to emit lastMessage to user ${userId}:`, error.message);
+        }
+      });
+    }
+  }
+
+  /**
+   * ✅ Message edited - CONVERSATION ROOM
+   */
+  emitMessageEdited(conversationId, message) {
+    if (!this.isIOAvailable()) return;
+
+    const room = this.getConversationRoom(conversationId);
+
+    console.log(`📡 [SocketEmitter] message_edited → ${room}`);
+
+    this.io.to(room).emit('message_edited', {
+      conversationId,
+      message: {
+        messageId: message.messageId || message._id,
+        content: message.content,
+        editedAt: message.editedAt,
+        sender: message.sender
       }
     });
   }
 
   /**
-   * ✅ Message read receipt
+   * ✅ Typing indicator - CONVERSATION ROOM
+   */
+  emitUserTyping(conversationId, data) {
+    if (!this.isIOAvailable()) return;
+
+    const room = this.getConversationRoom(conversationId);
+
+    console.log(`📡 [SocketEmitter] user_typing → ${room}`);
+
+    this.io.to(room).emit('user_typing', {
+      conversationId,
+      user: data.user,
+      isTyping: data.isTyping
+    });
+  }
+
+  /**
+   * ✅ Conversation metadata updated - CONVERSATION ROOM
+   */
+  emitConversationUpdated(conversationId, updates) {
+    if (!this.isIOAvailable()) return;
+
+    const room = this.getConversationRoom(conversationId);
+
+    console.log(`📡 [SocketEmitter] conversation_updated → ${room}`);
+
+    this.io.to(room).emit('conversation_updated', {
+      conversationId,
+      updates
+    });
+  }
+
+  /**
+   * ============================================
+   * USER-SPECIFIC EVENTS (USER ROOM)
+   * ============================================
+   */
+
+  /**
+   * ✅ Message read receipt - USER ROOM
+   * Each user needs their own unread count update
    */
   emitMessageRead(conversationId, readByUserId, memberIds) {
     if (!this.isIOAvailable()) return;
 
-    console.log(`📡 [SocketEmitter] Emitting message_read to ${memberIds.length} users`);
-    
+    console.log(`📡 [SocketEmitter] message_read to ${memberIds.length} users`);
+
     memberIds.forEach(userId => {
       try {
-        // Don't emit to the user who marked as read
         if (userId !== readByUserId) {
-          this.io.to(`user:${userId}`).emit('message_read', {
+          this.io.to(this.getUserRoom(userId)).emit('message_read', {
             conversationId,
             readBy: readByUserId,
             timestamp: new Date(),
@@ -102,119 +234,16 @@ class SocketEmitter {
   }
 
   /**
-   * ✅ Typing indicator
-   */
-  emitUserTyping(conversationId, data) {
-    if (!this.isIOAvailable()) return;
-
-    console.log(`📡 [SocketEmitter] Emitting user_typing to room: ${conversationId}`);
-    
-    try {
-      this.io.to(conversationId).emit('user_typing', {
-        conversationId,
-        user: data.user,
-        isTyping: data.isTyping
-      });
-    } catch (error) {
-      console.error('❌ [SocketEmitter] Failed to emit user_typing:', error.message);
-    }
-  }
-
-  /**
-   * ✅ Message edited
-   */
-  emitMessageEdited(conversationId, message) {
-    if (!this.isIOAvailable()) return;
-
-    console.log(`📡 [SocketEmitter] Emitting message_edited to room: ${conversationId}`);
-    
-    try {
-      this.io.to(conversationId).emit('message_edited', {
-        conversationId,
-        message: {
-          messageId: message.messageId || message._id,
-          content: message.content,
-          editedAt: message.editedAt,
-          sender: message.sender
-        }
-      });
-    } catch (error) {
-      console.error('❌ [SocketEmitter] Failed to emit message_edited:', error.message);
-    }
-  }
-
-  /**
-   * 🆕 Message recalled (KIỂU 3: Thu hồi)
-   * Broadcasts to all conversation members
-   */
-  emitMessageRecalled(conversationId, messageId, recalledBy) {
-    if (!this.isIOAvailable()) return;
-
-    console.log(`📡 [SocketEmitter] Emitting message_recalled to room: ${conversationId}`);
-    
-    try {
-      this.io.to(conversationId).emit('message_recalled', {
-        conversationId,
-        messageId,
-        recalledBy,
-        recalledAt: new Date()
-      });
-    } catch (error) {
-      console.error('❌ [SocketEmitter] Failed to emit message_recalled:', error.message);
-    }
-  }
-
-  /**
-   * 🔥 Message deleted with per-user updates (PRIORITY 1: Admin delete)
-   */
-  emitMessageDeleted(conversationId, messageId, deletedBy, memberUpdates) {
-    if (!this.isIOAvailable()) return;
-
-    console.log(`📡 [SocketEmitter] Emitting message_deleted to ${Object.keys(memberUpdates || {}).length} users`);
-    
-    // If memberUpdates provided, emit to each user with their specific updates
-    if (memberUpdates && Object.keys(memberUpdates).length > 0) {
-      Object.entries(memberUpdates).forEach(([userId, update]) => {
-        try {
-          this.io.to(`user:${userId}`).emit('message_deleted', {
-            conversationId,
-            messageId,
-            deletedBy,
-            conversationUpdate: {
-              conversationId,
-              lastMessage: update.lastMessage,
-              unreadCount: update.unreadCount
-            }
-          });
-        } catch (error) {
-          console.error(`❌ [SocketEmitter] Failed to emit to user ${userId}:`, error.message);
-        }
-      });
-    } else {
-      // Fallback: broadcast to entire conversation room
-      try {
-        this.io.to(conversationId).emit('message_deleted', {
-          conversationId,
-          messageId,
-          deletedBy
-        });
-      } catch (error) {
-        console.error('❌ [SocketEmitter] Failed to emit message_deleted:', error.message);
-      }
-    }
-  }
-
-  /**
-   * ✅ User online status
+   * ✅ User online status - USER ROOM
    */
   emitUserOnline(userIds, data) {
     if (!this.isIOAvailable()) return;
 
-    console.log(`📡 [SocketEmitter] Emitting user_online to ${userIds.length} users`);
-    
+    console.log(`📡 [SocketEmitter] user_online to ${userIds.length} users`);
+
     userIds.forEach(uid => {
       try {
-        this.io.to(`user:${uid}`).emit('user_online', {
+        this.io.to(this.getUserRoom(uid)).emit('user_online', {
           userId: data.userId,
           lastSeen: data.lastSeen
         });
@@ -225,16 +254,16 @@ class SocketEmitter {
   }
 
   /**
-   * ✅ User offline status
+   * ✅ User offline status - USER ROOM
    */
   emitUserOffline(userIds, data) {
     if (!this.isIOAvailable()) return;
 
-    console.log(`📡 [SocketEmitter] Emitting user_offline to ${userIds.length} users`);
-    
+    console.log(`📡 [SocketEmitter] user_offline to ${userIds.length} users`);
+
     userIds.forEach(uid => {
       try {
-        this.io.to(`user:${uid}`).emit('user_offline', {
+        this.io.to(this.getUserRoom(uid)).emit('user_offline', {
           userId: data.userId,
           lastSeen: data.lastSeen
         });
@@ -245,34 +274,17 @@ class SocketEmitter {
   }
 
   /**
-   * ✅ Conversation metadata updated
-   */
-  emitConversationUpdated(conversationId, updates) {
-    if (!this.isIOAvailable()) return;
-
-    console.log(`📡 [SocketEmitter] Emitting conversation_updated to room: ${conversationId}`);
-    
-    try {
-      this.io.to(conversationId).emit('conversation_updated', {
-        conversationId,
-        updates
-      });
-    } catch (error) {
-      console.error('❌ [SocketEmitter] Failed to emit conversation_updated:', error.message);
-    }
-  }
-
-  /**
-   * 🆕 Conversation created - notify all members
+   * 🆕 Conversation created - USER ROOM
+   * New conversations are user-specific notifications
    */
   emitConversationCreated(conversation, memberIds) {
     if (!this.isIOAvailable()) return;
 
-    console.log(`📡 [SocketEmitter] Emitting conversation_created to ${memberIds.length} users`);
-    
+    console.log(`📡 [SocketEmitter] conversation_created to ${memberIds.length} users`);
+
     memberIds.forEach(memberId => {
       try {
-        this.io.to(`user:${memberId}`).emit('conversation_created', {
+        this.io.to(this.getUserRoom(memberId)).emit('conversation_created', {
           conversation
         });
       } catch (error) {
@@ -282,58 +294,53 @@ class SocketEmitter {
   }
 
   /**
-   * ✅ Member added to group
+   * ✅ Member added to group - CONVERSATION ROOM + USER NOTIFICATION
    */
   emitMemberAdded(conversationId, newMembers) {
     if (!this.isIOAvailable()) return;
 
-    console.log(`📡 [SocketEmitter] Emitting member_added to room: ${conversationId}`);
-    
-    try {
-      this.io.to(conversationId).emit('member_added', {
-        conversationId,
-        members: newMembers
-      });
+    const room = this.getConversationRoom(conversationId);
 
-      // Notify each new member individually
-      newMembers.forEach(member => {
-        this.io.to(`user:${member.uid}`).emit('conversation_joined', {
-          conversationId,
-          conversation: member.conversationData
-        });
+    console.log(`📡 [SocketEmitter] member_added → ${room}`);
+
+    this.io.to(room).emit('member_added', {
+      conversationId,
+      members: newMembers
+    });
+
+    // Notify each new member individually
+    newMembers.forEach(member => {
+      this.io.to(this.getUserRoom(member.uid)).emit('conversation_joined', {
+        conversationId,
+        conversation: member.conversationData
       });
-    } catch (error) {
-      console.error('❌ [SocketEmitter] Failed to emit member_added:', error.message);
-    }
+    });
   }
 
   /**
-   * ✅ Member removed from group
+   * ✅ Member removed from group - CONVERSATION ROOM + USER NOTIFICATION
    */
   emitMemberRemoved(conversationId, memberUid, removedBy) {
     if (!this.isIOAvailable()) return;
 
-    console.log(`📡 [SocketEmitter] Emitting member_removed to room: ${conversationId}`);
-    
-    try {
-      this.io.to(conversationId).emit('member_removed', {
-        conversationId,
-        memberUid,
-        removedBy
-      });
+    const room = this.getConversationRoom(conversationId);
 
-      this.io.to(`user:${memberUid}`).emit('conversation_left', {
-        conversationId,
-        reason: 'removed'
-      });
-    } catch (error) {
-      console.error('❌ [SocketEmitter] Failed to emit member_removed:', error.message);
-    }
+    console.log(`📡 [SocketEmitter] member_removed → ${room}`);
+
+    this.io.to(room).emit('member_removed', {
+      conversationId,
+      memberUid,
+      removedBy
+    });
+
+    this.io.to(this.getUserRoom(memberUid)).emit('conversation_left', {
+      conversationId,
+      reason: 'removed'
+    });
   }
 
   /**
-   * ✅ Generic emit to a single user (soft realtime)
-   * Used for: user:update, profile/avatar changes, system events
+   * ✅ Generic emit to a single user
    */
   emitToUser(uid, event, payload) {
     if (!this.isIOAvailable()) return;
@@ -344,16 +351,13 @@ class SocketEmitter {
     }
 
     try {
-      this.io.to(`user:${uid}`).emit(event, payload);
-      console.log(`📡 [SocketEmitter] emitToUser → user:${uid} | event: ${event}`);
+      this.io.to(this.getUserRoom(uid)).emit(event, payload);
+      console.log(`📡 [SocketEmitter] ${event} → ${this.getUserRoom(uid)}`);
     } catch (error) {
-      console.error(
-        `❌ [SocketEmitter] emitToUser failed for user:${uid}:`,
-        error.message
-      );
+      console.error(`❌ [SocketEmitter] emitToUser failed:`, error.message);
     }
   }
-  
+
   /**
    * ✅ Helper to get connected sockets for user
    */
@@ -361,7 +365,7 @@ class SocketEmitter {
     if (!this.isIOAvailable()) return [];
 
     try {
-      const roomName = `user:${userId}`;
+      const roomName = this.getUserRoom(userId);
       const room = this.io.sockets.adapter.rooms.get(roomName);
       return room ? Array.from(room) : [];
     } catch (error) {
@@ -379,7 +383,7 @@ class SocketEmitter {
     userIds.forEach(uid => {
       if (uid !== exceptUserId) {
         try {
-          this.io.to(`user:${uid}`).emit(eventName, data);
+          this.io.to(this.getUserRoom(uid)).emit(eventName, data);
         } catch (error) {
           console.error(`❌ [SocketEmitter] Failed to emit to user ${uid}:`, error.message);
         }

@@ -9,7 +9,7 @@ import { ValidationError, NotFoundError, AppError } from "../../../middleware/er
  * 
  * Business rules:
  * - Only sender can recall their message
- * - Must recall within 15 minutes
+ * - ✅ NO TIME LIMIT (removed 15 minutes restriction)
  * - Cannot recall admin-deleted messages
  * - Cannot recall already-recalled messages
  * - Shows "Tin nhắn đã được thu hồi" to all users
@@ -39,11 +39,8 @@ export async function recallMessage(messageId, userId) {
       throw new AppError("Message already recalled", 400, "ALREADY_RECALLED");
     }
 
-    // Time limit check (15 minutes)
-    const TIME_LIMIT = 15 * 60 * 1000;
-    if (Date.now() - message.createdAt.getTime() > TIME_LIMIT) {
-      throw new AppError("Cannot recall message after 15 minutes", 400, "TIME_LIMIT_EXCEEDED");
-    }
+    // ❌ REMOVED: Time limit check (15 minutes)
+    // User can recall anytime now
 
     // Use model static method (clears hiddenFor by default)
     await Message.recallMessage(messageId, true);

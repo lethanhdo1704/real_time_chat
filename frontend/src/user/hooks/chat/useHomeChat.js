@@ -1,18 +1,26 @@
 // frontend/src/hooks/useHomeChat.js
-import { useEffect, useCallback, useContext, useMemo, useRef } from "react";
+import { useEffect, useCallback, useContext, useMemo } from "react";
 import { AuthContext } from "../../context/AuthContext";
-import { getSocket } from "../../services/socketService";
 import useChatStore from "../../store/chat/chatStore";
 import * as chatApi from "../../services/chatApi";
 
 /**
- * useHomeChat Hook
+ * 🔥 useHomeChat Hook - CHUẨN HÓA
  * 
- * 🔥 COMPLETE: Fetch + Socket + UI Logic
- * - Fetches conversations once via store
- * - Listens to real-time socket events
- * - Handles conversation selection
- * - Marks conversations as read
+ * TRÁCH NHIỆM:
+ * ✅ Fetch conversations once
+ * ✅ Handle conversation selection
+ * ✅ Mark conversations as read
+ * ✅ Provide conversation list to UI
+ * 
+ * ❌ KHÔNG XỬ LÝ SOCKET:
+ * - Socket events → useGlobalSocket
+ * - Message events → useMessages
+ * 
+ * NGUYÊN TẮC:
+ * - Pure UI/business logic hook
+ * - No socket listeners (delegated to useGlobalSocket)
+ * - Clean separation of concerns
  */
 export function useHomeChat() {
   const { token, user } = useContext(AuthContext);
@@ -47,113 +55,10 @@ export function useHomeChat() {
   // STORE ACTIONS
   // ============================================
 
-  const updateConversation = useChatStore((state) => state.updateConversation);
   const addConversationToStore = useChatStore((state) => state.addConversation);
   const setActiveConversation = useChatStore((state) => state.setActiveConversation);
   const resetUnreadCount = useChatStore((state) => state.resetUnreadCount);
   const fetchConversationsOnce = useChatStore((state) => state.fetchConversationsOnce);
-
-  // ============================================
-  // 🔥 SOCKET EVENT HANDLERS
-  // ============================================
-
-  useEffect(() => {
-    const socket = getSocket();
-    
-    if (!socket) {
-      console.log('⏳ [useHomeChat] Socket not ready');
-      return;
-    }
-
-    console.log('🔌 [useHomeChat] Setting up socket listeners');
-
-    // 🔥 FIXED: Handler with conversationId extraction
-    const handleMessageReceived = (data) => {
-      // 🔥 Extract conversationId (same logic as useGlobalSocket)
-      let { conversationId, message, conversationUpdate } = data;
-      
-      if (!conversationId && message?.conversation) {
-        conversationId = message.conversation;
-        console.log('🔧 [useHomeChat] Extracted conversationId from message:', conversationId);
-      }
-
-      console.log('📩 [useHomeChat] Message received:', conversationId);
-
-      if (conversationId && conversationUpdate) {
-        updateConversation(conversationId, {
-          lastMessage: conversationUpdate.lastMessage || message,
-          lastMessageAt: message.createdAt,
-          unreadCount: conversationUpdate.unreadCount,
-        });
-      } else {
-        console.warn('⚠️ [useHomeChat] Missing conversationId or update:', {
-          conversationId,
-          hasUpdate: !!conversationUpdate
-        });
-      }
-    };
-
-    // 🔥 FIXED: Handler with conversationId extraction
-    const handleMessageRead = (data) => {
-      let { conversationId, conversationUpdate } = data;
-      
-      if (!conversationId && data.message?.conversation) {
-        conversationId = data.message.conversation;
-      }
-
-      console.log('👁️ [useHomeChat] Message read:', conversationId);
-
-      if (conversationId && conversationUpdate?.unreadCount !== undefined) {
-        updateConversation(conversationId, {
-          unreadCount: conversationUpdate.unreadCount,
-        });
-      }
-    };
-
-    // 🔥 FIXED: Handler with conversationId extraction
-    const handleMessageDeleted = (data) => {
-      let { conversationId, conversationUpdate } = data;
-      
-      if (!conversationId && data.message?.conversation) {
-        conversationId = data.message.conversation;
-      }
-
-      console.log('🗑️ [useHomeChat] Message deleted:', conversationId);
-
-      if (conversationId && conversationUpdate?.lastMessage) {
-        updateConversation(conversationId, {
-          lastMessage: conversationUpdate.lastMessage,
-          lastMessageAt: conversationUpdate.lastMessage.createdAt,
-        });
-      }
-    };
-
-    // Handler: Conversation updated
-    const handleConversationUpdated = (data) => {
-      const { conversationId, updates } = data;
-
-      console.log('🔄 [useHomeChat] Conversation updated:', conversationId);
-
-      if (conversationId && updates) {
-        updateConversation(conversationId, updates);
-      }
-    };
-
-    // Subscribe to events
-    socket.on('message_received', handleMessageReceived);
-    socket.on('message_read', handleMessageRead);
-    socket.on('message_deleted', handleMessageDeleted);
-    socket.on('conversation_updated', handleConversationUpdated);
-
-    // Cleanup
-    return () => {
-      console.log('🔌 [useHomeChat] Cleaning up socket listeners');
-      socket.off('message_received', handleMessageReceived);
-      socket.off('message_read', handleMessageRead);
-      socket.off('message_deleted', handleMessageDeleted);
-      socket.off('conversation_updated', handleConversationUpdated);
-    };
-  }, [updateConversation]);
 
   // ============================================
   // 🔥 FETCH CONVERSATIONS (ONCE)
@@ -179,7 +84,7 @@ export function useHomeChat() {
       resetUnreadCount(conversationId);
       await chatApi.markConversationAsRead(conversationId);
     } catch (err) {
-      console.error('❌ Error marking as read:', err);
+      console.error('❌ [useHomeChat] Error marking as read:', err);
     }
   }, [resetUnreadCount]);
 
@@ -209,36 +114,20 @@ export function useHomeChat() {
   }, [addConversationToStore]);
 
   // ============================================
-  // 🔥 UPDATE CONVERSATION FROM SOCKET
-  // ============================================
-
-  const updateConversationFromSocket = useCallback((conversationId, updates) => {
-    console.log('🔄 [useHomeChat] updateConversationFromSocket:', {
-      conversationId,
-      updates: Object.keys(updates || {})
-    });
-
-    if (!conversationId || !updates) {
-      console.warn('⚠️ [useHomeChat] Invalid params:', { conversationId, updates });
-      return;
-    }
-
-    updateConversation(conversationId, updates);
-  }, [updateConversation]);
-
-  // ============================================
   // RETURN
   // ============================================
 
   return {
+    // Data
     conversations,
     loading,
     error,
     selectedConversation,
+    
+    // Actions
     handleSelectConversation,
     markConversationAsRead,
     reloadConversations: fetchConversationsOnce,
     addConversation,
-    updateConversationFromSocket,
   };
 }

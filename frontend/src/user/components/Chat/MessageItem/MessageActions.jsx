@@ -1,3 +1,8 @@
+// ============================================
+// COMPLETE FIX: MessageActions.jsx
+// ✅ Optimistic Update + Socket Sync
+// ============================================
+
 // frontend/src/user/components/Chat/MessageItem/MessageActions.jsx
 import { useState, useRef, useEffect, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,6 +29,7 @@ export default function MessageActions({
   
   // Store actions
   const hideMessageLocal = useChatStore((state) => state.hideMessageLocal);
+  const recallMessageFromSocket = useChatStore((state) => state.recallMessageFromSocket);
   
   const [showMenu, setShowMenu] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
@@ -42,17 +48,11 @@ export default function MessageActions({
   // PERMISSION CHECKS
   // ============================================
 
-  // Check if message can be recalled (within 15 minutes)
   const canRecall = () => {
     if (!isMe) return false;
     if (message.isRecalled) return false;
     if (message.deletedAt) return false;
-
-    const messageTime = new Date(message.createdAt).getTime();
-    const now = Date.now();
-    const fifteenMinutes = 15 * 60 * 1000;
-
-    return now - messageTime <= fifteenMinutes;
+    return true; // ✅ No time limit
   };
 
   const canHide = !message.deletedAt && !message.isRecalled;
@@ -136,6 +136,7 @@ export default function MessageActions({
 
   /**
    * 🔥 KIỂU 3: Recall Message (Thu hồi)
+   * ✅ OPTIMISTIC UPDATE: Update UI immediately, socket syncs others
    */
   const handleRecallClick = () => {
     setShowMenu(false);
@@ -155,13 +156,22 @@ export default function MessageActions({
         // KIỂU 3: Thu hồi cho mọi người
         console.log("↩️ Recalling message for everyone:", messageId);
         
+        // Call API
         await messageService.recallMessage(messageId, token);
         
-        // Socket event will update all clients
+        // ✅ OPTIMISTIC UPDATE: Update local UI immediately
+        // Socket event will sync other clients (if connected)
+        const recalledBy = message.sender?._id || message.sender;
+        const recalledAt = new Date().toISOString();
+        
+        console.log("✅ API success - Updating local UI immediately");
+        recallMessageFromSocket(conversationId, messageId, recalledBy, recalledAt);
+        
         console.log("✅ Message recalled successfully");
+        console.log("📡 Socket will sync to other users automatically");
         
       } else {
-        // KIỂU 2: Xóa cho mình
+        // KIỂU 2: Xóa cho mình (Local only)
         console.log("🗑️ Deleting for me:", messageId);
         
         await messageService.deleteForMe(messageId, token);
@@ -362,7 +372,7 @@ export default function MessageActions({
               <div className="h-px bg-gray-200 my-1" />
             )}
 
-            {/* 🔥 RECALL (Only for own messages within 15 min) */}
+            {/* 🔥 RECALL (Only for own messages - NO TIME LIMIT) */}
             {isMe && canRecall() && (
               <MenuItem
                 icon={<RecallIcon />}
@@ -523,3 +533,22 @@ const HideIcon = () => (
     />
   </svg>
 );
+
+// ============================================
+// 📋 HOW IT WORKS
+// ============================================
+/*
+FLOW:
+1. User clicks "Thu hồi tin nhắn"
+2. API call: POST /messages/:id/recall
+3. ✅ OPTIMISTIC UPDATE: recallMessageFromSocket() - Updates current user's UI immediately
+4. Backend emits: socket "message_recalled" event
+5. Other users receive socket event → Their UI updates via useChatSocket listener
+6. If socket disconnected → Current user still sees recall, others get it on reconnect/refresh
+
+WHY THIS WORKS:
+- Current user: Sees change immediately (no socket needed)
+- Other users: Get realtime update if socket connected
+- Socket down: Current user still works, others catch up later
+- Best of both worlds: Instant feedback + eventual consistency
+*/

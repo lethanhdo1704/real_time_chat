@@ -20,13 +20,14 @@ import socketEmitter from "../../socketEmitter.service.js";
 import { ValidationError } from "../../../middleware/errorHandler.js";
 
 /**
- * 🔥 SEND MESSAGE USE CASE
+ * 🔥 SEND MESSAGE USE CASE - CHUẨN HÓA
  * 
  * Business rules:
  * - Must be a member of the conversation
  * - ReplyTo message must exist and be in same conversation
  * - Updates unread counts for other members
- * - Emits socket event to all members
+ * - ✅ Emits to CONVERSATION ROOM (not individual users)
+ * - ✅ Emits unread counts separately to USER ROOMS
  */
 export async function sendMessage({
   conversationId,
@@ -87,17 +88,22 @@ export async function sendMessage({
     // 7️⃣ Get all members with updated unread counts
     const memberUpdates = await getMembersWithUnreadCounts(conversationId);
 
-    // 8️⃣ Emit socket event
+    // 8️⃣ 🔥 CRITICAL FIX: Emit to conversation room
+    // The emitNewMessage now handles:
+    // - message_received → conversation:${id} (all members)
+    // - conversation_update → user:${uid} (per-user unread counts)
     socketEmitter.emitNewMessage(
       conversationId.toString(),
       messageResponse,
       memberUpdates
     );
 
-    console.log("✅ [SendMessage] Message sent:", {
+    console.log("✅ [SendMessage] Message sent successfully:", {
       messageId: messageResponse.messageId,
+      conversationId: conversationId.toString(),
       isReply: !!messageResponse.replyTo,
       replyToId: messageResponse.replyTo?.messageId,
+      membersNotified: Object.keys(memberUpdates).length
     });
 
     return { message: messageResponse };
