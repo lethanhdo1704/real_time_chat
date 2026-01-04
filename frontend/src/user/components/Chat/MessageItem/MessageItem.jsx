@@ -54,12 +54,17 @@ export default function MessageItem({
   const isFailed = message.status === "failed" || message._status === "failed";
 
   // ============================================
-  // 🆕 READ RECEIPTS LOGIC - REACTIVE FIX
+  // 🆕 READ RECEIPTS LOGIC - REACTIVE FIX (F5-SAFE)
   // ============================================
-  const readUsers = isMe && conversationReceipts
-    ? (conversationReceipts.get(messageId) || [])
+  // 🔥 Lấy read receipts và filter bỏ sender của message
+  const readUsers = conversationReceipts
+    ? (conversationReceipts.get(messageId) || []).filter(
+        u => u.userUid !== message.sender?.uid // Loại bỏ sender để không show avatar chính họ
+      )
     : [];
   
+  // 🔥 CHỈ show avatar read receipts cho tin nhắn của MÌNH
+  // Tin nhắn người khác: KHÔNG show avatar
   const showReadReceipts = isMe && readUsers.length > 0;
 
   // ============================================

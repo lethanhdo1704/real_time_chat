@@ -14,7 +14,7 @@
  * Read Receipts Structure:
  * readReceipts: Map<conversationId, Map<messageId, User[]>>
  * 
- * User object: { userUid, avatar, nickname }
+ * User object: { userUid, avatar, nickname, readAt }
  * 
  * Key Rule: 1 user can only appear at 1 message at a time (their lastSeenMessage)
  */
@@ -273,7 +273,7 @@ export const createMessageSlice = (set, get) => ({
    * @param {string} conversationId - Conversation ID
    * @param {string} userUid - User who read the message
    * @param {string} lastSeenMessageId - Last message they saw
-   * @param {Object} userInfo - { avatar, nickname } for display
+   * @param {Object} userInfo - { avatar, nickname, readAt } for display
    */
   updateReadReceipt: (conversationId, userUid, lastSeenMessageId, userInfo = {}) => {
     console.log('📖 [messageSlice] updateReadReceipt:', {
@@ -322,6 +322,7 @@ export const createMessageSlice = (set, get) => ({
         userUid,
         avatar: userInfo.avatar || null,
         nickname: userInfo.nickname || userUid,
+        readAt: userInfo.readAt || new Date().toISOString(), // 🔥 Thêm readAt timestamp
       };
       
       conversationReceipts.set(lastSeenMessageId, [...existingUsers, newUser]);
@@ -329,6 +330,7 @@ export const createMessageSlice = (set, get) => ({
       console.log('✅ [messageSlice] User added to lastSeenMessage:', {
         messageId: lastSeenMessageId,
         userUid,
+        readAt: newUser.readAt,
         totalUsers: existingUsers.length + 1,
       });
     } else {

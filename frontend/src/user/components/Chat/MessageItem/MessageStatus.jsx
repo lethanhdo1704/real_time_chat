@@ -22,6 +22,9 @@ export default function MessageStatus({
   onRetry, 
   t 
 }) {
+  // 🔍 Debug: Log readUsers data
+  console.log('📊 [MessageStatus] readUsers:', readUsers);
+  
   // Format timestamp for tooltip
   const formatTimestamp = (isoString) => {
     try {
