@@ -10,7 +10,7 @@ import AvatarImage from "../common/AvatarImage";
  * Displays a conversation in the sidebar
  * Works for both friends and groups
  * Shows: avatar, name, lastMessage, unreadCount, timestamp
- * 🔥 UPDATED: Gray theme with rounded corners
+ * 🔥 UPDATED: Gray theme with rounded corners + RECALLED MESSAGE PREVIEW
  */
 export default function ConversationItem({
   conversation,
@@ -21,7 +21,7 @@ export default function ConversationItem({
 }) {
   const { t, i18n } = useTranslation("friendFeature");
   const locale = i18n.language === "vi" ? vi : enUS;
-
+  
   // ============================================
   // 🔥 FIX: Normalize conversation ID
   // ============================================
@@ -66,15 +66,16 @@ export default function ConversationItem({
   const lastMessageAt = conversation?.lastMessageAt;
 
   // ============================================
-  // FORMAT MESSAGE PREVIEW
+  // FORMAT MESSAGE PREVIEW - WITH RECALLED SUPPORT
   // ============================================
 
   const getMessagePreview = () => {
     if (!lastMessage) {
       return {
-        text: t("messagePreview.startConversation") || "👋 Start a conversation",
+        text: t("messagePreview.startConversation") || "Start conversation",
         icon: null,
         isSpecial: false,
+        isRecalled: false,
       };
     }
 
@@ -83,44 +84,81 @@ export default function ConversationItem({
       ? t("messagePreview.you") || "You"
       : lastMessage.sender?.nickname || lastMessage.sender?.fullName || t("messagePreview.friend") || "Friend";
 
+    // ============================================
+    // 🔥 CRITICAL: CHECK RECALLED FIRST (HIGHEST PRIORITY)
+    // ============================================
+    if (lastMessage.isRecalled) {
+      return {
+        text: isOwnMessage
+          ? t("messagePreview.youRecalled") || "You recalled a message"
+          : `${senderName} ${t("messagePreview.recalled") || "recalled a message"}`,
+        icon: "↩️", // Recall icon
+        isSpecial: true,
+        isRecalled: true,
+      };
+    }
+
+    // ============================================
+    // NORMAL MESSAGE TYPES (only if NOT recalled)
+    // ============================================
     switch (lastMessage.type) {
       case "image":
         return {
           text: `${senderName}: ${t("messagePreview.photo") || "Photo"}`,
           icon: "📷",
           isSpecial: true,
+          isRecalled: false,
         };
       case "file":
         return {
           text: `${senderName}: ${t("messagePreview.file") || "File"}`,
           icon: "📎",
           isSpecial: true,
+          isRecalled: false,
         };
       case "video":
         return {
           text: `${senderName}: ${t("messagePreview.video") || "Video"}`,
           icon: "🎥",
           isSpecial: true,
+          isRecalled: false,
         };
       case "audio":
         return {
-          text: `${senderName}: ${t("messagePreview.audio") || "Voice"}`,
+          text: `${senderName}: ${t("messagePreview.audio") || "Audio"}`,
           icon: "🎵",
           isSpecial: true,
+          isRecalled: false,
         };
       default:
+        // Text message
         const content = lastMessage.content || "";
+        
+        // 🔥 Double-check: If no content, might be recalled
+        if (!content && lastMessage.isRecalled) {
+          return {
+            text: isOwnMessage
+              ? t("messagePreview.youRecalled") || "You recalled a message"
+              : `${senderName} ${t("messagePreview.recalled") || "recalled a message"}`,
+            icon: "↩️",
+            isSpecial: true,
+            isRecalled: true,
+          };
+        }
+        
         const maxLength = 40;
         const truncated =
           content.length > maxLength
             ? content.substring(0, maxLength) + "..."
             : content;
+        
         return {
           text: isOwnMessage
             ? `${t("messagePreview.you") || "You"}: ${truncated}`
             : truncated,
           icon: null,
           isSpecial: false,
+          isRecalled: false,
         };
     }
   };
@@ -262,7 +300,10 @@ export default function ConversationItem({
             className={`
             text-[13px] truncate flex-1 leading-tight
             ${
-              isActive
+              // 🔥 Special styling for recalled messages
+              messagePreview.isRecalled
+                ? "text-gray-500 italic"
+                : isActive
                 ? "text-gray-700 font-medium"
                 : unreadCount > 0
                 ? "text-gray-900 font-semibold"

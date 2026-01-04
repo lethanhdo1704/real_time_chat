@@ -1,21 +1,21 @@
-// frontend/src/hooks/chat/useMessages.js - WITH READ RECEIPTS & FIXED MEMBER STRUCTURE
+// frontend/src/hooks/chat/useMessages.js - WITH ALL FIXES
 
 import { useEffect, useCallback, useRef } from 'react';
 import useChatStore from '../../store/chat/chatStore';
 import chatApi from '../../services/chatApi';
 
 /**
- * 🔥 useMessages Hook - WITH READ RECEIPTS
+ * 🔥 useMessages Hook - COMPLETE WITH ALL FIXES
  * 
  * RESPONSIBILITIES:
  * ✅ Fetch messages (cursor-based pagination)
- * ✅ Handle message_received (add to chat)
- * ✅ Handle message_recalled (update UI)
+ * ✅ Handle message_received (add to chat + update lastMessage)
+ * ✅ Handle message_recalled (update UI + update lastMessage)
  * ✅ Handle message_deleted (remove from chat)
  * ✅ Handle message_edited (update content)
- * ✅ 🆕 Handle message_read_receipt (show avatars)
+ * ✅ Handle message_read_receipt (show avatars)
  * ✅ Join/leave conversation socket rooms
- * ✅ 🔥 Initialize read receipts from conversation members
+ * ✅ Initialize read receipts from conversation members
  */
 
 const EMPTY_ARRAY = [];
@@ -77,7 +77,7 @@ const useMessages = (conversationId) => {
       // From sidebar: { uid, nickname, avatar, lastSeenMessage: ... }
       const memberUser = member.user || member;
       const lastSeenMessageId = member.lastSeenMessage;
-      const lastSeenAt = member.lastSeenAt; // 🔥 Lấy lastSeenAt
+      const lastSeenAt = member.lastSeenAt;
 
       console.log('🔍 [useMessages] Checking member:', {
         hasUser: !!member.user,
@@ -111,7 +111,7 @@ const useMessages = (conversationId) => {
         {
           avatar: memberUser.avatar,
           nickname: memberUser.nickname,
-          readAt: lastSeenAt, // 🔥 Thêm readAt
+          readAt: lastSeenAt,
         }
       );
     });
@@ -261,7 +261,7 @@ const useMessages = (conversationId) => {
       console.log('🔌 [useMessages] Setting up message listeners');
 
       // ============================================
-      // MESSAGE_RECEIVED
+      // MESSAGE_RECEIVED - WITH CONVERSATION UPDATE
       // ============================================
       const handleMessageReceived = (data) => {
         console.log('🔥 [useMessages] message_received RAW:', data);
@@ -279,7 +279,7 @@ const useMessages = (conversationId) => {
           return;
         }
 
-        const { currentUser, addMessage } = useChatStore.getState();
+        const { currentUser, addMessage, updateConversation, conversations } = useChatStore.getState();
 
         // Ignore own messages (already added optimistically)
         if (currentUser && message.sender?.uid === currentUser.uid) {
@@ -289,12 +289,43 @@ const useMessages = (conversationId) => {
 
         console.log('✅ [useMessages] New message received:', message.messageId);
 
+        // Add message to messages list
         addMessage(conversationId, message);
+        
+        // ============================================
+        // 🔥 UPDATE CONVERSATION'S lastMessage
+        // ============================================
+        const conversation = conversations.get(conversationId);
+        
+        if (conversation) {
+          console.log('🔥 [useMessages] Updating conversation lastMessage');
+          
+          updateConversation(conversationId, {
+            lastMessage: {
+              messageId: message.messageId || message._id,
+              _id: message._id,
+              content: message.content,
+              type: message.type,
+              sender: {
+                uid: message.sender?.uid,
+                nickname: message.sender?.nickname,
+                avatar: message.sender?.avatar,
+              },
+              createdAt: message.createdAt,
+              isRecalled: false,
+            },
+            lastMessageAt: message.createdAt, // Update timestamp
+          });
+          
+          console.log('✅ [useMessages] Conversation lastMessage updated');
+        }
+        
+        // Scroll to bottom
         setTimeout(() => scrollToBottom(), 100);
       };
 
       // ============================================
-      // MESSAGE_RECALLED
+      // 🔥 MESSAGE_RECALLED - WITH CONVERSATION UPDATE
       // ============================================
       const handleMessageRecalled = (data) => {
         console.log('🔥 [useMessages] message_recalled:', data);
@@ -305,12 +336,45 @@ const useMessages = (conversationId) => {
 
         console.log('↩️ [useMessages] Message recalled:', messageId);
 
+        // 1. Update message in messages list
         const { updateMessage } = useChatStore.getState();
         updateMessage(conversationId, messageId, {
           isRecalled: true,
           recalledBy,
           recalledAt,
+          content: "", // Clear content
         });
+
+        // ============================================
+        // 🔥 2. UPDATE CONVERSATION'S lastMessage IF NEEDED
+        // ============================================
+        const { conversations, updateConversation } = useChatStore.getState();
+        const conversation = conversations.get(conversationId);
+        
+        if (conversation?.lastMessage) {
+          const lastMessageId = conversation.lastMessage.messageId || conversation.lastMessage._id;
+          
+          // Check if recalled message is the last message
+          if (lastMessageId === messageId) {
+            console.log('🔥 [useMessages] Recalled message IS the lastMessage - updating conversation');
+            
+            updateConversation(conversationId, {
+              lastMessage: {
+                ...conversation.lastMessage,
+                isRecalled: true,
+                content: "", // Clear content for preview
+                recalledAt,
+                recalledBy,
+              },
+            });
+            
+            console.log('✅ [useMessages] Conversation lastMessage updated to recalled state');
+          } else {
+            console.log('⏭️ [useMessages] Recalled message is NOT lastMessage, no conversation update needed');
+          }
+        } else {
+          console.log('⚠️ [useMessages] No lastMessage in conversation object');
+        }
       };
 
       // ============================================
@@ -354,7 +418,7 @@ const useMessages = (conversationId) => {
       };
 
       // ============================================
-      // 🆕 MESSAGE_READ_RECEIPT - FIXED MEMBER LOOKUP & TIMESTAMP
+      // 🆕 MESSAGE_READ_RECEIPT
       // ============================================
       const handleMessageReadReceipt = (data) => {
         console.log('🔥🔥🔥 [useMessages] message_read_receipt RECEIVED:', data);
@@ -363,7 +427,7 @@ const useMessages = (conversationId) => {
           conversationId: receiptConvId, 
           userUid, 
           lastSeenMessageId,
-          timestamp, // 🔥 Lấy timestamp từ socket event
+          timestamp,
         } = data;
 
         // Ignore if not for current conversation
@@ -382,13 +446,12 @@ const useMessages = (conversationId) => {
         let userInfo = { 
           avatar: null, 
           nickname: userUid,
-          readAt: timestamp, // 🔥 Thêm readAt vào userInfo
+          readAt: timestamp,
         };
 
         if (conversation?.members) {
           console.log('🔍 [useMessages] Searching in members:', conversation.members.length);
           console.log('🔍 [useMessages] Looking for userUid:', userUid);
-          console.log('🔍 [useMessages] Full members structure:', JSON.stringify(conversation.members, null, 2));
           
           // 🔥 TRY MULTIPLE STRUCTURES
           let member = null;
@@ -407,7 +470,7 @@ const useMessages = (conversationId) => {
             userInfo = {
               avatar: user.avatar,
               nickname: user.nickname || user.fullName || userUid,
-              readAt: timestamp, // 🔥 Thêm readAt vào userInfo
+              readAt: timestamp,
             };
             console.log('✅ [useMessages] Found member info:', userInfo);
           } else {
@@ -418,7 +481,6 @@ const useMessages = (conversationId) => {
           }
         } else {
           console.warn('⚠️ [useMessages] No members in conversation object');
-          console.log('🔍 [useMessages] Conversation:', conversation);
         }
 
         // Update read receipt in store
@@ -457,7 +519,7 @@ const useMessages = (conversationId) => {
       oldestMessageIdRef.current = null;
       await fetchMessages(true);
 
-      // 4. 🆕 Initialize read receipts from conversation members
+      // 4. Initialize read receipts from conversation members
       const { conversations } = useChatStore.getState();
       const conversation = conversations.get(conversationId);
       

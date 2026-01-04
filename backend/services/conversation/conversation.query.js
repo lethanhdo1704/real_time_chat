@@ -8,6 +8,8 @@ import User from "../../models/User.js";
 /**
  * Conversation Query Service
  * Handles getting conversation lists and details
+ * 
+ * 🔥 FIXED: Filter lastMessage based on hiddenFor
  */
 class ConversationQueryService {
   /**
@@ -118,6 +120,8 @@ class ConversationQueryService {
   /**
    * Get user's conversations for sidebar
    * 
+   * 🔥 FIXED: Filter lastMessage if hidden by user or recalled
+   * 
    * @param {string} userUid - User's uid
    * @param {number} limit - Number of conversations to return
    * @param {number} offset - Pagination offset
@@ -164,23 +168,87 @@ class ConversationQueryService {
           const unreadCount = membership.unreadCount;
 
           let lastMessage = null;
+          
           if (conv.lastMessage) {
             const msg = await Message.findById(conv.lastMessage)
               .populate("sender", "uid nickname avatar")
               .lean();
 
+            // ============================================
+            // 🔥 FIX: Check if message is visible for this user
+            // ============================================
             if (msg && !msg.deletedAt) {
-              lastMessage = {
-                sender: {
-                  uid: msg.sender.uid,
-                  nickname: msg.sender.nickname,
-                },
-                content: msg.content,
-                createdAt: msg.createdAt,
-              };
+              // Check if user hid this message
+              const isHidden = msg.hiddenFor?.some(
+                (hiddenUserId) => hiddenUserId.toString() === userId.toString()
+              );
+
+              // 🔥 If hidden or recalled, handle appropriately
+              if (isHidden) {
+                console.log('🔍 [ConversationQuery] lastMessage hidden by user, finding alternative');
+                
+                // Find the last message that is:
+                // 1. Not deleted by admin
+                // 2. Not hidden by this user
+                // 3. Older than current lastMessage
+                const alternativeMsg = await Message.findOne({
+                  conversation: conv._id,
+                  deletedAt: null,
+                  hiddenFor: { $ne: userId },
+                  _id: { $lt: msg._id }, // Older than current lastMessage
+                })
+                  .sort({ _id: -1 })
+                  .populate("sender", "uid nickname avatar")
+                  .lean();
+
+                if (alternativeMsg) {
+                  lastMessage = {
+                    messageId: alternativeMsg._id,
+                    sender: {
+                      uid: alternativeMsg.sender.uid,
+                      nickname: alternativeMsg.sender.nickname,
+                    },
+                    content: alternativeMsg.content,
+                    type: alternativeMsg.type,
+                    createdAt: alternativeMsg.createdAt,
+                    isRecalled: alternativeMsg.isRecalled || false,
+                  };
+                }
+                // If no alternative found, lastMessage stays null
+              } else if (msg.isRecalled) {
+                // 🔥 Recalled message - show placeholder
+                lastMessage = {
+                  messageId: msg._id,
+                  sender: {
+                    uid: msg.sender.uid,
+                    nickname: msg.sender.nickname,
+                  },
+                  content: msg.content, // Should be empty if backend cleared it
+                  type: msg.type,
+                  createdAt: msg.createdAt,
+                  isRecalled: true,
+                  recalledAt: msg.recalledAt,
+                };
+              } else {
+                // Message is visible normally
+                lastMessage = {
+                  messageId: msg._id,
+                  sender: {
+                    uid: msg.sender.uid,
+                    nickname: msg.sender.nickname,
+                  },
+                  content: msg.content,
+                  type: msg.type,
+                  createdAt: msg.createdAt,
+                  isRecalled: false,
+                };
+              }
             }
           }
 
+          // ============================================
+          // Build conversation object
+          // ============================================
           if (conv.type === "private") {
             const otherMember = await ConversationMember.findOne({
               conversation: conv._id,
@@ -291,8 +359,8 @@ class ConversationQueryService {
             nickname: m.user.nickname,
             avatar: m.user.avatar,
             role: m.role,
-            lastSeenMessage: m.lastSeenMessage?.toString() || null, // 🔥 ADD THIS
-            lastSeenAt: m.lastSeenAt || null, // 🔥 ADD THIS
+            lastSeenMessage: m.lastSeenMessage?.toString() || null,
+            lastSeenAt: m.lastSeenAt || null,
           })),
 
           // optional – giữ cho sidebar / logic cũ
@@ -323,8 +391,8 @@ class ConversationQueryService {
             nickname: m.user.nickname,
             avatar: m.user.avatar,
             role: m.role,
-            lastSeenMessage: m.lastSeenMessage?.toString() || null, // 🔥 ADD THIS
-            lastSeenAt: m.lastSeenAt || null, // 🔥 ADD THIS
+            lastSeenMessage: m.lastSeenMessage?.toString() || null,
+            lastSeenAt: m.lastSeenAt || null,
           })),
         };
       }

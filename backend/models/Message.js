@@ -244,6 +244,7 @@ messageSchema.statics.recallMessage = async function (messageId, clearHidden = t
   const update = { 
     isRecalled: true,
     recalledAt: new Date(),
+    content: "",
   };
   
   // Optional: Clear hidden state since recall is global

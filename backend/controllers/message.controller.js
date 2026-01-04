@@ -349,7 +349,6 @@ class MessageController {
   /**
    * 🆕 KIỂU 3: Recall message (Thu hồi - mọi người thấy)
    * POST /api/messages/:messageId/recall
-   * Business rule: Only sender can recall within 15 minutes
    */
   async recallMessage(req, res, next) {
     try {

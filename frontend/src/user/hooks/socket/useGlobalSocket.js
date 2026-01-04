@@ -1,20 +1,22 @@
-// frontend/src/hooks/useGlobalSocket.js
+// frontend/src/hooks/useGlobalSocket.js - WITH GLOBAL MESSAGE_RECALLED
+
 import { useEffect, useContext, useCallback, useRef } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import { SocketContext } from "../../context/SocketContext";
 import useChatStore from "../../store/chat/chatStore";
 
 /**
- * 🔥 GLOBAL SOCKET LISTENER - CHUẨN HÓA
+ * 🔥 GLOBAL SOCKET LISTENER - WITH MESSAGE_RECALLED
  * 
  * TRÁCH NHIỆM:
  * ✅ Conversation metadata (lastMessage, unread, reorder)
  * ✅ Conversation lifecycle (created, updated)
  * ✅ User-specific events (not message content)
+ * ✅ 🆕 message_recalled (update sidebar for ALL conversations)
  * 
  * ❌ KHÔNG XỬ LÝ:
  * - message_received content → useMessages
- * - message_recalled/deleted/edited → useMessages
+ * - message_recalled/deleted/edited content in active chat → useMessages
  * 
  * NGUYÊN TẮC:
  * - Register ONCE per connection
@@ -130,6 +132,60 @@ export const useGlobalSocket = ({
   }, []);
 
   // ============================================
+  // 🆕 HANDLER: MESSAGE RECALLED (GLOBAL - for sidebar)
+  // ============================================
+  /**
+   * Handle message_recalled globally to update sidebar
+   * even when not in the conversation
+   * 
+   * This ensures sidebar shows "Message recalled" immediately
+   * regardless of which conversation user is viewing
+   */
+  const handleMessageRecalledGlobal = useCallback((data) => {
+    const { conversationId, messageId, recalledBy, recalledAt } = data;
+    
+    if (!conversationId || !messageId) {
+      console.warn('⚠️ [Global] Missing data in message_recalled');
+      return;
+    }
+
+    console.log('↩️ [Global] Message recalled:', {
+      conversationId,
+      messageId,
+      recalledBy,
+    });
+
+    const { conversations, updateConversation } = useChatStore.getState();
+    const conversation = conversations.get(conversationId);
+    
+    if (!conversation?.lastMessage) {
+      console.log('⏭️ [Global] No lastMessage in conversation, skip');
+      return;
+    }
+
+    const lastMessageId = conversation.lastMessage.messageId || conversation.lastMessage._id;
+    
+    // Only update if recalled message is the lastMessage
+    if (lastMessageId === messageId) {
+      console.log('🔥 [Global] Recalled message IS lastMessage - updating sidebar');
+      
+      updateConversation(conversationId, {
+        lastMessage: {
+          ...conversation.lastMessage,
+          isRecalled: true,
+          content: "", // Clear content
+          recalledAt,
+          recalledBy,
+        },
+      });
+      
+      console.log('✅ [Global] Sidebar updated for recalled message');
+    } else {
+      console.log('⏭️ [Global] Recalled message is NOT lastMessage, no update needed');
+    }
+  }, []);
+
+  // ============================================
   // REGISTER SOCKET LISTENERS (ONCE)
   // ============================================
   useEffect(() => {
@@ -147,13 +203,20 @@ export const useGlobalSocket = ({
     registeredRef.current = true;
 
     // ============================================
-    // ✅ ONLY LISTEN TO CONVERSATION METADATA
-    // ❌ NO message_received (handled by useMessages)
+    // ✅ CONVERSATION METADATA EVENTS
     // ============================================
     socket.on('conversation_update', handleConversationUpdate);
     socket.on('conversation_created', handleConversationCreated);
     socket.on('conversation_joined', handleConversationJoined);
     socket.on('conversation_left', handleConversationLeft);
+    
+    // ============================================
+    // 🆕 MESSAGE EVENTS (for sidebar updates)
+    // ============================================
+    socket.on('message_recalled', handleMessageRecalledGlobal);
+    
+    // Note: message_received is handled by conversation_update
+    // Note: message_deleted and message_edited don't affect sidebar much
 
     console.log('✅ [Global] All global listeners registered');
 
@@ -165,6 +228,7 @@ export const useGlobalSocket = ({
       socket.off('conversation_created', handleConversationCreated);
       socket.off('conversation_joined', handleConversationJoined);
       socket.off('conversation_left', handleConversationLeft);
+      socket.off('message_recalled', handleMessageRecalledGlobal);
     };
   }, [
     socket, 
@@ -174,6 +238,7 @@ export const useGlobalSocket = ({
     handleConversationCreated,
     handleConversationJoined,
     handleConversationLeft,
+    handleMessageRecalledGlobal, // 🆕 Add to deps
   ]);
 
   // Reset registration flag on disconnect

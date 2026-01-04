@@ -1,8 +1,3 @@
-// ============================================
-// COMPLETE FIX: MessageActions.jsx
-// ✅ Optimistic Update + Socket Sync
-// ============================================
-
 // frontend/src/user/components/Chat/MessageItem/MessageActions.jsx
 import { useState, useRef, useEffect, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,6 +7,75 @@ import useChatStore from "../../../store/chat/chatStore";
 import RecallMessageModal from "./RecallMessageModal";
 import HideMessageModal from "./HideMessageModal";
 
+// ============================================
+// 🔥 HELPER: Update conversation's lastMessage
+// ============================================
+/**
+ * Update conversation's lastMessage after hide/delete/recall
+ * Finds the last visible message and updates the conversation
+ */
+const updateConversationLastMessage = (conversationId, removedMessageId) => {
+  const { conversations, messages, updateConversation } = useChatStore.getState();
+  
+  const conversation = conversations.get(conversationId);
+  if (!conversation?.lastMessage) {
+    console.log('⏭️ No lastMessage in conversation, skip update');
+    return;
+  }
+  
+  const lastMessageId = conversation.lastMessage.messageId || conversation.lastMessage._id;
+  
+  // Only update if the removed message was the lastMessage
+  if (lastMessageId !== removedMessageId) {
+    console.log('⏭️ Removed message is not lastMessage, no update needed');
+    return;
+  }
+  
+  console.log('🔥 Removed message IS lastMessage - finding alternative');
+  
+  // Get conversation messages
+  const conversationMessages = messages.get(conversationId) || [];
+  
+  // Find the last visible message (not the one we just removed)
+  const visibleMessages = conversationMessages.filter(msg => {
+    const msgId = msg.messageId || msg._id;
+    return (
+      msgId !== removedMessageId && // Not the removed message
+      !msg.deletedAt && // Not admin deleted
+      !msg.isRecalled // Not recalled
+    );
+  });
+  
+  if (visibleMessages.length > 0) {
+    // Get the last visible message
+    const newLastMessage = visibleMessages[visibleMessages.length - 1];
+    
+    console.log('✅ Found alternative lastMessage:', newLastMessage.messageId || newLastMessage._id);
+    
+    updateConversation(conversationId, {
+      lastMessage: {
+        messageId: newLastMessage.messageId || newLastMessage._id,
+        _id: newLastMessage._id,
+        content: newLastMessage.content,
+        type: newLastMessage.type,
+        sender: newLastMessage.sender,
+        createdAt: newLastMessage.createdAt,
+        isRecalled: false,
+      },
+    });
+  } else {
+    // No visible messages left
+    console.log('⚠️ No visible messages left - clearing lastMessage');
+    
+    updateConversation(conversationId, {
+      lastMessage: null,
+    });
+  }
+};
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
 export default function MessageActions({
   message,
   conversationId,
@@ -160,12 +224,14 @@ export default function MessageActions({
         await messageService.recallMessage(messageId, token);
         
         // ✅ OPTIMISTIC UPDATE: Update local UI immediately
-        // Socket event will sync other clients (if connected)
         const recalledBy = message.sender?._id || message.sender;
         const recalledAt = new Date().toISOString();
         
         console.log("✅ API success - Updating local UI immediately");
         recallMessageFromSocket(conversationId, messageId, recalledBy, recalledAt);
+        
+        // 🔥 NEW: Update conversation's lastMessage
+        updateConversationLastMessage(conversationId, messageId);
         
         console.log("✅ Message recalled successfully");
         console.log("📡 Socket will sync to other users automatically");
@@ -178,6 +244,10 @@ export default function MessageActions({
         
         // Update local state only
         hideMessageLocal(conversationId, messageId);
+        
+        // 🔥 NEW: Update conversation's lastMessage
+        updateConversationLastMessage(conversationId, messageId);
+        
         console.log("✅ Message deleted for me");
       }
     } catch (error) {
@@ -211,6 +281,10 @@ export default function MessageActions({
       
       // Update local state only
       hideMessageLocal(conversationId, messageId);
+      
+      // 🔥 NEW: Update conversation's lastMessage
+      updateConversationLastMessage(conversationId, messageId);
+      
       console.log("✅ Message hidden successfully");
       
     } catch (error) {
@@ -533,22 +607,3 @@ const HideIcon = () => (
     />
   </svg>
 );
-
-// ============================================
-// 📋 HOW IT WORKS
-// ============================================
-/*
-FLOW:
-1. User clicks "Thu hồi tin nhắn"
-2. API call: POST /messages/:id/recall
-3. ✅ OPTIMISTIC UPDATE: recallMessageFromSocket() - Updates current user's UI immediately
-4. Backend emits: socket "message_recalled" event
-5. Other users receive socket event → Their UI updates via useChatSocket listener
-6. If socket disconnected → Current user still sees recall, others get it on reconnect/refresh
-
-WHY THIS WORKS:
-- Current user: Sees change immediately (no socket needed)
-- Other users: Get realtime update if socket connected
-- Socket down: Current user still works, others catch up later
-- Best of both worlds: Instant feedback + eventual consistency
-*/
