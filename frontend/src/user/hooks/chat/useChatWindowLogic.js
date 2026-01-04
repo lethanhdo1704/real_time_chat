@@ -1,11 +1,12 @@
 // frontend/src/hooks/chat/useChatWindowLogic.js
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import useChatStore from "../../store/chat/chatStore.js";
 import useMessages from "./useMessages.js";
 import useSendMessage from "./useSendMessage.js";
 import useTyping from "./useTyping.js";
 import useMarkAsRead from "./useMarkAsRead.js";
 import useChatScroll from "./useChatScroll.js";
+import { getConversationById } from "../../services/chatApi";
 
 export default function useChatWindowLogic() {
   // ============================================
@@ -21,6 +22,10 @@ export default function useChatWindowLogic() {
   const conversation = activeConversationId
     ? conversations.get(activeConversationId)
     : null;
+  
+  const setConversationDetail = useChatStore(
+    (state) => state.setConversationDetail
+  );
 
   // ============================================
   // HOOKS
@@ -38,6 +43,78 @@ export default function useChatWindowLogic() {
   const { isTyping, typingUsers, startTyping, stopTyping } =
     useTyping(activeConversationId);
   useMarkAsRead(activeConversationId);
+
+  // ============================================
+  // 🔥 FETCH CONVERSATION DETAIL + INIT READ RECEIPTS
+  // ============================================
+  useEffect(() => {
+    if (!activeConversationId) return;
+
+    const conv = conversations.get(activeConversationId);
+
+    // 🔥 ALWAYS fetch if no _detailFetched flag
+    if (conv?._detailFetched) {
+      console.log('⏭️ [useChatWindowLogic] Detail already fetched, skipping');
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        console.log("📥 [useChatWindowLogic] Fetching conversation detail:", activeConversationId);
+
+        const detail = await getConversationById(activeConversationId);
+
+        if (!cancelled && detail) {
+          setConversationDetail(detail);
+          console.log("✅ [useChatWindowLogic] Conversation detail merged");
+
+          // 🆕 Initialize read receipts from members
+          if (detail.members && detail.members.length > 0) {
+            console.log("📖 [useChatWindowLogic] Initializing read receipts from detail");
+            
+            const { updateReadReceipt } = useChatStore.getState();
+            
+            detail.members.forEach((member) => {
+              // 🔥 FIX: Handle both structures
+              const memberUser = member.user || member;
+              const lastSeenMessageId = member.lastSeenMessage;
+
+              // Skip if no lastSeenMessage or if it's current user
+              if (!lastSeenMessageId || !memberUser || memberUser.uid === currentUser?.uid) {
+                return;
+              }
+
+              console.log('📖 [useChatWindowLogic] Adding receipt for:', {
+                userUid: memberUser.uid,
+                nickname: memberUser.nickname,
+                lastSeenMessage: lastSeenMessageId,
+              });
+
+              updateReadReceipt(
+                activeConversationId,
+                memberUser.uid,
+                lastSeenMessageId,
+                {
+                  avatar: memberUser.avatar,
+                  nickname: memberUser.nickname,
+                }
+              );
+            });
+
+            console.log('✅ [useChatWindowLogic] Read receipts initialized');
+          }
+        }
+      } catch (err) {
+        console.error("❌ [useChatWindowLogic] Failed to fetch conversation detail:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeConversationId, conversations, setConversationDetail, currentUser]);
 
   // ============================================
   // SORT MESSAGES BY TIMESTAMP
@@ -69,7 +146,7 @@ export default function useChatWindowLogic() {
   });
 
   // ============================================
-  // 🔥 HANDLERS (FIXED - accept replyToId)
+  // HANDLERS
   // ============================================
   const handleSendMessage = async (text, replyToId = null) => {
     if (!text.trim()) return;
@@ -81,7 +158,7 @@ export default function useChatWindowLogic() {
     });
 
     try {
-      // 🔥 Get full reply data if replyToId provided
+      // Get full reply data if replyToId provided
       let replyToData = null;
       if (replyToId) {
         replyToData = useChatStore.getState().findMessageById(activeConversationId, replyToId);
@@ -94,7 +171,7 @@ export default function useChatWindowLogic() {
         {
           content: text.trim(),
           type: "text",
-          replyTo: replyToData, // 🔥 Pass full reply data
+          replyTo: replyToData,
         }
       );
 
@@ -190,7 +267,7 @@ export default function useChatWindowLogic() {
     hookMessagesEndRef,
 
     // Handlers
-    handleSendMessage, // 🔥 Now accepts (text, replyToId)
+    handleSendMessage,
     handleTypingChange,
     handleRetryMessage,
     scrollToBottom,

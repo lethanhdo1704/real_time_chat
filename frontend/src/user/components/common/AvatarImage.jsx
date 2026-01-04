@@ -27,6 +27,7 @@ export default function AvatarImage({
 
   // Size classes
   const sizeClasses = {
+    mini: "w-3.5 h-3.5 text-xs",
     xs: "w-8 h-8 text-xs",
     sm: "w-10 h-10 text-sm",
     md: "w-12 h-12 text-base",

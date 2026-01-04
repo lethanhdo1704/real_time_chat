@@ -1,25 +1,21 @@
-// frontend/src/hooks/chat/useMessages.js - CURSOR-BASED PAGINATION
+// frontend/src/hooks/chat/useMessages.js - WITH READ RECEIPTS & FIXED MEMBER STRUCTURE
+
 import { useEffect, useCallback, useRef } from 'react';
 import useChatStore from '../../store/chat/chatStore';
 import chatApi from '../../services/chatApi';
 
 /**
- * 🔥 useMessages Hook - CHUẨN HÓA
+ * 🔥 useMessages Hook - WITH READ RECEIPTS
  * 
- * TRÁCH NHIỆM:
+ * RESPONSIBILITIES:
  * ✅ Fetch messages (cursor-based pagination)
  * ✅ Handle message_received (add to chat)
  * ✅ Handle message_recalled (update UI)
  * ✅ Handle message_deleted (remove from chat)
  * ✅ Handle message_edited (update content)
+ * ✅ 🆕 Handle message_read_receipt (show avatars)
  * ✅ Join/leave conversation socket rooms
- * 
- * NGUYÊN TẮC:
- * - Single source of truth for message content
- * - Cursor-based pagination (no page numbers)
- * - Store-level lock (hasJoinedConversation)
- * - Socket listeners inside effect
- * - Ignore own messages from socket
+ * ✅ 🔥 Initialize read receipts from conversation members
  */
 
 const EMPTY_ARRAY = [];
@@ -58,6 +54,72 @@ const useMessages = (conversationId) => {
   const hasMessages = messages.length > 0;
 
   // ============================================
+  // 🆕 HELPER: Initialize read receipts from members
+  // ============================================
+  const initializeReadReceipts = useCallback((members, currentUserUid) => {
+    console.log('🔄 [useMessages] Initializing read receipts from members:', {
+      conversationId,
+      membersCount: members?.length,
+      currentUserUid,
+    });
+
+    if (!members || members.length === 0) {
+      console.warn('⚠️ [useMessages] No members data to initialize receipts');
+      return;
+    }
+
+    const { updateReadReceipt } = useChatStore.getState();
+
+    // Process each member
+    members.forEach((member) => {
+      // 🔥 FIX: Handle both structures
+      // From detail API: { user: {...}, lastSeenMessage: ... }
+      // From sidebar: { uid, nickname, avatar, lastSeenMessage: ... }
+      const memberUser = member.user || member;
+      const lastSeenMessageId = member.lastSeenMessage;
+      const lastSeenAt = member.lastSeenAt; // 🔥 Lấy lastSeenAt
+
+      console.log('🔍 [useMessages] Checking member:', {
+        hasUser: !!member.user,
+        hasMemberUid: !!member.uid,
+        memberUserUid: memberUser?.uid,
+        lastSeenMessageId,
+        lastSeenAt,
+        currentUserUid,
+        isCurrentUser: memberUser?.uid === currentUserUid,
+        willSkip: !lastSeenMessageId || !memberUser || memberUser.uid === currentUserUid,
+      });
+
+      // Skip if no lastSeenMessage or if it's current user
+      if (!lastSeenMessageId || !memberUser || memberUser.uid === currentUserUid) {
+        console.log('⏭️ [useMessages] Skipping member:', memberUser?.uid || 'NO_UID');
+        return;
+      }
+
+      console.log('📖 [useMessages] Processing member receipt:', {
+        userUid: memberUser.uid,
+        nickname: memberUser.nickname,
+        lastSeenMessage: lastSeenMessageId,
+        lastSeenAt: lastSeenAt,
+      });
+
+      // Update store with this member's read receipt
+      updateReadReceipt(
+        conversationId,
+        memberUser.uid,
+        lastSeenMessageId,
+        {
+          avatar: memberUser.avatar,
+          nickname: memberUser.nickname,
+          readAt: lastSeenAt, // 🔥 Thêm readAt
+        }
+      );
+    });
+
+    console.log('✅ [useMessages] Read receipts initialized from members');
+  }, [conversationId]);
+
+  // ============================================
   // FETCH MESSAGES (CURSOR-BASED)
   // ============================================
 
@@ -65,7 +127,6 @@ const useMessages = (conversationId) => {
     async (isInitial = false) => {
       if (!conversationId) return;
 
-      // If not initial and no cursor → skip
       if (!isInitial && !oldestMessageIdRef.current) {
         console.log('⏭️ [useMessages] No cursor available, skipping');
         return;
@@ -78,7 +139,6 @@ const useMessages = (conversationId) => {
         setMessagesLoading(conversationId, true);
         setMessagesError(conversationId, null);
 
-        // CURSOR-BASED: Send 'before' instead of 'page'
         const params = { limit: 50 };
         if (!isInitial && oldestMessageIdRef.current) {
           params.before = oldestMessageIdRef.current;
@@ -98,7 +158,6 @@ const useMessages = (conversationId) => {
           hasMore: data.hasMore,
         });
 
-        // No more messages → stop
         if (data.messages.length === 0) {
           console.log('⏹️ [useMessages] No more messages');
           setMessagesLoading(conversationId, false);
@@ -107,7 +166,6 @@ const useMessages = (conversationId) => {
           return;
         }
 
-        // UPDATE CURSOR: Get oldest message as cursor for next load
         const oldestMessage = data.messages[0];
         oldestMessageIdRef.current = oldestMessage?.messageId || oldestMessage?._id;
 
@@ -168,8 +226,7 @@ const useMessages = (conversationId) => {
   useEffect(() => {
     if (!conversationId) return;
 
-    // STORE-LEVEL LOCK: Check if already joined
-    const { hasJoinedConversation, markConversationJoined } = useChatStore.getState();
+    const { hasJoinedConversation, markConversationJoined, currentUser } = useChatStore.getState();
     
     if (hasJoinedConversation(conversationId)) {
       console.log('⏭️ [useMessages] Already joined at store level, skip');
@@ -178,10 +235,8 @@ const useMessages = (conversationId) => {
 
     console.log('🔌 [useMessages] Initializing conversation:', conversationId);
 
-    // MARK AS JOINED IMMEDIATELY
     markConversationJoined(conversationId);
 
-    // Get socket inside effect
     const getSocketSafe = async () => {
       const { getSocket } = await import('../../services/socketService');
       return getSocket();
@@ -206,19 +261,27 @@ const useMessages = (conversationId) => {
       console.log('🔌 [useMessages] Setting up message listeners');
 
       // ============================================
-      // 🔥 MESSAGE_RECEIVED - SINGLE SOURCE OF TRUTH
+      // MESSAGE_RECEIVED
       // ============================================
       const handleMessageReceived = (data) => {
+        console.log('🔥 [useMessages] message_received RAW:', data);
+        
         const { message } = data;
 
-        if (!message) return;
+        if (!message) {
+          console.error('❌ [useMessages] No message in data');
+          return;
+        }
 
         const messageConvId = message.conversation || message.conversationId;
-        if (!messageConvId || messageConvId !== conversationId) return;
+        if (!messageConvId || messageConvId !== conversationId) {
+          console.warn('⚠️ [useMessages] Message for different conversation');
+          return;
+        }
 
         const { currentUser, addMessage } = useChatStore.getState();
 
-        // ✅ CRITICAL: Ignore own messages (already added optimistically)
+        // Ignore own messages (already added optimistically)
         if (currentUser && message.sender?.uid === currentUser.uid) {
           console.log('⏭️ [useMessages] Ignoring own message:', message.messageId);
           return;
@@ -234,6 +297,7 @@ const useMessages = (conversationId) => {
       // MESSAGE_RECALLED
       // ============================================
       const handleMessageRecalled = (data) => {
+        console.log('🔥 [useMessages] message_recalled:', data);
         const { messageId, conversationId: dataConvId, recalledBy, recalledAt } = data;
         
         if (!messageId) return;
@@ -253,6 +317,7 @@ const useMessages = (conversationId) => {
       // MESSAGE_EDITED
       // ============================================
       const handleMessageEdited = (data) => {
+        console.log('🔥 [useMessages] message_edited:', data);
         const { message } = data;
         if (!message) return;
 
@@ -276,6 +341,7 @@ const useMessages = (conversationId) => {
       // MESSAGE_DELETED
       // ============================================
       const handleMessageDeleted = (data) => {
+        console.log('🔥 [useMessages] message_deleted:', data);
         const { messageId, conversationId: dataConvId } = data;
         
         if (!messageId) return;
@@ -287,18 +353,118 @@ const useMessages = (conversationId) => {
         removeMessage(conversationId, messageId);
       };
 
-      // Register all listeners
+      // ============================================
+      // 🆕 MESSAGE_READ_RECEIPT - FIXED MEMBER LOOKUP & TIMESTAMP
+      // ============================================
+      const handleMessageReadReceipt = (data) => {
+        console.log('🔥🔥🔥 [useMessages] message_read_receipt RECEIVED:', data);
+        
+        const { 
+          conversationId: receiptConvId, 
+          userUid, 
+          lastSeenMessageId,
+          timestamp, // 🔥 Lấy timestamp từ socket event
+        } = data;
+
+        // Ignore if not for current conversation
+        if (receiptConvId !== conversationId) {
+          console.log('⏭️ [useMessages] Receipt for different conversation, ignoring');
+          return;
+        }
+
+        console.log('✅ [useMessages] Receipt is for current conversation');
+        console.log('✅ [useMessages] Receipt is from user:', userUid);
+
+        // Get user info from conversation members
+        const { conversations } = useChatStore.getState();
+        const conversation = conversations.get(conversationId);
+        
+        let userInfo = { 
+          avatar: null, 
+          nickname: userUid,
+          readAt: timestamp, // 🔥 Thêm readAt vào userInfo
+        };
+
+        if (conversation?.members) {
+          console.log('🔍 [useMessages] Searching in members:', conversation.members.length);
+          console.log('🔍 [useMessages] Looking for userUid:', userUid);
+          console.log('🔍 [useMessages] Full members structure:', JSON.stringify(conversation.members, null, 2));
+          
+          // 🔥 TRY MULTIPLE STRUCTURES
+          let member = null;
+          
+          // Try: member.user.uid (from detail API)
+          member = conversation.members.find(m => m.user?.uid === userUid);
+          
+          // Try: member.uid (from sidebar list)
+          if (!member) {
+            member = conversation.members.find(m => m.uid === userUid);
+          }
+          
+          if (member) {
+            // Get user info from either structure
+            const user = member.user || member;
+            userInfo = {
+              avatar: user.avatar,
+              nickname: user.nickname || user.fullName || userUid,
+              readAt: timestamp, // 🔥 Thêm readAt vào userInfo
+            };
+            console.log('✅ [useMessages] Found member info:', userInfo);
+          } else {
+            console.warn('⚠️ [useMessages] Member not found in conversation.members');
+            console.log('Available members UIDs:', conversation.members.map(m => 
+              m.user?.uid || m.uid || 'NO_UID'
+            ));
+          }
+        } else {
+          console.warn('⚠️ [useMessages] No members in conversation object');
+          console.log('🔍 [useMessages] Conversation:', conversation);
+        }
+
+        // Update read receipt in store
+        const { updateReadReceipt } = useChatStore.getState();
+        
+        console.log('📖 [useMessages] Calling updateReadReceipt with:', {
+          conversationId,
+          userUid,
+          lastSeenMessageId,
+          userInfo,
+        });
+        
+        updateReadReceipt(
+          conversationId,
+          userUid,
+          lastSeenMessageId,
+          userInfo
+        );
+
+        console.log('✅✅✅ [useMessages] Read receipt updated in store!');
+      };
+
+      // ============================================
+      // REGISTER ALL LISTENERS
+      // ============================================
       socket.on('message_received', handleMessageReceived);
       socket.on('message_recalled', handleMessageRecalled);
       socket.on('message_edited', handleMessageEdited);
       socket.on('message_deleted', handleMessageDeleted);
+      socket.on('message_read_receipt', handleMessageReadReceipt);
 
-      console.log('✅ [useMessages] All message listeners registered');
+      console.log('✅ [useMessages] All message listeners registered (including read receipt)');
 
       // 3. Fetch initial messages
       hasFetchedRef.current = false;
       oldestMessageIdRef.current = null;
-      fetchMessages(true);
+      await fetchMessages(true);
+
+      // 4. 🆕 Initialize read receipts from conversation members
+      const { conversations } = useChatStore.getState();
+      const conversation = conversations.get(conversationId);
+      
+      if (conversation?.members && conversation.members.length > 0) {
+        console.log('📖 [useMessages] Initializing read receipts from existing members');
+        initializeReadReceipts(conversation.members, currentUser?.uid);
+      }
 
       // Cleanup function
       cleanup = () => {
@@ -310,6 +476,7 @@ const useMessages = (conversationId) => {
           socket.off('message_recalled', handleMessageRecalled);
           socket.off('message_edited', handleMessageEdited);
           socket.off('message_deleted', handleMessageDeleted);
+          socket.off('message_read_receipt', handleMessageReadReceipt);
         }
       };
     };
@@ -319,7 +486,37 @@ const useMessages = (conversationId) => {
     return () => {
       if (cleanup) cleanup();
     };
-  }, [conversationId, fetchMessages, scrollToBottom]);
+  }, [conversationId, fetchMessages, scrollToBottom, initializeReadReceipts]);
+
+  // ============================================
+  // 🆕 RE-INITIALIZE READ RECEIPTS WHEN MEMBERS LOAD
+  // ============================================
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const { conversations, currentUser } = useChatStore.getState();
+    const conversation = conversations.get(conversationId);
+
+    // Check if we have members now
+    if (conversation?.members && conversation.members.length > 0) {
+      console.log('🔄 [useMessages] Members detected, re-initializing read receipts');
+      initializeReadReceipts(conversation.members, currentUser?.uid);
+    }
+  }, [conversationId, initializeReadReceipts]);
+
+  // Subscribe to conversation changes to detect when members are loaded
+  const conversationMembers = useChatStore((state) => {
+    const conv = state.conversations.get(conversationId);
+    return conv?.members;
+  });
+
+  useEffect(() => {
+    if (!conversationId || !conversationMembers || conversationMembers.length === 0) return;
+
+    console.log('🔄 [useMessages] Conversation members changed, re-initializing receipts');
+    const { currentUser } = useChatStore.getState();
+    initializeReadReceipts(conversationMembers, currentUser?.uid);
+  }, [conversationId, conversationMembers, initializeReadReceipts]);
 
   // ============================================
   // RETURN

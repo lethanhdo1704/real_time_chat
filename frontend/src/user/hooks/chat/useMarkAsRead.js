@@ -4,19 +4,22 @@ import useChatStore from '../../store/chat/chatStore';
 import chatApi from '../../services/chatApi';
 
 /**
- * useMarkAsRead Hook
- * 
- * ✅ FIXED: Use correct API function name
+ * useMarkAsRead Hook - FIXED WITH SOCKET DELAY
  * 
  * Automatically marks conversation as read when:
  * - User opens conversation
  * - New message arrives in active conversation
+ * 
+ * 🔥 CRITICAL FIX:
+ * - Wait for socket listeners to be ready before marking as read
+ * - This ensures we don't miss the read receipt event
  * 
  * Features:
  * - Auto-mark when conversation is opened
  * - Debounce to avoid too many API calls
  * - Only marks if unreadCount > 0
  * - Updates local state immediately (optimistic)
+ * - Waits for socket setup before marking
  * 
  * @param {string} conversationId - Active conversation ID
  * @param {boolean} isActive - Whether conversation is currently active/visible
@@ -24,9 +27,11 @@ import chatApi from '../../services/chatApi';
 const useMarkAsRead = (conversationId, isActive = true) => {
   const timeoutRef = useRef(null);
   const lastMarkedRef = useRef(null);
+  const socketReadyRef = useRef(false);
 
   const conversations = useChatStore((state) => state.conversations);
   const resetUnreadCount = useChatStore((state) => state.resetUnreadCount);
+  const hasJoinedConversation = useChatStore((state) => state.hasJoinedConversation);
 
   /**
    * Mark conversation as read
@@ -44,12 +49,29 @@ const useMarkAsRead = (conversationId, isActive = true) => {
     // Avoid duplicate calls
     if (lastMarkedRef.current === conversationId) return;
 
+    // 🔥 CRITICAL: Wait for socket to be ready (joined room + listeners setup)
+    const isSocketReady = hasJoinedConversation(conversationId);
+    
+    if (!isSocketReady) {
+      console.log('⏳ [useMarkAsRead] Socket not ready, waiting...', conversationId);
+      
+      // Retry after 500ms
+      setTimeout(() => {
+        socketReadyRef.current = true;
+        markAsRead();
+      }, 500);
+      
+      return;
+    }
+
     try {
       // Update UI immediately (optimistic)
       resetUnreadCount(conversationId);
       lastMarkedRef.current = conversationId;
 
-      // 🔥 FIX: Use correct function name from chatApi
+      console.log('📖 [useMarkAsRead] Marking as read:', conversationId);
+
+      // Call API
       await chatApi.markConversationAsRead(conversationId);
 
       console.log('✅ [useMarkAsRead] Marked conversation as read:', conversationId);
@@ -58,7 +80,7 @@ const useMarkAsRead = (conversationId, isActive = true) => {
       // Note: We don't revert optimistic update
       // Backend will sync correct state via socket
     }
-  }, [conversationId, isActive, conversations, resetUnreadCount]);
+  }, [conversationId, isActive, conversations, resetUnreadCount, hasJoinedConversation]);
 
   // ============================================
   // AUTO MARK AS READ
@@ -92,6 +114,7 @@ const useMarkAsRead = (conversationId, isActive = true) => {
 
   useEffect(() => {
     lastMarkedRef.current = null;
+    socketReadyRef.current = false;
   }, [conversationId]);
 
   return {

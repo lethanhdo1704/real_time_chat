@@ -5,19 +5,11 @@ class ConversationController {
   /**
    * 🔥 NEW: Check if conversation exists with a friend
    * GET /api/conversations/check/:friendId
-   * 
-   * Purpose: FE cần biết có conversation hay chưa khi user click friend
-   * - Nếu có → Navigate to /friends/:conversationId
-   * - Nếu chưa → Lazy mode (empty chat UI)
-   * 
-   * @param {string} friendId - Friend's uid (not _id)
-   * @returns {Object} { exists: boolean, conversationId: string|null }
    */
   async checkConversation(req, res, next) {
     try {
       const { friendId } = req.params;
 
-      // Validation
       if (!friendId) {
         return res.status(400).json({
           success: false,
@@ -30,7 +22,6 @@ class ConversationController {
         friendId
       });
 
-      // Call service to check
       const result = await conversationService.checkConversation(
         req.user.uid,
         friendId
@@ -41,7 +32,6 @@ class ConversationController {
         conversationId: result.conversationId
       });
 
-      // Return result
       res.json({
         success: true,
         data: result
@@ -186,6 +176,8 @@ class ConversationController {
   /**
    * Mark conversation as read
    * POST /api/conversations/:conversationId/read
+   * 
+   * 🔥 FIXED: Return complete data for FE to update UI
    */
   async markAsRead(req, res, next) {
     try {
@@ -193,13 +185,20 @@ class ConversationController {
 
       console.log('✅ [ConversationController] Marking as read:', conversationId, 'for user:', req.user.uid);
       
-      await conversationService.markAsRead(conversationId, req.user.uid);
+      const result = await conversationService.markAsRead(conversationId, req.user.uid);
 
-      console.log('✅ [ConversationController] Marked as read successfully');
+      console.log('✅ [ConversationController] Marked as read successfully:', result);
 
+      // 🔥 FIXED: Return data object with complete info
       res.json({
         success: true,
-        message: 'Conversation marked as read'
+        message: 'Conversation marked as read',
+        data: {
+          conversationId: result.conversationId,
+          unreadCount: result.unreadCount,
+          lastSeenMessageId: result.lastSeenMessageId,
+          lastSeenAt: result.lastSeenAt
+        }
       });
     } catch (error) {
       console.error('❌ [ConversationController] markAsRead error:', error.message);

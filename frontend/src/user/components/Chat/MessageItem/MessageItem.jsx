@@ -9,12 +9,13 @@ import MessageStatus from "./MessageStatus";
 import useChatStore from "../../../store/chat/chatStore";
 
 /**
- * MessageItem Component - WITH DELETE FEATURES
- * 
+ * MessageItem Component - WITH READ RECEIPTS (REACTIVE)
+ *
  * ✅ Reply feature
  * ✅ Recalled message placeholder
  * ✅ Hide/Delete/Recall actions
- * ✅ Pass conversationId to MessageActions
+ * ✅ Read receipts with avatars
+ * ✅ 🆕 REACTIVE to readReceipts changes
  */
 export default function MessageItem({
   message,
@@ -31,45 +32,69 @@ export default function MessageItem({
 
   // Store actions
   const setReplyingTo = useChatStore((state) => state.setReplyingTo);
-  const setHighlightedMessage = useChatStore((state) => state.setHighlightedMessage);
+  const setHighlightedMessage = useChatStore(
+    (state) => state.setHighlightedMessage
+  );
 
-  // ============================================
-  // 🔥 CHECK IF MESSAGE IS RECALLED
-  // ============================================
-  const isRecalled = message.isRecalled || false;
+  // 🔥 FIX: Subscribe to readReceipts for THIS conversation
+  // This makes component re-render when receipts change
+  const conversationReceipts = useChatStore(
+    (state) => state.readReceipts?.get(conversationId)
+  );
 
   // ============================================
   // MESSAGE DATA
   // ============================================
+  const messageId = message.messageId || message._id;
+  const isRecalled = message.isRecalled || false;
   const messageText = message.content || message.text || "";
   const isBig = !isRecalled && isBigEmoji(messageText);
-  const isPending = message.status === "pending" || message._status === "sending";
+  const isPending =
+    message.status === "pending" || message._status === "sending";
   const isFailed = message.status === "failed" || message._status === "failed";
+
+  // ============================================
+  // 🆕 READ RECEIPTS LOGIC - REACTIVE FIX
+  // ============================================
+  const readUsers = isMe && conversationReceipts
+    ? (conversationReceipts.get(messageId) || [])
+    : [];
+  
+  const showReadReceipts = isMe && readUsers.length > 0;
 
   // ============================================
   // SENDER INFO
   // ============================================
-  const senderInfo = !showSender || isMe ? null : {
-    name: message.sender?.nickname || message.sender?.fullName || "Unknown",
-    avatar: message.sender?.avatar,
-  };
+  const senderInfo =
+    !showSender || isMe
+      ? null
+      : {
+          name:
+            message.sender?.nickname || message.sender?.fullName || "Unknown",
+          avatar: message.sender?.avatar,
+        };
 
   // ============================================
-  // READ STATUS
+  // READ STATUS (for 1-1 chat status indicator)
   // ============================================
   const getReadStatus = () => {
     if (!isMe || !isPrivateChat) return null;
 
     if (isFailed) {
-      return { icon: "⚠️", text: t("message.failed") || "Failed", color: "text-red-500" };
+      return {
+        text: t("message.failed") || "Failed",
+        color: "text-red-500",
+      };
     }
+    
     if (isPending) {
-      return { icon: "⏱", text: t("message.sending") || "Sending...", color: "text-gray-400" };
+      return {
+        text: t("message.sending") || "Sending...",
+        color: "text-gray-400",
+      };
     }
-    if (message.read || message.readBy?.length > 0) {
-      return { icon: "✓✓", text: t("message.read") || "Read", color: "text-blue-500" };
-    }
-    return { icon: "✓", text: t("message.sent") || "Sent", color: "text-gray-400" };
+
+    // 🆕 Check read receipts instead of old read field
   };
 
   const readStatus = getReadStatus();
@@ -83,10 +108,7 @@ export default function MessageItem({
       return;
     }
 
-    // Don't allow reply to recalled messages
-    if (isRecalled) {
-      return;
-    }
+    if (isRecalled) return;
 
     const messageData = {
       messageId: message.messageId || message._id,
@@ -106,7 +128,7 @@ export default function MessageItem({
     console.log("🎯 Scrolling to replied message:", replyToId);
 
     const messageElement = document.getElementById(`message-${replyToId}`);
-    
+
     if (messageElement) {
       messageElement.scrollIntoView({
         behavior: "smooth",
@@ -153,25 +175,18 @@ export default function MessageItem({
   // ============================================
   if (isRecalled) {
     return (
-      <div 
-        id={`message-${message.messageId || message._id}`}
-        className={`
-          flex w-full ${isMe ? "justify-end" : "justify-start"} 
-          group relative
-        `}
+      <div
+        id={`message-${messageId}`}
+        className={`flex w-full ${isMe ? "justify-end" : "justify-start"} group relative`}
       >
-        <div className={`flex w-full flex-col ${isMe ? "items-end" : "items-start"} max-w-[85%] sm:max-w-[75%]`}>
-          
-          {/* Sender Info (if not me) */}
+        <div
+          className={`flex w-full flex-col ${isMe ? "items-end" : "items-start"} max-w-[85%] sm:max-w-[75%]`}
+        >
           {senderInfo && <MessageSenderInfo {...senderInfo} />}
 
-          {/* Recalled Message Bubble */}
-          <div className={`
-            inline-flex items-center gap-2 rounded-2xl 
-            ${isMe ? "rounded-br-md" : "rounded-bl-md"}
-            px-4 py-2.5 
-            bg-gray-100 text-gray-500 border border-gray-200
-          `}>
+          <div
+            className={`inline-flex items-center gap-2 rounded-2xl ${isMe ? "rounded-br-md" : "rounded-bl-md"} px-4 py-2.5 bg-gray-100 text-gray-500 border border-gray-200`}
+          >
             <svg
               className="w-4 h-4 shrink-0"
               fill="none"
@@ -186,15 +201,15 @@ export default function MessageItem({
               />
             </svg>
             <span className="text-sm italic">
-              {isMe 
-                ? (t("message.youRecalled") || "Bạn đã thu hồi tin nhắn")
-                : (t("message.recalled") || "Tin nhắn đã được thu hồi")
-              }
+              {isMe
+                ? t("message.youRecalled") || "Bạn đã thu hồi tin nhắn"
+                : t("message.recalled") || "Tin nhắn đã được thu hồi"}
             </span>
           </div>
 
-          {/* Time */}
-          <div className={`text-xs text-gray-400 mt-1 px-1 ${isMe ? "text-right" : "text-left"}`}>
+          <div
+            className={`text-xs text-gray-400 mt-1 px-1 ${isMe ? "text-right" : "text-left"}`}
+          >
             {formatTime(message.recalledAt || message.createdAt)}
           </div>
         </div>
@@ -206,21 +221,20 @@ export default function MessageItem({
   // NORMAL MESSAGE RENDER
   // ============================================
   return (
-    <div 
-      id={`message-${message.messageId || message._id}`}
-      className={`
-        flex w-full ${isMe ? "justify-end" : "justify-start"} 
-        group relative transition-all duration-300
-        ${isHighlighted ? 'animate-highlight' : ''}
-      `}
+    <div
+      id={`message-${messageId}`}
+      className={`flex w-full ${isMe ? "justify-end" : "justify-start"} group relative transition-all duration-300 ${isHighlighted ? "animate-highlight" : ""}`}
     >
-      <div className={`flex w-full flex-col ${isMe ? "items-end" : "items-start"} max-w-[85%] sm:max-w-[75%]`}>
-        
+      <div
+        className={`flex w-full flex-col ${isMe ? "items-end" : "items-start"} max-w-[85%] sm:max-w-[75%]`}
+      >
         {/* Sender Info */}
         {senderInfo && <MessageSenderInfo {...senderInfo} />}
 
         {/* Message Bubble with Actions */}
-        <div className={`flex items-end gap-1.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+        <div
+          className={`flex items-end gap-1.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}
+        >
           <MessageBubble
             messageText={messageText}
             isBig={isBig}
@@ -233,8 +247,7 @@ export default function MessageItem({
             onReplyClick={handleReplyClick}
             t={t}
           />
-          
-          {/* 🔥 PASS REQUIRED PROPS TO MessageActions */}
+
           <MessageActions
             message={message}
             conversationId={conversationId}
@@ -248,10 +261,12 @@ export default function MessageItem({
           />
         </div>
 
-        {/* Status */}
+        {/* Status + Read Receipts */}
         <MessageStatus
           time={formatTime(message.createdAt)}
           readStatus={readStatus}
+          readUsers={readUsers}
+          showReadReceipts={showReadReceipts}
           isFailed={isFailed}
           isMe={isMe}
           onRetry={handleRetry}

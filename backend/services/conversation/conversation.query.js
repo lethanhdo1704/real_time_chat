@@ -237,6 +237,8 @@ class ConversationQueryService {
   /**
    * Get conversation detail
    * 
+   * 🔥 FIXED: Now includes lastSeenMessage for read receipts
+   * 
    * @param {string} conversationId - Conversation ID
    * @param {string} userUid - User's uid
    * @returns {Object} Conversation detail
@@ -267,35 +269,66 @@ class ConversationQueryService {
         throw new Error("Not a member");
       }
 
-      const members = await ConversationMember.getActiveMembers(conversationId);
+      // 🔥 FIX: Get full member data with lastSeenMessage
+      const memberDocs = await ConversationMember.find({
+        conversation: conversationId,
+        leftAt: null
+      })
+        .populate('user', 'uid nickname avatar')
+        .select('user role lastSeenMessage lastSeenAt')
+        .lean();
+
+      console.log('📥 [ConversationQuery] Found members with read data:', memberDocs.length);
 
       if (conversation.type === "private") {
-        const otherMember = members.find(
-          (m) => m.user._id.toString() !== userId.toString()
-        );
         return {
           conversationId: conversation._id,
           type: "private",
-          friend: {
-            uid: otherMember.user.uid,
-            nickname: otherMember.user.nickname,
-            avatar: otherMember.user.avatar,
-          },
+
+          // 🔥 FIXED: Include lastSeenMessage for read receipts
+          members: memberDocs.map((m) => ({
+            uid: m.user.uid,
+            nickname: m.user.nickname,
+            avatar: m.user.avatar,
+            role: m.role,
+            lastSeenMessage: m.lastSeenMessage?.toString() || null, // 🔥 ADD THIS
+            lastSeenAt: m.lastSeenAt || null, // 🔥 ADD THIS
+          })),
+
+          // optional – giữ cho sidebar / logic cũ
+          friend: (() => {
+            const otherMember = memberDocs.find(
+              (m) => m.user._id.toString() !== userId.toString()
+            );
+            return otherMember
+              ? {
+                  uid: otherMember.user.uid,
+                  nickname: otherMember.user.nickname,
+                  avatar: otherMember.user.avatar,
+                }
+              : null;
+          })(),
         };
       } else {
+        // Group conversation
         return {
           conversationId: conversation._id,
           type: "group",
           name: conversation.name,
           avatar: conversation.avatar,
-          members: members.map((m) => ({
+          
+          // 🔥 FIXED: Include lastSeenMessage for group read receipts too
+          members: memberDocs.map((m) => ({
             uid: m.user.uid,
             nickname: m.user.nickname,
             avatar: m.user.avatar,
             role: m.role,
+            lastSeenMessage: m.lastSeenMessage?.toString() || null, // 🔥 ADD THIS
+            lastSeenAt: m.lastSeenAt || null, // 🔥 ADD THIS
           })),
         };
       }
+
     } catch (error) {
       console.error("❌ [ConversationQuery] getConversationDetail error:", error);
       throw error;

@@ -1,15 +1,22 @@
 // frontend/src/store/chat/messageSlice.js
 
 /**
- * Message Slice - WITH 3 DELETE TYPES
+ * Message Slice - WITH READ RECEIPTS
  * 
- * Features:
- * ✅ Message deduplication by ID
- * ✅ Optimistic message handling
- * ✅ Reply state management
- * ✅ 🆕 Hide message (KIỂU 1 & 2)
- * ✅ 🆕 Recall message (KIỂU 3)
- * ✅ 🆕 Admin delete (PRIORITY 1)
+ * Manages all message-related state including:
+ * - Messages per conversation (Map)
+ * - Loading/error states
+ * - Optimistic messages
+ * - Reply state
+ * - Highlighted messages
+ * - 🆕 READ RECEIPTS (avatars below messages)
+ * 
+ * Read Receipts Structure:
+ * readReceipts: Map<conversationId, Map<messageId, User[]>>
+ * 
+ * User object: { userUid, avatar, nickname }
+ * 
+ * Key Rule: 1 user can only appear at 1 message at a time (their lastSeenMessage)
  */
 export const createMessageSlice = (set, get) => ({
   // ============================================
@@ -23,6 +30,10 @@ export const createMessageSlice = (set, get) => ({
   optimisticMessages: new Map(),
   replyingTo: new Map(),
   highlightedMessage: new Map(),
+
+  // 🆕 READ RECEIPTS STATE
+  // Structure: Map<conversationId, Map<messageId, User[]>>
+  readReceipts: new Map(),
 
   // ============================================
   // HELPER: DEDUPE MESSAGES
@@ -54,7 +65,7 @@ export const createMessageSlice = (set, get) => ({
   },
 
   // ============================================
-  // BASIC OPERATIONS (existing code...)
+  // BASIC OPERATIONS
   // ============================================
   
   ensureConversationMessages: (conversationId) => {
@@ -64,6 +75,14 @@ export const createMessageSlice = (set, get) => ({
       console.log('🆕 [messageSlice] Creating messages array for:', conversationId);
       messagesMap.set(conversationId, []);
       set({ messages: messagesMap });
+    }
+
+    // 🆕 Ensure readReceipts Map exists
+    const receiptsMap = new Map(get().readReceipts);
+    if (!receiptsMap.has(conversationId)) {
+      console.log('🆕 [messageSlice] Creating readReceipts map for:', conversationId);
+      receiptsMap.set(conversationId, new Map());
+      set({ readReceipts: receiptsMap });
     }
   },
   
@@ -175,13 +194,9 @@ export const createMessageSlice = (set, get) => ({
   },
 
   // ============================================
-  // 🆕 MESSAGE DELETION ACTIONS
+  // MESSAGE DELETION ACTIONS
   // ============================================
 
-  /**
-   * KIỂU 1 & 2: Hide message locally (no socket broadcast)
-   * Used for both hideMessage and deleteForMe
-   */
   hideMessageLocal: (conversationId, messageId) => {
     console.log('👁️‍🗨️ [messageSlice] hideMessageLocal:', conversationId, messageId);
     
@@ -199,10 +214,6 @@ export const createMessageSlice = (set, get) => ({
     console.log('✅ [messageSlice] Message hidden locally');
   },
 
-  /**
-   * KIỂU 3: Recall message (via socket)
-   * Updates message to show recalled state
-   */
   recallMessageFromSocket: (conversationId, messageId, recalledBy, recalledAt) => {
     console.log('↩️ [messageSlice] recallMessageFromSocket:', conversationId, messageId);
     
@@ -217,7 +228,7 @@ export const createMessageSlice = (set, get) => ({
           isRecalled: true,
           recalledAt: recalledAt || new Date().toISOString(),
           recalledBy,
-          content: "", // Clear content for recalled messages
+          content: "",
         };
       }
       return m;
@@ -229,10 +240,6 @@ export const createMessageSlice = (set, get) => ({
     console.log('✅ [messageSlice] Message recalled via socket');
   },
 
-  /**
-   * PRIORITY 1: Admin delete (via socket)
-   * Removes message completely for everyone
-   */
   deleteMessageFromSocket: (conversationId, messageId) => {
     console.log('🗑️ [messageSlice] deleteMessageFromSocket:', conversationId, messageId);
     
@@ -251,6 +258,123 @@ export const createMessageSlice = (set, get) => ({
   },
 
   // ============================================
+  // 🆕 READ RECEIPTS ACTIONS
+  // ============================================
+
+  /**
+   * Update read receipt when user reads messages
+   * 
+   * ATOMIC OPERATION - 2 STEPS:
+   * 1. Remove user from ALL messages in this conversation
+   * 2. Add user to the NEW lastSeenMessage
+   * 
+   * This ensures: 1 user = 1 message maximum
+   * 
+   * @param {string} conversationId - Conversation ID
+   * @param {string} userUid - User who read the message
+   * @param {string} lastSeenMessageId - Last message they saw
+   * @param {Object} userInfo - { avatar, nickname } for display
+   */
+  updateReadReceipt: (conversationId, userUid, lastSeenMessageId, userInfo = {}) => {
+    console.log('📖 [messageSlice] updateReadReceipt:', {
+      conversationId,
+      userUid,
+      lastSeenMessageId,
+      userInfo,
+    });
+
+    const receiptsMap = new Map(get().readReceipts);
+    
+    // Get or create conversation's receipt map
+    let conversationReceipts = receiptsMap.get(conversationId);
+    if (!conversationReceipts) {
+      conversationReceipts = new Map();
+      receiptsMap.set(conversationId, conversationReceipts);
+    } else {
+      // Clone to avoid mutation
+      conversationReceipts = new Map(conversationReceipts);
+    }
+
+    // ============================================
+    // STEP 1: Remove user from ALL old messages
+    // ============================================
+    conversationReceipts.forEach((users, messageId) => {
+      const filtered = users.filter(u => u.userUid !== userUid);
+      
+      if (filtered.length === 0) {
+        // No users left → delete entry
+        conversationReceipts.delete(messageId);
+      } else {
+        conversationReceipts.set(messageId, filtered);
+      }
+    });
+
+    // ============================================
+    // STEP 2: Add user to NEW lastSeenMessage
+    // ============================================
+    const existingUsers = conversationReceipts.get(lastSeenMessageId) || [];
+    
+    // Check if user already exists (prevent duplicates)
+    const userExists = existingUsers.some(u => u.userUid === userUid);
+    
+    if (!userExists) {
+      const newUser = {
+        userUid,
+        avatar: userInfo.avatar || null,
+        nickname: userInfo.nickname || userUid,
+      };
+      
+      conversationReceipts.set(lastSeenMessageId, [...existingUsers, newUser]);
+      
+      console.log('✅ [messageSlice] User added to lastSeenMessage:', {
+        messageId: lastSeenMessageId,
+        userUid,
+        totalUsers: existingUsers.length + 1,
+      });
+    } else {
+      console.log('⏭️ [messageSlice] User already at this message, skipping');
+    }
+
+    // ============================================
+    // STEP 3: Update state
+    // ============================================
+    receiptsMap.set(conversationId, conversationReceipts);
+    
+    set({ readReceipts: receiptsMap });
+
+    console.log('✅ [messageSlice] Read receipts updated for conversation:', conversationId);
+  },
+
+  /**
+   * Get read receipts for a specific message
+   * 
+   * @param {string} conversationId - Conversation ID
+   * @param {string} messageId - Message ID
+   * @returns {Array} Array of users who read this message
+   */
+  getReadReceipts: (conversationId, messageId) => {
+    const receiptsMap = get().readReceipts;
+    const conversationReceipts = receiptsMap.get(conversationId);
+    
+    if (!conversationReceipts) return [];
+    
+    return conversationReceipts.get(messageId) || [];
+  },
+
+  /**
+   * Clear read receipts for a conversation
+   * Used when leaving conversation or resetting
+   */
+  clearReadReceipts: (conversationId) => {
+    console.log('🧹 [messageSlice] clearReadReceipts:', conversationId);
+    
+    const receiptsMap = new Map(get().readReceipts);
+    receiptsMap.delete(conversationId);
+    
+    set({ readReceipts: receiptsMap });
+  },
+
+  // ============================================
   // LOADING/ERROR STATES
   // ============================================
   
@@ -264,6 +388,12 @@ export const createMessageSlice = (set, get) => ({
     const errorMap = new Map(get().messagesError);
     errorMap.set(conversationId, error);
     set({ messagesError: errorMap });
+  },
+
+  setHasMoreMessages: (conversationId, hasMore) => {
+    const hasMoreMap = new Map(get().hasMoreMessages);
+    hasMoreMap.set(conversationId, hasMore);
+    set({ hasMoreMessages: hasMoreMap });
   },
 
   // ============================================
@@ -343,7 +473,7 @@ export const createMessageSlice = (set, get) => ({
   },
 
   // ============================================
-  // REPLY ACTIONS (existing code...)
+  // REPLY ACTIONS
   // ============================================
 
   setReplyingTo: (conversationId, message) => {

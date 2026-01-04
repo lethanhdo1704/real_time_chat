@@ -93,6 +93,27 @@ class SocketEmitter {
   }
 
   /**
+   * 🆕 READ RECEIPT - CONVERSATION ROOM
+   * Broadcasts when user marks conversation as read
+   * Other members can show avatar below lastSeenMessageId
+   */
+  emitReadReceipt(conversationId, userUid, lastSeenMessageId) {
+    if (!this.isIOAvailable()) return;
+
+    const room = this.getConversationRoom(conversationId);
+
+    console.log(`📡 [SocketEmitter] message_read_receipt → ${room}`);
+    console.log(`  ↳ User: ${userUid}, LastSeenMessage: ${lastSeenMessageId}`);
+
+    this.io.to(room).emit('message_read_receipt', {
+      conversationId,
+      userUid,
+      lastSeenMessageId,
+      timestamp: new Date()
+    });
+  }
+
+  /**
    * ✅ Message recalled - CONVERSATION ROOM
    */
   emitMessageRecalled(conversationId, messageId, recalledBy) {
@@ -209,6 +230,9 @@ class SocketEmitter {
   /**
    * ✅ Message read receipt - USER ROOM
    * Each user needs their own unread count update
+   * 
+   * @deprecated - Use emitReadReceipt() instead
+   * This method is kept for backward compatibility
    */
   emitMessageRead(conversationId, readByUserId, memberIds) {
     if (!this.isIOAvailable()) return;

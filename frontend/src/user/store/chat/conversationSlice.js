@@ -279,11 +279,11 @@ export const createConversationSlice = (set, get) => ({
   // ============================================
   // 🔥 NEW: EXIT CONVERSATION (for mobile back)
   // ============================================
-  
+
   /**
    * Exit current conversation and clear active state
    * Used when user clicks back button on mobile
-   * 
+   *
    * This ensures:
    * - activeConversationId becomes null
    * - activeFriend becomes null
@@ -293,20 +293,23 @@ export const createConversationSlice = (set, get) => ({
   exitConversation: () => {
     const state = get();
     const previousConversationId = state.activeConversationId;
-    
-    console.log("🚪 [conversationSlice] exitConversation:", previousConversationId);
-    
+
+    console.log(
+      "🚪 [conversationSlice] exitConversation:",
+      previousConversationId
+    );
+
     // Mark conversation as left (allows re-joining later)
     if (previousConversationId && state.markConversationLeft) {
       state.markConversationLeft(previousConversationId);
     }
-    
+
     // Clear active state
     set({
       activeConversationId: null,
       activeFriend: null,
     });
-    
+
     console.log("✅ [conversationSlice] Conversation exited, state cleared");
   },
 
@@ -394,5 +397,34 @@ export const createConversationSlice = (set, get) => ({
       conversationsError: null,
       hasFetchedConversations: false,
     });
+  },
+  // ============================================
+  // 🔥 NEW: SET CONVERSATION DETAIL (members, roles, avatars)
+  // ============================================
+
+  setConversationDetail: (detail) => {
+    console.log(
+      "📥 [conversationSlice] setConversationDetail:",
+      detail?.conversationId
+    );
+
+    const conversations = new Map(get().conversations);
+
+    const conversationId = detail.conversationId || detail._id;
+    const existing = conversations.get(conversationId) || {};
+
+    conversations.set(conversationId, {
+      ...existing, // giữ unreadCount, lastMessage, sidebar data
+      ...detail, // 🔥 merge members, type, friend
+      _detailFetched: true,
+      _placeholder: false,
+    });
+
+    set({ conversations });
+
+    console.log(
+      "✅ [conversationSlice] Conversation detail merged:",
+      conversationId
+    );
   },
 });

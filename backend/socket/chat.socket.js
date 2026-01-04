@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import ConversationMember from "../models/ConversationMember.js";
 import Friend from "../models/Friend.js";
 import User from "../models/User.js";
+import Message from "../models/Message.js";
+import socketEmitter from "../services/socketEmitter.service.js";
 
 /**
  * ============================================
@@ -13,6 +15,7 @@ import User from "../models/User.js";
  * - join_conversation: Join a conversation room
  * - leave_conversation: Leave a conversation room
  * - typing: Broadcast typing indicator
+ * - mark_read: Mark messages as read (NEW)
  * 
  * SERVER → CLIENT (Outgoing):
  * - message_received: New message (sent via REST API + socket)
@@ -20,6 +23,7 @@ import User from "../models/User.js";
  * - message_recalled: Message recalled by sender
  * - message_deleted: Message deleted by admin
  * - user_typing: Typing indicator
+ * - message_read_receipt: Read receipt with lastSeenMessageId (NEW)
  * - user_online: Friend came online
  * - user_offline: Friend went offline
  * - conversation_created: New conversation
@@ -34,7 +38,8 @@ import User from "../models/User.js";
  * 
  * 🟥 CONVERSATION EVENTS → conversation:{id}
  * - message_received, message_recalled, message_deleted, message_edited
- * - typing, conversation_updated, member_added, member_removed
+ * - typing, message_read_receipt, conversation_updated
+ * - member_added, member_removed
  * 
  * 🟦 USER-SPECIFIC EVENTS → user:{uid}
  * - conversation_update (unread counts)
@@ -187,6 +192,116 @@ export default function setupChatSocket(io) {
         socket.emit('left_conversation', { conversationId });
       } catch (error) {
         console.error('❌ leave_conversation error:', error);
+      }
+    });
+    
+    // ============================================
+    // 🆕 EVENT: MARK AS READ
+    // FE quyết định WHEN, BE thực thi + broadcast
+    // ============================================
+    socket.on('mark_read', async (data) => {
+      try {
+        const { conversationId, lastSeenMessageId } = data;
+        
+        console.log(`📖 mark_read: ${socket.uid} → ${conversationId} (msg: ${lastSeenMessageId})`);
+        
+        // Validate input
+        if (!conversationId) {
+          console.error("❌ [mark_read] No conversationId provided");
+          socket.emit('error', { 
+            code: 'INVALID_DATA',
+            message: 'conversationId is required' 
+          });
+          return;
+        }
+        
+        if (!lastSeenMessageId) {
+          console.error("❌ [mark_read] No lastSeenMessageId provided");
+          socket.emit('error', { 
+            code: 'INVALID_DATA',
+            message: 'lastSeenMessageId is required' 
+          });
+          return;
+        }
+        
+        // Verify membership
+        const isMember = await ConversationMember.isActiveMember(
+          conversationId,
+          socket.userId
+        );
+        
+        if (!isMember) {
+          console.log(`❌ User ${socket.uid} not a member of ${conversationId}`);
+          socket.emit('error', { 
+            code: 'NOT_MEMBER',
+            message: 'Not a member of this conversation' 
+          });
+          return;
+        }
+        
+        // Verify message exists and belongs to conversation
+        const message = await Message.findById(lastSeenMessageId)
+          .select('conversation')
+          .lean();
+        
+        if (!message) {
+          console.error(`❌ [mark_read] Message not found: ${lastSeenMessageId}`);
+          socket.emit('error', { 
+            code: 'MESSAGE_NOT_FOUND',
+            message: 'Message not found' 
+          });
+          return;
+        }
+        
+        if (message.conversation.toString() !== conversationId.toString()) {
+          console.error(`❌ [mark_read] Message belongs to different conversation`);
+          socket.emit('error', { 
+            code: 'MESSAGE_MISMATCH',
+            message: 'Message does not belong to this conversation' 
+          });
+          return;
+        }
+        
+        // Update DB: reset unreadCount + update lastSeenMessage
+        const updatedMember = await ConversationMember.markAsRead(
+          conversationId,
+          socket.userId,
+          lastSeenMessageId
+        );
+        
+        if (!updatedMember) {
+          console.error(`❌ [mark_read] Failed to update member`);
+          socket.emit('error', { 
+            code: 'UPDATE_FAILED',
+            message: 'Failed to mark as read' 
+          });
+          return;
+        }
+        
+        console.log(`✅ [mark_read] DB updated: unreadCount=0, lastSeenMessage=${lastSeenMessageId}`);
+        
+        // Broadcast read receipt to conversation room
+        socketEmitter.emitReadReceipt(
+          conversationId.toString(),
+          socket.uid,
+          lastSeenMessageId.toString()
+        );
+        
+        console.log(`✅ [mark_read] Read receipt broadcasted to conversation:${conversationId}`);
+        
+        // Confirm to sender
+        socket.emit('mark_read_success', {
+          conversationId,
+          lastSeenMessageId,
+          unreadCount: 0
+        });
+        
+      } catch (error) {
+        console.error('❌ mark_read error:', error);
+        socket.emit('error', { 
+          code: 'MARK_READ_ERROR',
+          message: error.message 
+        });
       }
     });
     
