@@ -70,6 +70,16 @@ export default function ConversationItem({
   // ============================================
 
   const getMessagePreview = () => {
+    // 🔥 DEBUG: Log everything
+    console.log('🔍 [ConversationItem] getMessagePreview called:', {
+      conversationId,
+      hasLastMessage: !!lastMessage,
+      isRecalled: lastMessage?.isRecalled,
+      content: lastMessage?.content,
+      type: lastMessage?.type,
+      fullLastMessage: lastMessage,
+    });
+
     if (!lastMessage) {
       return {
         text: t("messagePreview.startConversation") || "Start conversation",
@@ -87,7 +97,11 @@ export default function ConversationItem({
     // ============================================
     // 🔥 CRITICAL: CHECK RECALLED FIRST (HIGHEST PRIORITY)
     // ============================================
+    console.log('🔍 [ConversationItem] Checking isRecalled:', lastMessage.isRecalled);
+    
     if (lastMessage.isRecalled) {
+      console.log('✅ [ConversationItem] Message IS recalled - returning recalled preview');
+    
       return {
         text: isOwnMessage
           ? t("messagePreview.youRecalled") || "You recalled a message"

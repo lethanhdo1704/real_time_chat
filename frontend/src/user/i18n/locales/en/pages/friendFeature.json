@@ -67,7 +67,9 @@
     "file": "📎 Sent a file",
     "video": "🎥 Sent a video",
     "audio": "🎵 Sent a voice message",
-    "startConversation": "👋 Start a conversation"
+    "startConversation": "👋 Start a conversation",
+    "recalled": "recalled a message",
+    "youRecalled": "You recalled a message"
   },
 
   "common": {

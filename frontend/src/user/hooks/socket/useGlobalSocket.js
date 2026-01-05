@@ -52,12 +52,32 @@ export const useGlobalSocket = ({
     const existingConv = conversations.get(conversationId);
 
     if (existingConv) {
-      // Update existing conversation
-      updateConversation(conversationId, {
-        lastMessage,
-        lastMessageAt,
-        unreadCount,
-      });
+      // ============================================
+      // 🔥 FIX: Don't overwrite recalled message (SAME messageId only)
+      // ============================================
+      const existingLastMessage = existingConv.lastMessage;
+      const incomingMessageId = lastMessage?.messageId || lastMessage?._id;
+      const existingMessageId = existingLastMessage?.messageId || existingLastMessage?._id;
+      
+      const shouldPreserveRecalled = 
+        existingLastMessage?.isRecalled === true &&
+        incomingMessageId === existingMessageId; // 🔥 Same message!
+      
+      if (shouldPreserveRecalled) {
+        console.log('⏭️ [Global] Preserving recalled lastMessage (same messageId), only updating metadata');
+        // Keep recalled message, only update unreadCount
+        updateConversation(conversationId, {
+          lastMessageAt,
+          unreadCount,
+        });
+      } else {
+        // Normal update
+        updateConversation(conversationId, {
+          lastMessage,
+          lastMessageAt,
+          unreadCount,
+        });
+      }
     } else {
       // Add new conversation (shouldn't happen often)
       console.log('🆕 [Global] Adding new conversation:', conversationId);

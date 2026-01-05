@@ -12,11 +12,10 @@ export default defineConfig({
   },
 
   server: {
-    host: true,          // ⭐ cho phép truy cập bằng IP LAN
+    host: true,         
     port: 5173,
     strictPort: true,
 
-    // nếu có backend API thì dùng proxy (khuyến nghị)
     proxy: {
       "/api": {
         target: "http://localhost:5000", // backend của bạn
