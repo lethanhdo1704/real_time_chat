@@ -1,5 +1,6 @@
 // frontend/src/user/components/Chat/MessageItem/MessageItem.jsx
 import { format } from "date-fns";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { isBigEmoji } from "../../../utils/emoji";
 import MessageSenderInfo from "./MessageSenderInfo";
@@ -9,13 +10,14 @@ import MessageStatus from "./MessageStatus";
 import useChatStore from "../../../store/chat/chatStore";
 
 /**
- * MessageItem Component - WITH READ RECEIPTS (REACTIVE)
+ * MessageItem Component - WITH READ RECEIPTS + INLINE EDIT
  *
  * ✅ Reply feature
  * ✅ Recalled message placeholder
  * ✅ Hide/Delete/Recall actions
  * ✅ Read receipts with avatars
- * ✅ 🆕 REACTIVE to readReceipts changes
+ * ✅ REACTIVE to readReceipts changes
+ * ✅ 🆕 INLINE EDIT in bubble (no overlay)
  */
 export default function MessageItem({
   message,
@@ -30,14 +32,18 @@ export default function MessageItem({
 }) {
   const { t } = useTranslation("chat");
 
+  // Local state for edit mode
+  const [isEditing, setIsEditing] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+
   // Store actions
   const setReplyingTo = useChatStore((state) => state.setReplyingTo);
   const setHighlightedMessage = useChatStore(
     (state) => state.setHighlightedMessage
   );
+  const editMessageLocal = useChatStore((state) => state.editMessageLocal);
 
-  // 🔥 FIX: Subscribe to readReceipts for THIS conversation
-  // This makes component re-render when receipts change
+  // Subscribe to readReceipts for THIS conversation
   const conversationReceipts = useChatStore(
     (state) => state.readReceipts?.get(conversationId)
   );
@@ -54,17 +60,14 @@ export default function MessageItem({
   const isFailed = message.status === "failed" || message._status === "failed";
 
   // ============================================
-  // 🆕 READ RECEIPTS LOGIC - REACTIVE FIX (F5-SAFE)
+  // READ RECEIPTS LOGIC
   // ============================================
-  // 🔥 Lấy read receipts và filter bỏ sender của message
   const readUsers = conversationReceipts
     ? (conversationReceipts.get(messageId) || []).filter(
-        u => u.userUid !== message.sender?.uid // Loại bỏ sender để không show avatar chính họ
+        u => u.userUid !== message.sender?.uid
       )
     : [];
   
-  // 🔥 CHỈ show avatar read receipts cho tin nhắn của MÌNH
-  // Tin nhắn người khác: KHÔNG show avatar
   const showReadReceipts = isMe && readUsers.length > 0;
 
   // ============================================
@@ -80,7 +83,7 @@ export default function MessageItem({
         };
 
   // ============================================
-  // READ STATUS (for 1-1 chat status indicator)
+  // READ STATUS
   // ============================================
   const getReadStatus = () => {
     if (!isMe || !isPrivateChat) return null;
@@ -99,7 +102,7 @@ export default function MessageItem({
       };
     }
 
-    // 🆕 Check read receipts instead of old read field
+    return null;
   };
 
   const readStatus = getReadStatus();
@@ -147,12 +150,45 @@ export default function MessageItem({
   };
 
   // ============================================
-  // OTHER HANDLERS
+  // 🆕 EDIT HANDLERS
   // ============================================
-  const handleEdit = () => {
-    console.log("Edit message:", message._id);
+  const handleEditClick = () => {
+    setIsEditing(true);
   };
 
+  const handleSaveEdit = async (newContent) => {
+    setEditLoading(true);
+
+    try {
+      console.log("📝 Updating message:", messageId);
+      console.log("📝 New content:", newContent);
+      
+      // TODO: Khi có BE, uncomment dòng này
+      // await messageService.editMessage(messageId, newContent, token);
+
+      // Mock API call - xóa khi có BE
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Update in store (optimistic update)
+      editMessageLocal(conversationId, messageId, newContent);
+      
+      setIsEditing(false);
+      console.log("✅ Message edited successfully");
+    } catch (error) {
+      console.error("❌ Edit message error:", error);
+      alert(error.message || "Không thể chỉnh sửa tin nhắn");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  // ============================================
+  // OTHER HANDLERS
+  // ============================================
   const handleCopy = () => {
     navigator.clipboard.writeText(messageText);
   };
@@ -176,7 +212,7 @@ export default function MessageItem({
   };
 
   // ============================================
-  // 🔥 RECALLED MESSAGE RENDER
+  // RECALLED MESSAGE RENDER
   // ============================================
   if (isRecalled) {
     return (
@@ -251,32 +287,42 @@ export default function MessageItem({
             replyTo={message.replyTo}
             onReplyClick={handleReplyClick}
             t={t}
+            // 🆕 Edit props
+            isEditing={isEditing}
+            onSaveEdit={handleSaveEdit}
+            onCancelEdit={handleCancelEdit}
+            editLoading={editLoading}
           />
 
-          <MessageActions
-            message={message}
-            conversationId={conversationId}
-            isMe={isMe}
-            isFailed={isFailed}
-            onReply={handleReply}
-            onCopy={handleCopy}
-            onEdit={handleEdit}
-            onForward={handleForward}
-            isOneToOneChat={isPrivateChat}
-          />
+          {/* Hide actions when editing */}
+          {!isEditing && (
+            <MessageActions
+              message={message}
+              conversationId={conversationId}
+              isMe={isMe}
+              isFailed={isFailed}
+              onReply={handleReply}
+              onCopy={handleCopy}
+              onEdit={handleEditClick}
+              onForward={handleForward}
+              isOneToOneChat={isPrivateChat}
+            />
+          )}
         </div>
 
         {/* Status + Read Receipts */}
-        <MessageStatus
-          time={formatTime(message.createdAt)}
-          readStatus={readStatus}
-          readUsers={readUsers}
-          showReadReceipts={showReadReceipts}
-          isFailed={isFailed}
-          isMe={isMe}
-          onRetry={handleRetry}
-          t={t}
-        />
+        {!isEditing && (
+          <MessageStatus
+            time={formatTime(message.createdAt)}
+            readStatus={readStatus}
+            readUsers={readUsers}
+            showReadReceipts={showReadReceipts}
+            isFailed={isFailed}
+            isMe={isMe}
+            onRetry={handleRetry}
+            t={t}
+          />
+        )}
       </div>
     </div>
   );

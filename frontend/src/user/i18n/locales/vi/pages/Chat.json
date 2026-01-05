@@ -12,7 +12,9 @@
     "sent": "Đã gửi",
     "retry": "Thử lại",
     "youRecalled": "Bạn đã thu hồi tin nhắn này",
-    "recalled": "Tin nhắn đã bị thu hồi"
+    "recalled": "Tin nhắn đã bị thu hồi",
+    "edited": "Đã chỉnh sửa",
+    "editHint": "Enter để lưu • Esc để hủy"
   },
   "input": {
     "startConversation": "Bắt đầu cuộc trò chuyện mới",

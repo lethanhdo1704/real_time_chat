@@ -12,7 +12,10 @@
     "sent": "Sent",
     "retry": "Retry",
     "youRecalled": "You have recalled this message",
-    "recalled": "This message has been recalled"
+    "recalled": "This message has been recalled",
+    "edited": "Edited",
+    "editHint": "Press Enter to save • Esc to cancel"
+
   },
   "input": {
     "startConversation": "Start a new conversation",

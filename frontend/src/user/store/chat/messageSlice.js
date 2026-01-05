@@ -1,7 +1,7 @@
 // frontend/src/store/chat/messageSlice.js
 
 /**
- * Message Slice - WITH READ RECEIPTS
+ * Message Slice - WITH READ RECEIPTS + EDIT FEATURE
  * 
  * Manages all message-related state including:
  * - Messages per conversation (Map)
@@ -9,7 +9,8 @@
  * - Optimistic messages
  * - Reply state
  * - Highlighted messages
- * - 🆕 READ RECEIPTS (avatars below messages)
+ * - READ RECEIPTS (avatars below messages)
+ * - 🆕 EDIT MESSAGE support
  * 
  * Read Receipts Structure:
  * readReceipts: Map<conversationId, Map<messageId, User[]>>
@@ -30,9 +31,6 @@ export const createMessageSlice = (set, get) => ({
   optimisticMessages: new Map(),
   replyingTo: new Map(),
   highlightedMessage: new Map(),
-
-  // 🆕 READ RECEIPTS STATE
-  // Structure: Map<conversationId, Map<messageId, User[]>>
   readReceipts: new Map(),
 
   // ============================================
@@ -77,7 +75,6 @@ export const createMessageSlice = (set, get) => ({
       set({ messages: messagesMap });
     }
 
-    // 🆕 Ensure readReceipts Map exists
     const receiptsMap = new Map(get().readReceipts);
     if (!receiptsMap.has(conversationId)) {
       console.log('🆕 [messageSlice] Creating readReceipts map for:', conversationId);
@@ -194,6 +191,84 @@ export const createMessageSlice = (set, get) => ({
   },
 
   // ============================================
+  // 🆕 EDIT MESSAGE ACTIONS
+  // ============================================
+
+  /**
+   * Edit message locally (optimistic update)
+   * Updates message content and adds edited flag
+   * 
+   * @param {string} conversationId - Conversation ID
+   * @param {string} messageId - Message ID to edit
+   * @param {string} newContent - New message content
+   */
+  editMessageLocal: (conversationId, messageId, newContent) => {
+    console.log('✏️ [messageSlice] editMessageLocal:', conversationId, messageId);
+    console.log('📝 New content:', newContent);
+    
+    const messagesMap = new Map(get().messages);
+    const existing = messagesMap.get(conversationId) || [];
+    
+    const updated = existing.map(m => {
+      const id = m.messageId || m._id || m.clientMessageId;
+      
+      if (id === messageId) {
+        return {
+          ...m,
+          content: newContent,
+          text: newContent, // For backward compatibility
+          isEdited: true,
+          editedAt: new Date().toISOString(),
+        };
+      }
+      
+      return m;
+    });
+    
+    messagesMap.set(conversationId, updated);
+    set({ messages: messagesMap });
+    
+    console.log('✅ [messageSlice] Message edited locally:', messageId);
+  },
+
+  /**
+   * Edit message from socket event
+   * Called when receiving edit event from other devices/users
+   * 
+   * @param {string} conversationId - Conversation ID
+   * @param {string} messageId - Message ID
+   * @param {string} newContent - New message content
+   * @param {string} editedAt - Edit timestamp from server
+   */
+  editMessageFromSocket: (conversationId, messageId, newContent, editedAt) => {
+    console.log('📡 [messageSlice] editMessageFromSocket:', conversationId, messageId);
+    
+    const messagesMap = new Map(get().messages);
+    const existing = messagesMap.get(conversationId) || [];
+    
+    const updated = existing.map(m => {
+      const id = m.messageId || m._id || m.clientMessageId;
+      
+      if (id === messageId) {
+        return {
+          ...m,
+          content: newContent,
+          text: newContent,
+          isEdited: true,
+          editedAt: editedAt || new Date().toISOString(),
+        };
+      }
+      
+      return m;
+    });
+    
+    messagesMap.set(conversationId, updated);
+    set({ messages: messagesMap });
+    
+    console.log('✅ [messageSlice] Message edited from socket:', messageId);
+  },
+
+  // ============================================
   // MESSAGE DELETION ACTIONS
   // ============================================
 
@@ -258,23 +333,9 @@ export const createMessageSlice = (set, get) => ({
   },
 
   // ============================================
-  // 🆕 READ RECEIPTS ACTIONS
+  // READ RECEIPTS ACTIONS
   // ============================================
 
-  /**
-   * Update read receipt when user reads messages
-   * 
-   * ATOMIC OPERATION - 2 STEPS:
-   * 1. Remove user from ALL messages in this conversation
-   * 2. Add user to the NEW lastSeenMessage
-   * 
-   * This ensures: 1 user = 1 message maximum
-   * 
-   * @param {string} conversationId - Conversation ID
-   * @param {string} userUid - User who read the message
-   * @param {string} lastSeenMessageId - Last message they saw
-   * @param {Object} userInfo - { avatar, nickname, readAt } for display
-   */
   updateReadReceipt: (conversationId, userUid, lastSeenMessageId, userInfo = {}) => {
     console.log('📖 [messageSlice] updateReadReceipt:', {
       conversationId,
@@ -285,36 +346,25 @@ export const createMessageSlice = (set, get) => ({
 
     const receiptsMap = new Map(get().readReceipts);
     
-    // Get or create conversation's receipt map
     let conversationReceipts = receiptsMap.get(conversationId);
     if (!conversationReceipts) {
       conversationReceipts = new Map();
       receiptsMap.set(conversationId, conversationReceipts);
     } else {
-      // Clone to avoid mutation
       conversationReceipts = new Map(conversationReceipts);
     }
 
-    // ============================================
-    // STEP 1: Remove user from ALL old messages
-    // ============================================
     conversationReceipts.forEach((users, messageId) => {
       const filtered = users.filter(u => u.userUid !== userUid);
       
       if (filtered.length === 0) {
-        // No users left → delete entry
         conversationReceipts.delete(messageId);
       } else {
         conversationReceipts.set(messageId, filtered);
       }
     });
 
-    // ============================================
-    // STEP 2: Add user to NEW lastSeenMessage
-    // ============================================
     const existingUsers = conversationReceipts.get(lastSeenMessageId) || [];
-    
-    // Check if user already exists (prevent duplicates)
     const userExists = existingUsers.some(u => u.userUid === userUid);
     
     if (!userExists) {
@@ -322,7 +372,7 @@ export const createMessageSlice = (set, get) => ({
         userUid,
         avatar: userInfo.avatar || null,
         nickname: userInfo.nickname || userUid,
-        readAt: userInfo.readAt || new Date().toISOString(), // 🔥 Thêm readAt timestamp
+        readAt: userInfo.readAt || new Date().toISOString(),
       };
       
       conversationReceipts.set(lastSeenMessageId, [...existingUsers, newUser]);
@@ -333,27 +383,12 @@ export const createMessageSlice = (set, get) => ({
         readAt: newUser.readAt,
         totalUsers: existingUsers.length + 1,
       });
-    } else {
-      console.log('⏭️ [messageSlice] User already at this message, skipping');
     }
 
-    // ============================================
-    // STEP 3: Update state
-    // ============================================
     receiptsMap.set(conversationId, conversationReceipts);
-    
     set({ readReceipts: receiptsMap });
-
-    console.log('✅ [messageSlice] Read receipts updated for conversation:', conversationId);
   },
 
-  /**
-   * Get read receipts for a specific message
-   * 
-   * @param {string} conversationId - Conversation ID
-   * @param {string} messageId - Message ID
-   * @returns {Array} Array of users who read this message
-   */
   getReadReceipts: (conversationId, messageId) => {
     const receiptsMap = get().readReceipts;
     const conversationReceipts = receiptsMap.get(conversationId);
@@ -363,10 +398,6 @@ export const createMessageSlice = (set, get) => ({
     return conversationReceipts.get(messageId) || [];
   },
 
-  /**
-   * Clear read receipts for a conversation
-   * Used when leaving conversation or resetting
-   */
   clearReadReceipts: (conversationId) => {
     console.log('🧹 [messageSlice] clearReadReceipts:', conversationId);
     

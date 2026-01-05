@@ -1,4 +1,4 @@
-// frontend/src/user/components/Chat/MessageItem/MessageActions.jsx
+// frontend/src/user/components/Chat/MessageItem/MessageActions/MessageActions.jsx
 import { useState, useRef, useEffect, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { AuthContext } from "../../../../context/AuthContext";
@@ -18,10 +18,10 @@ import { ActionsMenu } from "./MessageActions.menu";
 import { MessageModals } from "./MessageActions.modals";
 
 /**
- * MessageActions Component - Refactored
- * 
+ * MessageActions Component - Simplified (Edit moved to MessageBubble)
+ *
  * Main component that orchestrates all message actions
- * Delegates logic to helper functions and UI to subcomponents
+ * Edit feature now handled directly in MessageBubble
  */
 export default function MessageActions({
   message,
@@ -40,7 +40,9 @@ export default function MessageActions({
 
   // Store actions
   const hideMessageLocal = useChatStore((state) => state.hideMessageLocal);
-  const recallMessageFromSocket = useChatStore((state) => state.recallMessageFromSocket);
+  const recallMessageFromSocket = useChatStore(
+    (state) => state.recallMessageFromSocket
+  );
 
   // ============================================
   // STATE
@@ -74,7 +76,9 @@ export default function MessageActions({
       const rect = buttonRef.current.getBoundingClientRect();
       const spaceAbove = rect.top;
       const spaceBelow = window.innerHeight - rect.bottom;
-      setMenuPosition(spaceAbove < 250 && spaceBelow > spaceAbove ? "bottom" : "top");
+      setMenuPosition(
+        spaceAbove < 250 && spaceBelow > spaceAbove ? "bottom" : "top"
+      );
     }
   }, [showMenu]);
 
@@ -83,7 +87,9 @@ export default function MessageActions({
       const rect = buttonRef.current.getBoundingClientRect();
       const spaceAbove = rect.top;
       const spaceBelow = window.innerHeight - rect.bottom;
-      setReactionsPosition(spaceAbove < 60 && spaceBelow > spaceAbove ? "bottom" : "top");
+      setReactionsPosition(
+        spaceAbove < 60 && spaceBelow > spaceAbove ? "bottom" : "top"
+      );
     }
   }, [showReactions]);
 
@@ -101,7 +107,10 @@ export default function MessageActions({
         setShowMenu(false);
       }
 
-      if (reactionsRef.current && !reactionsRef.current.contains(event.target)) {
+      if (
+        reactionsRef.current &&
+        !reactionsRef.current.contains(event.target)
+      ) {
         setShowReactions(false);
       }
     };
@@ -142,6 +151,13 @@ export default function MessageActions({
     setShowHideModal(true);
   };
 
+  const handleEditClick = () => {
+    setShowMenu(false);
+    if (onEdit) {
+      onEdit();
+    }
+  };
+
   const handleRecallConfirm = async (recallType) => {
     setShowRecallModal(false);
     if (loading) return;
@@ -158,7 +174,12 @@ export default function MessageActions({
         const recalledAt = new Date().toISOString();
 
         console.log("✅ API success - Updating local UI immediately");
-        recallMessageFromSocket(conversationId, messageId, recalledBy, recalledAt);
+        recallMessageFromSocket(
+          conversationId,
+          messageId,
+          recalledBy,
+          recalledAt
+        );
         updateConversationLastMessage(conversationId, messageId);
 
         console.log("✅ Message recalled successfully");
@@ -231,7 +252,11 @@ export default function MessageActions({
               ref={reactionsRef}
               className={`
                 absolute ${isMe ? "right-0" : "left-0"} 
-                ${reactionsPosition === "top" ? "bottom-full mb-2" : "top-full mt-2"}
+                ${
+                  reactionsPosition === "top"
+                    ? "bottom-full mb-2"
+                    : "top-full mt-2"
+                }
                 bg-white rounded-full shadow-xl border border-gray-200 
                 px-2 py-1.5 flex gap-1 z-50
               `}
@@ -285,7 +310,7 @@ export default function MessageActions({
             onAction={handleAction}
             onCopy={onCopy}
             onForward={onForward}
-            onEdit={onEdit}
+            onEdit={handleEditClick}
             onRecall={handleRecallClick}
             onHide={handleHideClick}
             t={t}
