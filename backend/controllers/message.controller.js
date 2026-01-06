@@ -253,37 +253,93 @@ class MessageController {
   }
 
   /**
-   * Edit message
+   * ✅ IMPROVED: Edit message
    * PUT /api/messages/:messageId
+   * 
+   * Request body:
+   * {
+   *   "content": "Updated message content"
+   * }
+   * 
+   * Response:
+   * {
+   *   "success": true,
+   *   "data": {
+   *     "message": { ... },
+   *     "conversationId": "..."
+   *   }
+   * }
    */
   async editMessage(req, res, next) {
     try {
       const { messageId } = req.params;
       const { content } = req.body;
 
+      // ============================================
+      // VALIDATION
+      // ============================================
+
       if (!content) {
         return res.status(400).json({
           success: false,
           message: "content is required",
+          code: "CONTENT_REQUIRED"
         });
       }
 
-      console.log("✏️  [MessageController] Editing message:", messageId);
+      // Trim content
+      const trimmedContent = content.trim();
+
+      if (trimmedContent.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "content cannot be empty",
+          code: "CONTENT_EMPTY"
+        });
+      }
+
+      if (trimmedContent.length > 5000) {
+        return res.status(400).json({
+          success: false,
+          message: "content exceeds maximum length of 5000 characters",
+          code: "CONTENT_TOO_LONG"
+        });
+      }
+
+      console.log("✏️  [MessageController] Editing message:", {
+        messageId,
+        userId: req.user.uid,
+        contentLength: trimmedContent.length
+      });
+
+      // ============================================
+      // EXECUTE USE CASE
+      // ============================================
 
       const result = await messageService.editMessage(
         messageId,
-        req.user.id,
-        content
+        req.user.id, // MongoDB _id
+        trimmedContent
       );
 
-      console.log("✅ [MessageController] Message edited");
+      console.log("✅ [MessageController] Message edited successfully");
+
+      // ============================================
+      // RESPONSE
+      // ============================================
 
       res.json({
         success: true,
-        data: result.message,
+        data: {
+          message: result.message,
+          conversationId: result.conversationId
+        }
       });
+
     } catch (error) {
       console.error("❌ [MessageController] editMessage error:", error.message);
+      
+      // Pass to error handler middleware
       next(error);
     }
   }

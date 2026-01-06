@@ -168,7 +168,10 @@ class SocketEmitter {
   }
 
   /**
-   * ✅ Message edited - CONVERSATION ROOM
+   * ✅ IMPROVED: Message edited - CONVERSATION ROOM
+   * 
+   * @param {string} conversationId - Conversation ID
+   * @param {object} message - Complete message object from formatMessageResponse
    */
   emitMessageEdited(conversationId, message) {
     if (!this.isIOAvailable()) return;
@@ -176,15 +179,26 @@ class SocketEmitter {
     const room = this.getConversationRoom(conversationId);
 
     console.log(`📡 [SocketEmitter] message_edited → ${room}`);
+    console.log(`  ↳ MessageId: ${message.messageId || message._id}`);
+    console.log(`  ↳ EditedAt: ${message.editedAt}`);
 
+    // 🔥 FULL PAYLOAD: Include all necessary data for frontend
     this.io.to(room).emit('message_edited', {
       conversationId,
       message: {
         messageId: message.messageId || message._id,
         content: message.content,
         editedAt: message.editedAt,
-        sender: message.sender
-      }
+        sender: message.sender, // { uid, nickname, avatar }
+        type: message.type || 'text',
+        replyTo: message.replyTo || null,
+        attachments: message.attachments || [],
+        createdAt: message.createdAt,
+        // Include state for consistency
+        isRecalled: message.isRecalled || false,
+        isDeleted: message.isDeleted || false
+      },
+      timestamp: new Date() // Server timestamp
     });
   }
 

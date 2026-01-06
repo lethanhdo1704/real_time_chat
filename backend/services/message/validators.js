@@ -4,11 +4,21 @@ import ConversationMember from "../../models/ConversationMember.js";
 import Conversation from "../../models/Conversation.js";
 import Friend from "../../models/Friend.js";
 import Message from "../../models/Message.js";
+import { ValidationError, AppError } from "../../middleware/errorHandler.js";
 
+/**
+ * Check if string is a valid MongoDB ObjectId
+ */
 export const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 /**
  * Verify user is active member of conversation
+ * 
+ * @param {string} conversationId - Conversation ID
+ * @param {string} userId - User ID (MongoDB _id)
+ * @param {object} session - MongoDB session (optional)
+ * @returns {object} ConversationMember document
+ * @throws {AppError} If user is not a member
  */
 export async function verifyMembership(conversationId, userId, session = null) {
   const query = {
@@ -22,7 +32,7 @@ export async function verifyMembership(conversationId, userId, session = null) {
     : await ConversationMember.findOne(query);
 
   if (!member) {
-    throw new Error("Not a member of this conversation");
+    throw new AppError("Not a member of this conversation", 403, "NOT_MEMBER");
   }
 
   return member;
@@ -30,6 +40,12 @@ export async function verifyMembership(conversationId, userId, session = null) {
 
 /**
  * Verify conversation exists and user can send message
+ * 
+ * @param {string} conversationId - Conversation ID
+ * @param {string} userId - User ID (MongoDB _id)
+ * @param {object} session - MongoDB session (optional)
+ * @returns {object} { conversation, member }
+ * @throws {AppError} If conversation not found or user cannot access
  */
 export async function verifyConversationAccess(conversationId, userId, session = null) {
   const conversation = session
@@ -37,7 +53,7 @@ export async function verifyConversationAccess(conversationId, userId, session =
     : await Conversation.findById(conversationId);
 
   if (!conversation) {
-    throw new Error("Conversation not found");
+    throw new AppError("Conversation not found", 404, "CONVERSATION_NOT_FOUND");
   }
 
   // Verify membership
@@ -50,7 +66,11 @@ export async function verifyConversationAccess(conversationId, userId, session =
       : await Friend.findById(conversation.friendshipId);
 
     if (!friendship || friendship.status !== "accepted") {
-      throw new Error("Cannot send message - not friends");
+      throw new AppError(
+        "Cannot send message - not friends", 
+        403, 
+        "NOT_FRIENDS"
+      );
     }
   }
 
@@ -58,36 +78,57 @@ export async function verifyConversationAccess(conversationId, userId, session =
 }
 
 /**
- * Verify user can edit message
+ * ✅ IMPROVED: Verify user can edit/delete message
+ * 
+ * @param {object} message - Message document
+ * @param {string} userId - User ID (MongoDB _id)
+ * @throws {AppError} If user is not the sender
+ * 
+ * Note: Does NOT check deletedAt or isRecalled - those should be checked 
+ * separately in the use case for better error messages
  */
-export async function verifyMessageOwnership(message, userId) {
+export function verifyMessageOwnership(message, userId) {
   if (message.sender.toString() !== userId.toString()) {
-    throw new Error("Only message sender can edit/delete");
+    throw new AppError(
+      "Only message sender can edit this message", 
+      403, 
+      "NOT_SENDER"
+    );
   }
-
-  if (message.deletedAt) {
-    throw new Error("Cannot modify deleted message");
-  }
+  
+  // ❌ REMOVED: deletedAt check - should be done in use case first
+  // This keeps the validator focused on ownership only
 }
 
 /**
  * Verify message can be edited (within time limit)
+ * 
+ * @param {object} message - Message document
+ * @param {number} maxMinutes - Maximum minutes allowed (default: 15)
+ * @throws {AppError} If message is too old
  */
 export function verifyEditTimeLimit(message, maxMinutes = 15) {
-  const timeLimit = maxMinutes * 60 * 1000;
-  if (Date.now() - message.createdAt.getTime() > timeLimit) {
-    throw new Error(`Cannot edit message older than ${maxMinutes} minutes`);
+  const timeLimit = maxMinutes * 60 * 1000; // Convert to milliseconds
+  const messageAge = Date.now() - message.createdAt.getTime();
+  
+  if (messageAge > timeLimit) {
+    const minutesAgo = Math.floor(messageAge / 60000);
+    throw new AppError(
+      `Cannot edit message - time limit exceeded (sent ${minutesAgo} minutes ago)`, 
+      403, 
+      "EDIT_TIME_EXPIRED"
+    );
   }
 }
 
 /**
- * ✅ NEW: Verify reply-to message exists and belongs to conversation
+ * ✅ Verify reply-to message exists and belongs to conversation
  * 
  * @param {string} replyToId - Message ID to reply to
  * @param {string} conversationId - Current conversation ID
  * @param {object} session - MongoDB session (optional)
  * @returns {object|null} Reply-to message or null if not provided
- * @throws {Error} If replyTo message is invalid, not found, or deleted
+ * @throws {AppError} If replyTo message is invalid, not found, or deleted
  */
 export async function verifyReplyToMessage(replyToId, conversationId, session = null) {
   // If no replyTo provided, skip validation
@@ -97,7 +138,7 @@ export async function verifyReplyToMessage(replyToId, conversationId, session = 
 
   // Validate ObjectId format
   if (!isValidObjectId(replyToId)) {
-    throw new Error("Invalid replyTo messageId format");
+    throw new ValidationError("Invalid replyTo messageId format");
   }
 
   // Find message with session support
@@ -113,12 +154,20 @@ export async function verifyReplyToMessage(replyToId, conversationId, session = 
 
   // Message must exist
   if (!replyToMessage) {
-    throw new Error("Reply-to message not found or has been deleted");
+    throw new AppError(
+      "Reply-to message not found or has been deleted",
+      404,
+      "REPLY_MESSAGE_NOT_FOUND"
+    );
   }
 
   // ✅ Additional security: Verify message belongs to the same conversation
   if (replyToMessage.conversation.toString() !== conversationId.toString()) {
-    throw new Error("Reply-to message does not belong to this conversation");
+    throw new AppError(
+      "Reply-to message does not belong to this conversation",
+      400,
+      "REPLY_MESSAGE_MISMATCH"
+    );
   }
 
   console.log("✅ [Validator] Reply-to message verified:", {
@@ -128,4 +177,32 @@ export async function verifyReplyToMessage(replyToId, conversationId, session = 
   });
 
   return replyToMessage;
+}
+
+/**
+ * 🆕 Validate content length
+ * 
+ * @param {string} content - Message content
+ * @param {number} maxLength - Maximum length (default: 5000)
+ * @returns {string} Trimmed content
+ * @throws {ValidationError} If content is invalid or exceeds max length
+ */
+export function validateContentLength(content, maxLength = 5000) {
+  if (!content || typeof content !== 'string') {
+    throw new ValidationError("Content must be a string");
+  }
+
+  const trimmed = content.trim();
+  
+  if (trimmed.length === 0) {
+    throw new ValidationError("Content cannot be empty");
+  }
+
+  if (trimmed.length > maxLength) {
+    throw new ValidationError(
+      `Content exceeds maximum length of ${maxLength} characters (got ${trimmed.length})`
+    );
+  }
+
+  return trimmed;
 }

@@ -1,7 +1,9 @@
 // frontend/src/user/components/Chat/MessageItem/MessageItem.jsx
 import { format } from "date-fns";
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { AuthContext } from "../../../context/AuthContext";
+import { messageService } from "../../../services/messageService";
 import { isBigEmoji } from "../../../utils/emoji";
 import MessageSenderInfo from "./MessageSenderInfo";
 import MessageBubble from "./MessageBubble";
@@ -17,7 +19,7 @@ import useChatStore from "../../../store/chat/chatStore";
  * ✅ Hide/Delete/Recall actions
  * ✅ Read receipts with avatars
  * ✅ REACTIVE to readReceipts changes
- * ✅ 🆕 INLINE EDIT in bubble (no overlay)
+ * ✅ 🆕 INLINE EDIT with API integration
  */
 export default function MessageItem({
   message,
@@ -31,10 +33,12 @@ export default function MessageItem({
   isHighlighted = false,
 }) {
   const { t } = useTranslation("chat");
+  const { token } = useContext(AuthContext);
 
   // Local state for edit mode
   const [isEditing, setIsEditing] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState(null);
 
   // Store actions
   const setReplyingTo = useChatStore((state) => state.setReplyingTo);
@@ -58,6 +62,21 @@ export default function MessageItem({
   const isPending =
     message.status === "pending" || message._status === "sending";
   const isFailed = message.status === "failed" || message._status === "failed";
+
+  // ============================================
+  // EDIT PERMISSIONS
+  // ============================================
+  const canEdit = () => {
+    if (!isMe) return false;
+    if (isRecalled) return false;
+    if (isFailed) return false;
+    
+    // Check 15-minute time limit
+    const messageAge = Date.now() - new Date(message.createdAt).getTime();
+    const FIFTEEN_MINUTES = 15 * 60 * 1000;
+    
+    return messageAge < FIFTEEN_MINUTES;
+  };
 
   // ============================================
   // READ RECEIPTS LOGIC
@@ -150,33 +169,66 @@ export default function MessageItem({
   };
 
   // ============================================
-  // 🆕 EDIT HANDLERS
+  // 🆕 EDIT HANDLERS - WITH API INTEGRATION
   // ============================================
   const handleEditClick = () => {
+    if (!canEdit()) {
+      console.warn("⚠️ Cannot edit this message");
+      return;
+    }
+    
+    setEditError(null);
     setIsEditing(true);
   };
 
   const handleSaveEdit = async (newContent) => {
+    if (!newContent.trim()) {
+      setEditError(t("errors.contentEmpty") || "Nội dung không được để trống");
+      return;
+    }
+
+    if (newContent.trim() === messageText.trim()) {
+      console.log("⏭️ Content unchanged, skipping edit");
+      setIsEditing(false);
+      return;
+    }
+
     setEditLoading(true);
+    setEditError(null);
 
     try {
-      console.log("📝 Updating message:", messageId);
+      console.log("📝 Calling API to edit message:", messageId);
       console.log("📝 New content:", newContent);
       
-      // TODO: Khi có BE, uncomment dòng này
-      // await messageService.editMessage(messageId, newContent, token);
+      // 🔥 CALL REAL API
+      const response = await messageService.editMessage(messageId, newContent, token);
+      
+      console.log("✅ API Response:", response);
 
-      // Mock API call - xóa khi có BE
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Update in store (optimistic update)
+      // Update in store (optimistic update - đã call API xong)
       editMessageLocal(conversationId, messageId, newContent);
       
       setIsEditing(false);
       console.log("✅ Message edited successfully");
     } catch (error) {
       console.error("❌ Edit message error:", error);
-      alert(error.message || "Không thể chỉnh sửa tin nhắn");
+      
+      // Handle specific error codes
+      let errorMessage = error.message || "Không thể chỉnh sửa tin nhắn";
+      
+      if (error.message.includes("NOT_SENDER")) {
+        errorMessage = t("errors.notSender") || "Bạn không phải người gửi tin nhắn này";
+      } else if (error.message.includes("EDIT_TIME_EXPIRED")) {
+        errorMessage = t("errors.editTimeExpired") || "Đã quá 15 phút, không thể chỉnh sửa";
+      } else if (error.message.includes("MESSAGE_RECALLED")) {
+        errorMessage = t("errors.messageRecalled") || "Không thể chỉnh sửa tin nhắn đã thu hồi";
+      } else if (error.message.includes("MESSAGE_DELETED")) {
+        errorMessage = t("errors.messageDeleted") || "Không thể chỉnh sửa tin nhắn đã xóa";
+      } else if (error.message.includes("CONTENT_TOO_LONG")) {
+        errorMessage = t("errors.contentTooLong") || "Nội dung quá dài (tối đa 5000 ký tự)";
+      }
+      
+      setEditError(errorMessage);
     } finally {
       setEditLoading(false);
     }
@@ -184,6 +236,7 @@ export default function MessageItem({
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+    setEditError(null);
   };
 
   // ============================================
@@ -309,6 +362,13 @@ export default function MessageItem({
             />
           )}
         </div>
+
+        {/* Error Message */}
+        {editError && (
+          <div className="mt-2 text-xs text-red-500 px-1">
+            {editError}
+          </div>
+        )}
 
         {/* Status + Read Receipts */}
         {!isEditing && (
