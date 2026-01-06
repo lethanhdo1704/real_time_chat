@@ -6,7 +6,7 @@ import AvatarImage from "../common/AvatarImage";
 
 /**
  * ConversationItem Component
- * 
+ *
  * Displays a conversation in the sidebar
  * Works for both friends and groups
  * Shows: avatar, name, lastMessage, unreadCount, timestamp
@@ -21,7 +21,7 @@ export default function ConversationItem({
 }) {
   const { t, i18n } = useTranslation("friendFeature");
   const locale = i18n.language === "vi" ? vi : enUS;
-  
+
   // ============================================
   // 🔥 FIX: Normalize conversation ID
   // ============================================
@@ -47,7 +47,7 @@ export default function ConversationItem({
         avatar: friend.avatar || null,
         name: friend.nickname || friend.uid,
         avatarUpdatedAt: friend.avatarUpdatedAt,
-        isOnline: friend.isOnline || friend.status === 'online' || false,
+        isOnline: friend.isOnline || friend.status === "online" || false,
       };
     }
 
@@ -71,7 +71,7 @@ export default function ConversationItem({
 
   const getMessagePreview = () => {
     // 🔥 DEBUG: Log everything
-    console.log('🔍 [ConversationItem] getMessagePreview called:', {
+    console.log("🔍 [ConversationItem] getMessagePreview called:", {
       conversationId,
       hasLastMessage: !!lastMessage,
       isRecalled: lastMessage?.isRecalled,
@@ -94,21 +94,43 @@ export default function ConversationItem({
     const isOwnMessage = lastMessage.sender?.uid === currentUserId;
     const senderName = isOwnMessage
       ? t("messagePreview.you") || "You"
-      : lastMessage.sender?.nickname || lastMessage.sender?.fullName || t("messagePreview.friend") || "Friend";
+      : lastMessage.sender?.nickname ||
+        lastMessage.sender?.fullName ||
+        t("messagePreview.friend") ||
+        "Friend";
 
     // ============================================
     // 🔥 PRIORITY 1: CHECK RECALLED FIRST (HIGHEST PRIORITY)
     // ============================================
-    console.log('🔍 [ConversationItem] Checking isRecalled:', lastMessage.isRecalled);
-    
+    console.log(
+      "🔍 [ConversationItem] Checking isRecalled:",
+      lastMessage.isRecalled
+    );
+
     if (lastMessage.isRecalled) {
-      console.log('✅ [ConversationItem] Message IS recalled - returning recalled preview');
-    
+      console.log(
+        "✅ [ConversationItem] Message IS recalled - returning recalled preview"
+      );
+
       return {
         text: isOwnMessage
-          ? t("messagePreview.youRecalled") || "You recalled a message"
-          : `${senderName} ${t("messagePreview.recalled") || "recalled a message"}`,
-        icon: "↩️", // Recall icon
+          ? t("messagePreview.youRecalled")
+          : `${senderName} ${t("messagePreview.recalled")}`,
+        icon: (
+          <svg
+            className="w-3.5 h-3.5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+            />
+          </svg>
+        ),
         isSpecial: true,
         isRecalled: true,
         isEdited: false,
@@ -119,9 +141,12 @@ export default function ConversationItem({
     // 🆕 CHECK IF MESSAGE IS EDITED
     // ============================================
     const isEdited = !!lastMessage.editedAt;
-    
+
     if (isEdited) {
-      console.log('✏️ [ConversationItem] Message is edited:', lastMessage.editedAt);
+      console.log(
+        "✏️ [ConversationItem] Message is edited:",
+        lastMessage.editedAt
+      );
     }
 
     // ============================================
@@ -130,7 +155,9 @@ export default function ConversationItem({
     switch (lastMessage.type) {
       case "image":
         return {
-          text: `${senderName}: ${t("messagePreview.photo") || "Photo"}${isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""}`,
+          text: `${senderName}: ${t("messagePreview.photo") || "Photo"}${
+            isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""
+          }`,
           icon: "📷",
           isSpecial: true,
           isRecalled: false,
@@ -138,7 +165,9 @@ export default function ConversationItem({
         };
       case "file":
         return {
-          text: `${senderName}: ${t("messagePreview.file") || "File"}${isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""}`,
+          text: `${senderName}: ${t("messagePreview.file") || "File"}${
+            isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""
+          }`,
           icon: "📎",
           isSpecial: true,
           isRecalled: false,
@@ -146,7 +175,9 @@ export default function ConversationItem({
         };
       case "video":
         return {
-          text: `${senderName}: ${t("messagePreview.video") || "Video"}${isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""}`,
+          text: `${senderName}: ${t("messagePreview.video") || "Video"}${
+            isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""
+          }`,
           icon: "🎥",
           isSpecial: true,
           isRecalled: false,
@@ -154,7 +185,9 @@ export default function ConversationItem({
         };
       case "audio":
         return {
-          text: `${senderName}: ${t("messagePreview.audio") || "Audio"}${isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""}`,
+          text: `${senderName}: ${t("messagePreview.audio") || "Audio"}${
+            isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""
+          }`,
           icon: "🎵",
           isSpecial: true,
           isRecalled: false,
@@ -163,36 +196,40 @@ export default function ConversationItem({
       default:
         // Text message
         const content = lastMessage.content || "";
-        
+
         // 🔥 Double-check: If no content, might be recalled
         if (!content && lastMessage.isRecalled) {
           return {
             text: isOwnMessage
               ? t("messagePreview.youRecalled") || "You recalled a message"
-              : `${senderName} ${t("messagePreview.recalled") || "recalled a message"}`,
+              : `${senderName} ${
+                  t("messagePreview.recalled") || "recalled a message"
+                }`,
             icon: "↩️",
             isSpecial: true,
             isRecalled: true,
             isEdited: false,
           };
         }
-        
+
         // 🆕 IMPROVED: Calculate maxLength based on whether message is edited
-        const editedIndicator = isEdited 
-          ? ` (${t("messagePreview.edited") || "edited"})` 
+        const editedIndicator = isEdited
+          ? ` (${t("messagePreview.edited") || "edited"})`
           : "";
         const editedIndicatorLength = editedIndicator.length;
-        
+
         // Reserve space for edited indicator
         const maxLength = 40 - (isEdited ? editedIndicatorLength : 0);
         const truncated =
           content.length > maxLength
             ? content.substring(0, maxLength) + "..."
             : content;
-        
+
         return {
           text: isOwnMessage
-            ? `${t("messagePreview.you") || "You"}: ${truncated}${editedIndicator}`
+            ? `${
+                t("messagePreview.you") || "You"
+              }: ${truncated}${editedIndicator}`
             : `${truncated}${editedIndicator}`,
           icon: null,
           isSpecial: false,
@@ -329,7 +366,15 @@ export default function ConversationItem({
           {/* Message Preview */}
           <div className="flex items-center gap-1.5">
             {messagePreview.icon && (
-              <span className="text-sm shrink-0">{messagePreview.icon}</span>
+              <span
+                className={`shrink-0 ${
+                  typeof messagePreview.icon === "string"
+                    ? "text-sm"
+                    : "text-gray-500"
+                }`}
+              >
+                {messagePreview.icon}
+              </span>
             )}
             <p
               className={`
@@ -347,7 +392,11 @@ export default function ConversationItem({
                     : "text-gray-500"
                 }
                 ${!lastMessage && !isActive ? "italic" : ""}
-                ${messagePreview.isEdited && !messagePreview.isRecalled ? "text-gray-600" : ""}
+                ${
+                  messagePreview.isEdited && !messagePreview.isRecalled
+                    ? "text-gray-600"
+                    : ""
+                }
               `}
             >
               {messagePreview.text}

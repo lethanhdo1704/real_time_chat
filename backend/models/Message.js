@@ -47,11 +47,30 @@ const messageSchema = new Schema(
     ],
 
     // ============================================
-    // 🆕 3 KIỂU DELETE (THEO THỨ TỰ ƯU TIÊN)
+    // 🆕 REACTIONS (FINAL VERSION)
+    // ============================================
+    reactions: [
+      {
+        user: {
+          type: Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        emoji: {
+          type: String,
+          required: true,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
+    // ============================================
+    // 3 KIỂU DELETE (THEO THỨ TỰ ƯU TIÊN)
     // ============================================
     
-    // PRIORITY 1: Admin delete (highest priority)
-    // Tin nhắn bị xóa bởi admin → không ai thấy
     deletedAt: {
       type: Date,
       default: null,
@@ -62,8 +81,6 @@ const messageSchema = new Schema(
       default: null,
     },
     
-    // PRIORITY 2: Recall (sender delete for all)
-    // Thu hồi tin nhắn → tất cả đều thấy "Tin nhắn đã được thu hồi"
     isRecalled: {
       type: Boolean,
       default: false,
@@ -73,15 +90,11 @@ const messageSchema = new Schema(
       default: null,
     },
     
-    // PRIORITY 3: Hidden (user-specific delete)
-    // Gỡ tin nhắn → chỉ user trong array này không thấy
-    // 🔧 Renamed from hiddenFrom → hiddenFor (better semantics)
     hiddenFor: [{
       type: Schema.Types.ObjectId,
       ref: "User",
     }],
 
-    // Edit tracking
     editedAt: {
       type: Date,
       default: null,
@@ -104,17 +117,12 @@ const messageSchema = new Schema(
 // INDEXES
 // ============================================
 
-// Main query: Get messages by conversation (pagination)
 messageSchema.index({ conversation: 1, _id: -1 });
-
-// User activity
 messageSchema.index({ sender: 1, createdAt: -1 });
-
-// Client message ID lookup
 messageSchema.index({ clientMessageId: 1 }, { sparse: true });
-
-// Alternative: If using createdAt for pagination
 messageSchema.index({ conversation: 1, createdAt: -1 });
+
+// ✅ NO index on reactions.user - not needed for current queries
 
 // ============================================
 // VIRTUAL FIELDS
@@ -128,34 +136,16 @@ messageSchema.virtual("messageId").get(function () {
 // INSTANCE METHODS
 // ============================================
 
-/**
- * Check if message is hidden for a specific user
- */
 messageSchema.methods.isHiddenFor = function(userId) {
   return this.hiddenFor.some(id => id.toString() === userId.toString());
 };
 
-/**
- * Check if message is visible for a specific user
- * Follows priority: deletedAt > isRecalled > hiddenFor
- */
 messageSchema.methods.isVisibleFor = function(userId) {
-  // Priority 1: Admin deleted → never visible
   if (this.deletedAt) return false;
-  
-  // Priority 2: Recalled → visible but as placeholder
-  // (handled by frontend)
-  
-  // Priority 3: Hidden for this user → not visible
   if (this.isHiddenFor(userId)) return false;
-  
   return true;
 };
 
-/**
- * Get message state for frontend
- * 🔧 Returns raw data instead of formatted content
- */
 messageSchema.methods.getState = function() {
   return {
     isDeleted: !!this.deletedAt,
@@ -165,13 +155,9 @@ messageSchema.methods.getState = function() {
 };
 
 // ============================================
-// STATIC METHODS
+// STATIC METHODS - EXISTING
 // ============================================
 
-/**
- * Get conversation messages with pagination
- * 🆕 Filters based on user visibility
- */
 messageSchema.statics.getConversationMessages = async function (
   conversationId,
   userId,
@@ -180,8 +166,8 @@ messageSchema.statics.getConversationMessages = async function (
 ) {
   const query = {
     conversation: conversationId,
-    deletedAt: null, // Exclude admin-deleted messages
-    hiddenFor: { $ne: userId }, // Exclude messages hidden by this user
+    deletedAt: null,
+    hiddenFor: { $ne: userId },
   };
 
   if (before && mongoose.Types.ObjectId.isValid(before)) {
@@ -200,33 +186,27 @@ messageSchema.statics.getConversationMessages = async function (
         select: "uid nickname avatar",
       },
     })
+    .populate({
+      path: "reactions.user",
+      select: "uid nickname avatar",
+    })
     .lean();
 };
 
-/**
- * Find message by clientMessageId
- */
 messageSchema.statics.findByClientId = async function (clientMessageId) {
   return this.findOne({ clientMessageId }).lean();
 };
 
-/**
- * Check if clientMessageId already exists (prevent duplicates)
- */
 messageSchema.statics.clientIdExists = async function (clientMessageId) {
   const count = await this.countDocuments({ clientMessageId });
   return count > 0;
 };
 
-/**
- * 🆕 Hide message for a specific user (KIỂU 1 & 2)
- * Note: Business rules (permissions) should be checked in service layer
- */
 messageSchema.statics.hideForUser = async function (messageId, userId) {
   const result = await this.findByIdAndUpdate(
     messageId,
     { 
-      $addToSet: { hiddenFor: userId } // Prevent duplicates
+      $addToSet: { hiddenFor: userId }
     },
     { new: true }
   );
@@ -234,20 +214,14 @@ messageSchema.statics.hideForUser = async function (messageId, userId) {
   return result;
 };
 
-/**
- * 🆕 Recall message for everyone (KIỂU 3)
- * Note: Business rules (sender check, time limit) should be in service layer
- * 
- * 🧠 Optional enhancement: Clear hiddenFor when recalling
- */
 messageSchema.statics.recallMessage = async function (messageId, clearHidden = true) {
   const update = { 
     isRecalled: true,
     recalledAt: new Date(),
     content: "",
+    reactions: [], // Clear reactions when recalled
   };
   
-  // Optional: Clear hidden state since recall is global
   if (clearHidden) {
     update.hiddenFor = [];
   }
@@ -261,24 +235,82 @@ messageSchema.statics.recallMessage = async function (messageId, clearHidden = t
   return result;
 };
 
-/**
- * 🆕 Admin delete message (KIỂU ADMIN)
- * Clears all other states since this is highest priority
- */
 messageSchema.statics.adminDelete = async function (messageId, adminId) {
   const result = await this.findByIdAndUpdate(
     messageId,
     { 
       deletedAt: new Date(),
       deletedBy: adminId,
-      // Clear other states
       hiddenFor: [],
       isRecalled: false,
+      reactions: [], // Clear reactions when admin deleted
     },
     { new: true }
   );
   
   return result;
+};
+
+// ============================================
+// 🆕 STATIC METHODS - REACTIONS (FINAL)
+// ============================================
+
+/**
+ * Toggle reaction (add or remove)
+ * Returns updated message with populated reactions
+ * 
+ * ✅ PRODUCTION READY:
+ * - No emoji validation (trust FE)
+ * - No max limit per user
+ * - Simple toggle logic
+ * 
+ * @param {string} messageId - Message ID
+ * @param {string} userId - User ID (MongoDB _id)
+ * @param {string} emoji - Unicode emoji from emoji-picker-react
+ * @returns {Promise<Document>} Updated message document
+ */
+messageSchema.statics.toggleReaction = async function (messageId, userId, emoji) {
+  const message = await this.findById(messageId);
+  
+  if (!message) {
+    throw new Error('Message not found');
+  }
+
+  // Check if message can receive reactions
+  if (message.deletedAt) {
+    throw new Error('Cannot react to deleted message');
+  }
+
+  if (message.isRecalled) {
+    throw new Error('Cannot react to recalled message');
+  }
+
+  // Find existing reaction
+  const existingIndex = message.reactions.findIndex(
+    r => r.user.toString() === userId.toString() && r.emoji === emoji
+  );
+
+  if (existingIndex !== -1) {
+    // Remove reaction (toggle off)
+    message.reactions.splice(existingIndex, 1);
+  } else {
+    // Add reaction (toggle on)
+    message.reactions.push({
+      user: userId,
+      emoji: emoji,
+      createdAt: new Date()
+    });
+  }
+
+  await message.save();
+  
+  // Populate user info before returning
+  await message.populate({
+    path: 'reactions.user',
+    select: 'uid nickname avatar'
+  });
+
+  return message;
 };
 
 export default mongoose.model("Message", messageSchema);

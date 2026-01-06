@@ -38,10 +38,6 @@ class SocketEmitter {
    * ============================================
    */
 
-  /**
-   * 🔥 FIXED: Emit to CONVERSATION ROOM, not individual users
-   * This ensures ALL message events are consistent
-   */
   emitNewMessage(conversationId, message, memberUpdates) {
     if (!this.isIOAvailable()) return;
 
@@ -49,7 +45,6 @@ class SocketEmitter {
 
     console.log(`📡 [SocketEmitter] message_received → ${room}`);
 
-    // 🔥 CRITICAL FIX: Emit to conversation room, not user rooms
     this.io.to(room).emit('message_received', {
       conversationId,
       message: {
@@ -62,12 +57,11 @@ class SocketEmitter {
         editedAt: message.editedAt || null,
         replyTo: message.replyTo || null,
         attachments: message.attachments || [],
+        reactions: message.reactions || [],
         clientMessageId: message.clientMessageId || null
       }
     });
 
-    // 🔥 SEPARATE: Emit unread counts to individual users
-    // This keeps user-specific data separate from conversation events
     if (memberUpdates && Object.keys(memberUpdates).length > 0) {
       console.log(`📡 [SocketEmitter] Emitting unread updates to ${Object.keys(memberUpdates).length} users`);
       
@@ -93,9 +87,43 @@ class SocketEmitter {
   }
 
   /**
+   * 🆕 REACTION UPDATE - CONVERSATION ROOM
+   * Broadcasts reaction changes to all conversation members
+   * 
+   * @param {string} conversationId - Conversation ID
+   * @param {string} messageId - Message ID
+   * @param {Array} reactions - Full reactions array with populated users
+   */
+  emitReactionUpdate(conversationId, messageId, reactions) {
+    if (!this.isIOAvailable()) return;
+
+    const room = this.getConversationRoom(conversationId);
+
+    console.log(`📡 [SocketEmitter] message:reaction:update → ${room}`);
+    console.log(`  ↳ MessageId: ${messageId}, Reactions: ${reactions.length}`);
+
+    // Format reactions for frontend
+    const formattedReactions = reactions.map(r => ({
+      user: {
+        _id: r.user._id,
+        uid: r.user.uid,
+        nickname: r.user.nickname,
+        avatar: r.user.avatar
+      },
+      emoji: r.emoji,
+      createdAt: r.createdAt
+    }));
+
+    this.io.to(room).emit('message:reaction:update', {
+      conversationId,
+      messageId,
+      reactions: formattedReactions,
+      timestamp: new Date()
+    });
+  }
+
+  /**
    * 🆕 READ RECEIPT - CONVERSATION ROOM
-   * Broadcasts when user marks conversation as read
-   * Other members can show avatar below lastSeenMessageId
    */
   emitReadReceipt(conversationId, userUid, lastSeenMessageId) {
     if (!this.isIOAvailable()) return;
@@ -133,7 +161,6 @@ class SocketEmitter {
 
   /**
    * 🔥 FIXED: Message deleted - CONVERSATION ROOM
-   * Admin delete affects everyone, so emit to conversation
    */
   emitMessageDeleted(conversationId, messageId, deletedBy, memberUpdates) {
     if (!this.isIOAvailable()) return;
@@ -142,14 +169,12 @@ class SocketEmitter {
 
     console.log(`📡 [SocketEmitter] message_deleted → ${room}`);
 
-    // Emit deletion to conversation room
     this.io.to(room).emit('message_deleted', {
       conversationId,
       messageId,
       deletedBy
     });
 
-    // Separately emit lastMessage updates to individual users if needed
     if (memberUpdates && Object.keys(memberUpdates).length > 0) {
       console.log(`📡 [SocketEmitter] Emitting lastMessage updates to ${Object.keys(memberUpdates).length} users`);
       
@@ -169,9 +194,6 @@ class SocketEmitter {
 
   /**
    * ✅ IMPROVED: Message edited - CONVERSATION ROOM
-   * 
-   * @param {string} conversationId - Conversation ID
-   * @param {object} message - Complete message object from formatMessageResponse
    */
   emitMessageEdited(conversationId, message) {
     if (!this.isIOAvailable()) return;
@@ -182,23 +204,22 @@ class SocketEmitter {
     console.log(`  ↳ MessageId: ${message.messageId || message._id}`);
     console.log(`  ↳ EditedAt: ${message.editedAt}`);
 
-    // 🔥 FULL PAYLOAD: Include all necessary data for frontend
     this.io.to(room).emit('message_edited', {
       conversationId,
       message: {
         messageId: message.messageId || message._id,
         content: message.content,
         editedAt: message.editedAt,
-        sender: message.sender, // { uid, nickname, avatar }
+        sender: message.sender,
         type: message.type || 'text',
         replyTo: message.replyTo || null,
         attachments: message.attachments || [],
+        reactions: message.reactions || [],
         createdAt: message.createdAt,
-        // Include state for consistency
         isRecalled: message.isRecalled || false,
         isDeleted: message.isDeleted || false
       },
-      timestamp: new Date() // Server timestamp
+      timestamp: new Date()
     });
   }
 
@@ -241,13 +262,6 @@ class SocketEmitter {
    * ============================================
    */
 
-  /**
-   * ✅ Message read receipt - USER ROOM
-   * Each user needs their own unread count update
-   * 
-   * @deprecated - Use emitReadReceipt() instead
-   * This method is kept for backward compatibility
-   */
   emitMessageRead(conversationId, readByUserId, memberIds) {
     if (!this.isIOAvailable()) return;
 
@@ -271,9 +285,6 @@ class SocketEmitter {
     });
   }
 
-  /**
-   * ✅ User online status - USER ROOM
-   */
   emitUserOnline(userIds, data) {
     if (!this.isIOAvailable()) return;
 
@@ -291,9 +302,6 @@ class SocketEmitter {
     });
   }
 
-  /**
-   * ✅ User offline status - USER ROOM
-   */
   emitUserOffline(userIds, data) {
     if (!this.isIOAvailable()) return;
 
@@ -311,10 +319,6 @@ class SocketEmitter {
     });
   }
 
-  /**
-   * 🆕 Conversation created - USER ROOM
-   * New conversations are user-specific notifications
-   */
   emitConversationCreated(conversation, memberIds) {
     if (!this.isIOAvailable()) return;
 
@@ -331,9 +335,6 @@ class SocketEmitter {
     });
   }
 
-  /**
-   * ✅ Member added to group - CONVERSATION ROOM + USER NOTIFICATION
-   */
   emitMemberAdded(conversationId, newMembers) {
     if (!this.isIOAvailable()) return;
 
@@ -346,7 +347,6 @@ class SocketEmitter {
       members: newMembers
     });
 
-    // Notify each new member individually
     newMembers.forEach(member => {
       this.io.to(this.getUserRoom(member.uid)).emit('conversation_joined', {
         conversationId,
@@ -355,9 +355,6 @@ class SocketEmitter {
     });
   }
 
-  /**
-   * ✅ Member removed from group - CONVERSATION ROOM + USER NOTIFICATION
-   */
   emitMemberRemoved(conversationId, memberUid, removedBy) {
     if (!this.isIOAvailable()) return;
 
@@ -377,9 +374,6 @@ class SocketEmitter {
     });
   }
 
-  /**
-   * ✅ Generic emit to a single user
-   */
   emitToUser(uid, event, payload) {
     if (!this.isIOAvailable()) return;
 
@@ -396,9 +390,6 @@ class SocketEmitter {
     }
   }
 
-  /**
-   * ✅ Helper to get connected sockets for user
-   */
   getUserSockets(userId) {
     if (!this.isIOAvailable()) return [];
 
@@ -412,9 +403,6 @@ class SocketEmitter {
     }
   }
 
-  /**
-   * ✅ Broadcast to all users except one
-   */
   broadcastToUsersExcept(userIds, exceptUserId, eventName, data) {
     if (!this.isIOAvailable()) return;
 
@@ -430,5 +418,4 @@ class SocketEmitter {
   }
 }
 
-// ✅ Export singleton instance
 export default new SocketEmitter();

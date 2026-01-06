@@ -43,6 +43,7 @@ import otpRegisterRoutes from "./routes/otp/register.routes.js";
 import friendsRoutes from "./routes/friend.routes.js";
 import conversationRoutes from "./routes/conversation.routes.js";
 import messageRoutes from "./routes/message.routes.js";
+import reactionRoutes from "./routes/reaction.routes.js";
 
 // ==========================
 // SOCKET
@@ -139,6 +140,7 @@ app.use("/api/users", auth, userRoutes);
 app.use("/api/friends", auth, friendRequestLimiter, friendsRoutes);
 app.use("/api/conversations", auth, conversationRoutes);
 app.use("/api/messages", auth, messageRoutes);
+app.use("/api/reactions", auth, reactionRoutes);
 
 console.log("✅ All routes registered");
 

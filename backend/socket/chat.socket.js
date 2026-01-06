@@ -5,49 +5,42 @@ import Friend from "../models/Friend.js";
 import User from "../models/User.js";
 import Message from "../models/Message.js";
 import socketEmitter from "../services/socketEmitter.service.js";
+import messageService from "../services/message/message.service.js";
 
 /**
  * ============================================
- * SOCKET EVENTS DOCUMENTATION
- * ============================================
- * 
- * CLIENT → SERVER (Incoming):
- * - join_conversation: Join a conversation room
- * - leave_conversation: Leave a conversation room
- * - typing: Broadcast typing indicator
- * - mark_read: Mark messages as read (NEW)
- * 
- * SERVER → CLIENT (Outgoing):
- * - message_received: New message (sent via REST API + socket)
- * - message_edited: Message edited
- * - message_recalled: Message recalled by sender
- * - message_deleted: Message deleted by admin
- * - user_typing: Typing indicator
- * - message_read_receipt: Read receipt with lastSeenMessageId (NEW)
- * - user_online: Friend came online
- * - user_offline: Friend went offline
- * - conversation_created: New conversation
- * - conversation_update: Unread count updates
- * - joined_conversation: Confirmation of room join
- * - left_conversation: Confirmation of room leave
- * - error: Error events
- * 
- * ============================================
- * ROOM NAMING CONVENTION (CRITICAL)
- * ============================================
- * 
- * 🟥 CONVERSATION EVENTS → conversation:{id}
- * - message_received, message_recalled, message_deleted, message_edited
- * - typing, message_read_receipt, conversation_updated
- * - member_added, member_removed
- * 
- * 🟦 USER-SPECIFIC EVENTS → user:{uid}
- * - conversation_update (unread counts)
- * - user_online, user_offline
- * - conversation_created, conversation_joined, conversation_left
- * 
+ * RATE LIMIT STORE (In-memory)
+ * Production: Use Redis
  * ============================================
  */
+const rateLimitStore = new Map();
+
+function checkRateLimit(userId) {
+  const now = Date.now();
+  const windowStart = Math.floor(now / 10000); // 10-second windows
+  const key = `${userId}:${windowStart}`;
+  
+  const count = rateLimitStore.get(key) || 0;
+  
+  if (count >= 10) {
+    return false; // Rate limit exceeded
+  }
+  
+  rateLimitStore.set(key, count + 1);
+  
+  // Cleanup old entries (every 100 requests)
+  if (Math.random() < 0.01) {
+    const cutoff = windowStart - 10;
+    for (const [k] of rateLimitStore) {
+      const [, timestamp] = k.split(':');
+      if (parseInt(timestamp) < cutoff) {
+        rateLimitStore.delete(k);
+      }
+    }
+  }
+  
+  return true;
+}
 
 /**
  * 🔥 HELPER: Get standardized room names
@@ -87,17 +80,10 @@ export default function setupChatSocket(io) {
     console.log(`💬 User connected: ${socket.uid} (${socket.id})`);
     
     try {
-      // ============================================
-      // 1️⃣ JOIN USER ROOM (for user-specific events)
-      // ============================================
       const userRoom = getUserRoom(socket.uid);
       socket.join(userRoom);
       console.log(`  ↳ Joined user room: ${userRoom}`);
       
-      // ============================================
-      // 2️⃣ AUTO-JOIN ALL USER'S CONVERSATIONS
-      // 🔥 FIXED: Use conversation:${id} format
-      // ============================================
       const conversations = await ConversationMember.find({
         user: socket.userId,
         leftAt: null
@@ -111,9 +97,6 @@ export default function setupChatSocket(io) {
       
       console.log(`✅ User ${socket.uid} auto-joined ${conversations.length} conversations`);
       
-      // ============================================
-      // 3️⃣ BROADCAST ONLINE STATUS
-      // ============================================
       await broadcastOnlineStatus(socket, io, true);
       
     } catch (error) {
@@ -121,17 +104,13 @@ export default function setupChatSocket(io) {
     }
     
     // ============================================
-    // EVENT: JOIN CONVERSATION (Manual)
-    // 🔥 FIXED: Use conversation:${id} format
+    // EVENT: JOIN CONVERSATION
     // ============================================
     socket.on('join_conversation', async (data) => {
       try {
-        console.log("🔥 [DEBUG] join_conversation RAW DATA:", data);
-        
         const { conversationId } = data;
         
         if (!conversationId) {
-          console.error("❌ [DEBUG] No conversationId in join_conversation data!");
           socket.emit('error', { 
             code: 'INVALID_DATA',
             message: 'conversationId is required' 
@@ -139,16 +118,12 @@ export default function setupChatSocket(io) {
           return;
         }
         
-        console.log(`📥 join_conversation: ${socket.uid} → ${conversationId}`);
-        
-        // Verify membership
         const isMember = await ConversationMember.isActiveMember(
           conversationId,
           socket.userId
         );
         
         if (!isMember) {
-          console.log(`❌ User ${socket.uid} not a member of ${conversationId}`);
           socket.emit('error', { 
             code: 'NOT_MEMBER',
             message: 'Not a member of this conversation' 
@@ -156,16 +131,9 @@ export default function setupChatSocket(io) {
           return;
         }
         
-        // 🔥 CRITICAL FIX: Join with prefix
         const room = getConversationRoom(conversationId);
         socket.join(room);
         console.log(`✅ User ${socket.uid} joined room: ${room}`);
-        
-        // 🔥 VERIFY ROOM MEMBERSHIP
-        const roomMembers = io.sockets.adapter.rooms.get(room);
-        if (roomMembers) {
-          console.log(`👥 Room ${room} now has ${roomMembers.size} members`);
-        }
         
         socket.emit('joined_conversation', { conversationId });
         
@@ -180,7 +148,6 @@ export default function setupChatSocket(io) {
     
     // ============================================
     // EVENT: LEAVE CONVERSATION
-    // 🔥 FIXED: Use conversation:${id} format
     // ============================================
     socket.on('leave_conversation', (data) => {
       try {
@@ -196,42 +163,93 @@ export default function setupChatSocket(io) {
     });
     
     // ============================================
-    // 🆕 EVENT: MARK AS READ
-    // FE quyết định WHEN, BE thực thi + broadcast
+    // 🆕 EVENT: MESSAGE REACTION (FINAL VERSION)
+    // ============================================
+    socket.on('message:react', async (data) => {
+      try {
+        const { messageId, emoji } = data;
+        const userId = socket.userId;
+        
+        console.log(`🎭 message:react:`, {
+          user: socket.uid,
+          messageId,
+          emoji
+        });
+        
+        // ============================================
+        // VALIDATION: Only check required fields
+        // ✅ NO emoji format validation (trust FE)
+        // ============================================
+        if (!messageId || !emoji) {
+          socket.emit('error', { 
+            type: 'INVALID_DATA',
+            message: 'messageId and emoji are required',
+            code: 'MISSING_FIELDS'
+          });
+          return;
+        }
+        
+        // ============================================
+        // RATE LIMITING
+        // ============================================
+        if (!checkRateLimit(userId)) {
+          socket.emit('error', { 
+            type: 'RATE_LIMIT',
+            message: 'Too many reactions, please slow down',
+            code: 'RATE_LIMIT_EXCEEDED'
+          });
+          return;
+        }
+        
+        // ============================================
+        // EXECUTE USE CASE
+        // ============================================
+        const result = await messageService.toggleReaction(
+          messageId,
+          userId,
+          emoji
+        );
+        
+        console.log(`✅ [message:react] Reaction toggled successfully`);
+        
+        // ============================================
+        // ✅ BROADCAST TO ENTIRE ROOM (including sender)
+        // No separate success event needed
+        // ============================================
+        // Socket emitter will handle broadcasting
+        
+      } catch (error) {
+        console.error('❌ message:react error:', error);
+        
+        socket.emit('error', {
+          type: error.code || 'SERVER_ERROR',
+          message: error.message || 'Failed to process reaction',
+          code: error.code || 'UNKNOWN_ERROR'
+        });
+      }
+    });
+    
+    // ============================================
+    // EVENT: MARK AS READ
     // ============================================
     socket.on('mark_read', async (data) => {
       try {
         const { conversationId, lastSeenMessageId } = data;
         
-        console.log(`📖 mark_read: ${socket.uid} → ${conversationId} (msg: ${lastSeenMessageId})`);
-        
-        // Validate input
-        if (!conversationId) {
-          console.error("❌ [mark_read] No conversationId provided");
+        if (!conversationId || !lastSeenMessageId) {
           socket.emit('error', { 
             code: 'INVALID_DATA',
-            message: 'conversationId is required' 
+            message: 'conversationId and lastSeenMessageId are required' 
           });
           return;
         }
         
-        if (!lastSeenMessageId) {
-          console.error("❌ [mark_read] No lastSeenMessageId provided");
-          socket.emit('error', { 
-            code: 'INVALID_DATA',
-            message: 'lastSeenMessageId is required' 
-          });
-          return;
-        }
-        
-        // Verify membership
         const isMember = await ConversationMember.isActiveMember(
           conversationId,
           socket.userId
         );
         
         if (!isMember) {
-          console.log(`❌ User ${socket.uid} not a member of ${conversationId}`);
           socket.emit('error', { 
             code: 'NOT_MEMBER',
             message: 'Not a member of this conversation' 
@@ -239,13 +257,11 @@ export default function setupChatSocket(io) {
           return;
         }
         
-        // Verify message exists and belongs to conversation
         const message = await Message.findById(lastSeenMessageId)
           .select('conversation')
           .lean();
         
         if (!message) {
-          console.error(`❌ [mark_read] Message not found: ${lastSeenMessageId}`);
           socket.emit('error', { 
             code: 'MESSAGE_NOT_FOUND',
             message: 'Message not found' 
@@ -254,7 +270,6 @@ export default function setupChatSocket(io) {
         }
         
         if (message.conversation.toString() !== conversationId.toString()) {
-          console.error(`❌ [mark_read] Message belongs to different conversation`);
           socket.emit('error', { 
             code: 'MESSAGE_MISMATCH',
             message: 'Message does not belong to this conversation' 
@@ -262,7 +277,6 @@ export default function setupChatSocket(io) {
           return;
         }
         
-        // Update DB: reset unreadCount + update lastSeenMessage
         const updatedMember = await ConversationMember.markAsRead(
           conversationId,
           socket.userId,
@@ -270,7 +284,6 @@ export default function setupChatSocket(io) {
         );
         
         if (!updatedMember) {
-          console.error(`❌ [mark_read] Failed to update member`);
           socket.emit('error', { 
             code: 'UPDATE_FAILED',
             message: 'Failed to mark as read' 
@@ -278,18 +291,12 @@ export default function setupChatSocket(io) {
           return;
         }
         
-        console.log(`✅ [mark_read] DB updated: unreadCount=0, lastSeenMessage=${lastSeenMessageId}`);
-        
-        // Broadcast read receipt to conversation room
         socketEmitter.emitReadReceipt(
           conversationId.toString(),
           socket.uid,
           lastSeenMessageId.toString()
         );
         
-        console.log(`✅ [mark_read] Read receipt broadcasted to conversation:${conversationId}`);
-        
-        // Confirm to sender
         socket.emit('mark_read_success', {
           conversationId,
           lastSeenMessageId,
@@ -307,34 +314,26 @@ export default function setupChatSocket(io) {
     
     // ============================================
     // EVENT: TYPING INDICATOR
-    // 🔥 FIXED: Emit to conversation:${id} room
     // ============================================
     socket.on('typing', async (data) => {
       try {
         const { conversationId, isTyping } = data;
         
-        console.log(`⌨️  typing: ${socket.uid} in ${conversationId} - ${isTyping}`);
-        
-        // Verify membership
         const isMember = await ConversationMember.isActiveMember(
           conversationId,
           socket.userId
         );
         
         if (!isMember) {
-          console.log(`❌ User ${socket.uid} not a member, cannot emit typing`);
           return;
         }
         
-        // 🔥 CRITICAL FIX: Emit to conversation room
         const room = getConversationRoom(conversationId);
         socket.to(room).emit('user_typing', {
           conversationId,
           user: { uid: socket.uid },
           isTyping: isTyping !== undefined ? isTyping : true
         });
-        
-        console.log(`✅ Typing indicator broadcasted to ${room}`);
         
       } catch (error) {
         console.error('❌ Typing error:', error);
@@ -364,7 +363,6 @@ export default function setupChatSocket(io) {
 // ============================================
 async function broadcastOnlineStatus(socket, io, isOnline) {
   try {
-    // Get all accepted friends
     const friendships = await Friend.find({
       $or: [
         { user: socket.userId, status: 'accepted' },
@@ -372,19 +370,16 @@ async function broadcastOnlineStatus(socket, io, isOnline) {
       ]
     }).populate('user friend', 'uid').lean();
     
-    // Extract friend UIDs
     const friendUids = friendships.map(f => {
       return f.user._id.toString() === socket.userId.toString() 
         ? f.friend.uid 
         : f.user.uid;
     });
     
-    // Update user's lastSeen
     await User.findByIdAndUpdate(socket.userId, {
       lastSeen: new Date()
     });
     
-    // Broadcast to friends using user rooms
     const eventName = isOnline ? 'user_online' : 'user_offline';
     friendUids.forEach(friendUid => {
       const userRoom = getUserRoom(friendUid);
