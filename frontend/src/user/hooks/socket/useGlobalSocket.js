@@ -1,4 +1,4 @@
-// frontend/src/hooks/useGlobalSocket.js - WITH GLOBAL MESSAGE UPDATES
+// frontend/src/hooks/socket/useGlobalSocket.js - WITH REACTIONS
 
 import { useEffect, useContext, useCallback, useRef } from "react";
 import { AuthContext } from "../../context/AuthContext";
@@ -6,7 +6,7 @@ import { SocketContext } from "../../context/SocketContext";
 import useChatStore from "../../store/chat/chatStore";
 
 /**
- * 🔥 GLOBAL SOCKET LISTENER - WITH FULL MESSAGE UPDATES
+ * 🔥 GLOBAL SOCKET LISTENER - WITH REACTIONS
  * 
  * TRÁCH NHIỆM:
  * ✅ Conversation metadata (lastMessage, unread, reorder)
@@ -15,6 +15,7 @@ import useChatStore from "../../store/chat/chatStore";
  * ✅ message_recalled (sidebar + messages in store)
  * ✅ message_edited (sidebar + messages in store)
  * ✅ message_deleted (sidebar + messages in store)
+ * ✅ 🆕 message:reaction:update (reactions for all conversations)
  * 
  * NGUYÊN TẮC:
  * - Register ONCE per connection
@@ -30,11 +31,11 @@ export const useGlobalSocket = ({
   const { socket, isConnected } = useContext(SocketContext);
   const registeredRef = useRef(false);
 
-  // 🔥 CRITICAL FIX: Subscribe to store actions directly
-  // This ensures Zustand triggers re-renders when these are called
+  // 🔥 Subscribe to store actions
   const editMessageFromSocket = useChatStore((state) => state.editMessageFromSocket);
   const recallMessageFromSocket = useChatStore((state) => state.recallMessageFromSocket);
   const deleteMessageFromSocket = useChatStore((state) => state.deleteMessageFromSocket);
+  const setReactionsFinal = useChatStore((state) => state.setReactionsFinal);
   const updateConversation = useChatStore((state) => state.updateConversation);
   const conversations = useChatStore((state) => state.conversations);
 
@@ -55,7 +56,6 @@ export const useGlobalSocket = ({
       hasLastMessage: !!lastMessage,
     });
 
-    // 🔥 Use subscribed conversations directly
     const existingConv = conversations.get(conversationId);
 
     if (existingConv) {
@@ -68,7 +68,7 @@ export const useGlobalSocket = ({
         incomingMessageId === existingMessageId;
       
       if (shouldPreserveRecalled) {
-        console.log('⏭️ [Global] Preserving recalled lastMessage (same messageId), only updating metadata');
+        console.log('⏭️ [Global] Preserving recalled lastMessage');
         updateConversation(conversationId, {
           lastMessageAt,
           unreadCount,
@@ -113,14 +113,13 @@ export const useGlobalSocket = ({
     const { addConversation } = useChatStore.getState();
     addConversation(conversation);
 
-    // Call parent callback if provided
     if (onConversationCreated) {
       onConversationCreated(data);
     }
   }, [onConversationCreated]);
 
   // ============================================
-  // HANDLER: CONVERSATION JOINED (when added to group)
+  // HANDLER: CONVERSATION JOINED
   // ============================================
   const handleConversationJoined = useCallback((data) => {
     const { conversationId, conversation } = data;
@@ -134,7 +133,7 @@ export const useGlobalSocket = ({
   }, []);
 
   // ============================================
-  // HANDLER: CONVERSATION LEFT (when removed from group)
+  // HANDLER: CONVERSATION LEFT
   // ============================================
   const handleConversationLeft = useCallback((data) => {
     const { conversationId, reason } = data;
@@ -143,20 +142,18 @@ export const useGlobalSocket = ({
 
     const { removeConversation, setActiveConversation, activeConversationId } = useChatStore.getState();
     
-    // Remove from list
     removeConversation(conversationId);
     
-    // Clear active if was active
     if (activeConversationId === conversationId) {
       setActiveConversation(null);
     }
   }, []);
 
   // ============================================
-  // 🆕 HANDLER: MESSAGE EDITED (GLOBAL - sidebar + messages)
+  // HANDLER: MESSAGE EDITED (GLOBAL)
   // ============================================
   const handleMessageEditedGlobal = useCallback((data) => {
-    console.log('🔥🔥🔥 [Global] handleMessageEditedGlobal CALLED!', data);
+    console.log('✏️ [Global] message_edited:', data);
     
     const { conversationId, message } = data;
     
@@ -169,51 +166,30 @@ export const useGlobalSocket = ({
     const newContent = message.content;
     const editedAt = message.editedAt;
 
-    console.log('✏️ [Global] Message edited:', {
-      conversationId,
-      messageId: editedMessageId,
-      newContent: newContent?.substring(0, 50) + (newContent?.length > 50 ? '...' : ''),
-      editedAt,
-    });
-
-    console.log('📦 [Global] Store actions available:', {
-      hasEditFunction: typeof editMessageFromSocket === 'function',
-      hasUpdateFunction: typeof updateConversation === 'function',
-      conversationsSize: conversations?.size,
-    });
-    
-    // ============================================
-    // 1️⃣ UPDATE MESSAGES IN STORE (for all conversations)
-    // ============================================
-    console.log('📝 [Global] Updating message in store...');
+    console.log('📝 [Global] Updating edited message in store');
     
     if (typeof editMessageFromSocket !== 'function') {
-      console.error('❌ [Global] editMessageFromSocket is NOT a function!', typeof editMessageFromSocket);
+      console.error('❌ [Global] editMessageFromSocket not available');
       return;
     }
     
     try {
       editMessageFromSocket(conversationId, editedMessageId, newContent, editedAt);
-      console.log('✅ [Global] Message in store updated successfully');
+      console.log('✅ [Global] Message edited in store');
     } catch (error) {
-      console.error('❌ [Global] Error updating message in store:', error);
+      console.error('❌ [Global] Error editing message:', error);
       return;
     }
     
-    // ============================================
-    // 2️⃣ UPDATE SIDEBAR (only if it's lastMessage)
-    // ============================================
+    // Update sidebar if it's lastMessage
     const conversation = conversations.get(conversationId);
     
-    if (!conversation?.lastMessage) {
-      console.log('⏭️ [Global] No lastMessage in conversation, skip sidebar update');
-      return;
-    }
+    if (!conversation?.lastMessage) return;
 
     const lastMessageId = conversation.lastMessage.messageId || conversation.lastMessage._id;
     
     if (lastMessageId === editedMessageId) {
-      console.log('🔥 [Global] Edited message IS lastMessage - updating sidebar');
+      console.log('🔥 [Global] Updating sidebar for edited lastMessage');
       
       updateConversation(conversationId, {
         lastMessage: {
@@ -222,18 +198,14 @@ export const useGlobalSocket = ({
           editedAt: editedAt,
         },
       });
-      
-      console.log('✅ [Global] Sidebar updated for edited message');
-    } else {
-      console.log('⏭️ [Global] Edited message is NOT lastMessage, sidebar not updated');
     }
   }, [editMessageFromSocket, updateConversation, conversations]);
 
   // ============================================
-  // HANDLER: MESSAGE RECALLED (GLOBAL - sidebar + messages)
+  // HANDLER: MESSAGE RECALLED (GLOBAL)
   // ============================================
   const handleMessageRecalledGlobal = useCallback((data) => {
-    console.log('🔥🔥🔥 [Global] handleMessageRecalledGlobal CALLED!', data);
+    console.log('↩️ [Global] message_recalled:', data);
     
     const { conversationId, messageId, recalledBy, recalledAt } = data;
     
@@ -242,48 +214,30 @@ export const useGlobalSocket = ({
       return;
     }
 
-    console.log('↩️ [Global] Message recalled:', {
-      conversationId,
-      messageId,
-      recalledBy,
-    });
-
-    console.log('📦 [Global] Store actions available:', {
-      hasRecallFunction: typeof recallMessageFromSocket === 'function',
-    });
-    
-    // ============================================
-    // 1️⃣ UPDATE MESSAGES IN STORE (for all conversations)
-    // ============================================
-    console.log('📝 [Global] Updating recalled message in store...');
+    console.log('📝 [Global] Recalling message in store');
     
     if (typeof recallMessageFromSocket !== 'function') {
-      console.error('❌ [Global] recallMessageFromSocket is NOT a function!', typeof recallMessageFromSocket);
+      console.error('❌ [Global] recallMessageFromSocket not available');
       return;
     }
     
     try {
       recallMessageFromSocket(conversationId, messageId, recalledBy, recalledAt);
-      console.log('✅ [Global] Message in store recalled successfully');
+      console.log('✅ [Global] Message recalled in store');
     } catch (error) {
-      console.error('❌ [Global] Error recalling message in store:', error);
+      console.error('❌ [Global] Error recalling message:', error);
       return;
     }
     
-    // ============================================
-    // 2️⃣ UPDATE SIDEBAR (only if it's lastMessage)
-    // ============================================
+    // Update sidebar if it's lastMessage
     const conversation = conversations.get(conversationId);
     
-    if (!conversation?.lastMessage) {
-      console.log('⏭️ [Global] No lastMessage in conversation, skip sidebar update');
-      return;
-    }
+    if (!conversation?.lastMessage) return;
 
     const lastMessageId = conversation.lastMessage.messageId || conversation.lastMessage._id;
     
     if (lastMessageId === messageId) {
-      console.log('🔥 [Global] Recalled message IS lastMessage - updating sidebar');
+      console.log('🔥 [Global] Updating sidebar for recalled lastMessage');
       
       updateConversation(conversationId, {
         lastMessage: {
@@ -294,15 +248,11 @@ export const useGlobalSocket = ({
           recalledBy,
         },
       });
-      
-      console.log('✅ [Global] Sidebar updated for recalled message');
-    } else {
-      console.log('⏭️ [Global] Recalled message is NOT lastMessage, sidebar not updated');
     }
   }, [recallMessageFromSocket, updateConversation, conversations]);
 
   // ============================================
-  // 🆕 HANDLER: MESSAGE DELETED (GLOBAL - sidebar + messages)
+  // HANDLER: MESSAGE DELETED (GLOBAL)
   // ============================================
   const handleMessageDeletedGlobal = useCallback((data) => {
     const { conversationId, messageId } = data;
@@ -312,48 +262,58 @@ export const useGlobalSocket = ({
       return;
     }
 
-    console.log('🗑️ [Global] Message deleted:', {
-      conversationId,
-      messageId,
-    });
-
-    // ============================================
-    // 1️⃣ UPDATE MESSAGES IN STORE (for all conversations)
-    // ============================================
-    console.log('📝 [Global] Deleting message from store...');
+    console.log('🗑️ [Global] Deleting message from store');
     
     if (typeof deleteMessageFromSocket !== 'function') {
-      console.error('❌ [Global] deleteMessageFromSocket is NOT a function!');
+      console.error('❌ [Global] deleteMessageFromSocket not available');
       return;
     }
     
     try {
       deleteMessageFromSocket(conversationId, messageId);
-      console.log('✅ [Global] Message in store deleted successfully');
+      console.log('✅ [Global] Message deleted from store');
     } catch (error) {
-      console.error('❌ [Global] Error deleting message from store:', error);
-      return;
+      console.error('❌ [Global] Error deleting message:', error);
     }
+  }, [deleteMessageFromSocket]);
+
+  // ============================================
+  // 🆕 HANDLER: REACTION UPDATE (GLOBAL)
+  // ============================================
+  /**
+   * Handle reaction updates from backend
+   * Backend sends FINAL STATE after toggle operation
+   * This overwrites any optimistic updates
+   */
+  const handleReactionUpdateGlobal = useCallback((data) => {
+    console.log('🎭 [Global] message:reaction:update:', data);
     
-    // ============================================
-    // 2️⃣ UPDATE SIDEBAR (only if it's lastMessage)
-    // ============================================
-    const conversation = conversations.get(conversationId);
+    const { conversationId, messageId, reactions } = data;
     
-    if (!conversation?.lastMessage) {
-      console.log('⏭️ [Global] No lastMessage in conversation, skip sidebar update');
+    if (!conversationId || !messageId || !Array.isArray(reactions)) {
+      console.warn('⚠️ [Global] Invalid reaction update data:', data);
       return;
     }
 
-    const lastMessageId = conversation.lastMessage.messageId || conversation.lastMessage._id;
+    console.log('📝 [Global] Updating reactions in store:', {
+      conversationId,
+      messageId,
+      reactionsCount: reactions.length,
+    });
     
-    if (lastMessageId === messageId) {
-      console.log('🔥 [Global] Deleted message IS lastMessage - need to update sidebar');
-      console.log('⚠️ [Global] Note: Backend should send conversation_update with new lastMessage');
-    } else {
-      console.log('⏭️ [Global] Deleted message is NOT lastMessage, sidebar not affected');
+    if (typeof setReactionsFinal !== 'function') {
+      console.error('❌ [Global] setReactionsFinal not available');
+      return;
     }
-  }, [deleteMessageFromSocket, conversations]);
+    
+    try {
+      // 🔥 Overwrite optimistic state with server truth
+      setReactionsFinal(conversationId, messageId, reactions);
+      console.log('✅ [Global] Reactions updated in store');
+    } catch (error) {
+      console.error('❌ [Global] Error updating reactions:', error);
+    }
+  }, [setReactionsFinal]);
 
   // ============================================
   // REGISTER SOCKET LISTENERS (ONCE)
@@ -387,10 +347,12 @@ export const useGlobalSocket = ({
     socket.on('message_recalled', handleMessageRecalledGlobal);
     socket.on('message_deleted', handleMessageDeletedGlobal);
     
-    // Note: message_received is handled by conversation_update for sidebar
-    // and by useChatSocket for active conversation messages
+    // ============================================
+    // 🆕 REACTION EVENTS
+    // ============================================
+    socket.on('message:reaction:update', handleReactionUpdateGlobal);
 
-    console.log('✅ [Global] All global listeners registered');
+    console.log('✅ [Global] All global listeners registered (including reactions)');
 
     return () => {
       console.log('🌍 [Global] Cleaning up global listeners');
@@ -403,6 +365,7 @@ export const useGlobalSocket = ({
       socket.off('message_edited', handleMessageEditedGlobal);
       socket.off('message_recalled', handleMessageRecalledGlobal);
       socket.off('message_deleted', handleMessageDeletedGlobal);
+      socket.off('message:reaction:update', handleReactionUpdateGlobal);
     };
   }, [
     socket, 
@@ -415,10 +378,11 @@ export const useGlobalSocket = ({
     handleMessageEditedGlobal,
     handleMessageRecalledGlobal,
     handleMessageDeletedGlobal,
-    // 🔥 IMPORTANT: Add store subscriptions to deps
+    handleReactionUpdateGlobal,
     editMessageFromSocket,
     recallMessageFromSocket,
     deleteMessageFromSocket,
+    setReactionsFinal,
     updateConversation,
     conversations,
   ]);

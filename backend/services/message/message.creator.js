@@ -46,6 +46,7 @@ export async function createMessage({
     type,
     replyTo,
     attachments,
+    reactions: [], // ✅ Initialize empty reactions array
   };
 
   // Create message properly based on session
@@ -76,7 +77,7 @@ export async function createMessage({
   if (message.replyTo) {
     await message.populate({
       path: "replyTo",
-      select: "content sender createdAt type isRecalled recalledAt", // ✅ Include recall state
+      select: "content sender createdAt type isRecalled recalledAt",
       populate: {
         path: "sender",
         select: "uid nickname avatar",
@@ -90,12 +91,20 @@ export async function createMessage({
     });
   }
 
+  // ✅ Populate reactions.user (for new messages)
+  if (message.reactions && message.reactions.length > 0) {
+    await message.populate({
+      path: "reactions.user",
+      select: "uid nickname avatar",
+    });
+  }
+
   return message;
 }
 
 /**
  * Format message for response
- * ✅ UPDATED: Include recall state and message state
+ * ✅ UPDATED: Include reactions with full user info
  */
 export function formatMessageResponse(message) {
   const formatted = {
@@ -118,6 +127,22 @@ export function formatMessageResponse(message) {
     // ✅ Include message state for frontend
     isRecalled: message.isRecalled || false,
     recalledAt: message.recalledAt || null,
+
+    // ✅ FIXED: Include reactions with user info
+    reactions: message.reactions
+      ? message.reactions.map((reaction) => ({
+          user: reaction.user
+            ? {
+                _id: reaction.user._id?.toString() || reaction.user.toString(),
+                uid: reaction.user.uid,
+                nickname: reaction.user.nickname,
+                avatar: reaction.user.avatar,
+              }
+            : null,
+          emoji: reaction.emoji,
+          createdAt: reaction.createdAt,
+        }))
+      : [],
   };
 
   // ✅ Format replyTo with recall state
@@ -134,7 +159,7 @@ export function formatMessageResponse(message) {
           }
         : null,
       createdAt: message.replyTo.createdAt,
-      isRecalled: message.replyTo.isRecalled || false, // ✅ For "Message recalled" placeholder
+      isRecalled: message.replyTo.isRecalled || false,
       recalledAt: message.replyTo.recalledAt || null,
     };
   } else {

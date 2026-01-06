@@ -78,5 +78,18 @@
     "confirm": "Recall",
     "title": "Recall Message",
     "subtitle": "Do you want to recall this message for everyone or just for yourself?"
+  },
+  "reactions": {
+    "heart": "Heart",
+    "laugh": "Laugh",
+    "wow": "Wow",
+    "sad": "Sad",
+    "angry": "Angry",
+    "thumbsup": "Thumbs up",
+    "reactWith": "React with {{emoji}}",
+    "more": "More reactions",
+    "showMore": "Show more reactions",
+    "showAll": "Show all reactions",
+    "showLess": "Show less reactions"
   }
 }

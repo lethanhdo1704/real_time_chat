@@ -1,7 +1,7 @@
 // frontend/src/store/chat/messageSlice.js
 
 /**
- * Message Slice - WITH READ RECEIPTS + EDIT FEATURE
+ * Message Slice - WITH READ RECEIPTS + EDIT + 🆕 REACTIONS
  * 
  * Manages all message-related state including:
  * - Messages per conversation (Map)
@@ -9,15 +9,18 @@
  * - Optimistic messages
  * - Reply state
  * - Highlighted messages
- * - READ RECEIPTS (avatars below messages)
- * - 🆕 EDIT MESSAGE support
+ * - Read receipts (avatars below messages)
+ * - Edit message support
+ * - 🆕 REACTIONS (optimistic + socket sync)
  * 
- * Read Receipts Structure:
- * readReceipts: Map<conversationId, Map<messageId, User[]>>
- * 
- * User object: { userUid, avatar, nickname, readAt }
- * 
- * Key Rule: 1 user can only appear at 1 message at a time (their lastSeenMessage)
+ * Reactions Structure:
+ * reactions: [
+ *   {
+ *     user: { _id, uid, nickname, avatar },
+ *     emoji: "❤️",
+ *     createdAt: "2024-01-06T..."
+ *   }
+ * ]
  */
 export const createMessageSlice = (set, get) => ({
   // ============================================
@@ -191,17 +194,9 @@ export const createMessageSlice = (set, get) => ({
   },
 
   // ============================================
-  // 🆕 EDIT MESSAGE ACTIONS
+  // EDIT MESSAGE ACTIONS
   // ============================================
 
-  /**
-   * Edit message locally (optimistic update)
-   * Updates message content and adds edited flag
-   * 
-   * @param {string} conversationId - Conversation ID
-   * @param {string} messageId - Message ID to edit
-   * @param {string} newContent - New message content
-   */
   editMessageLocal: (conversationId, messageId, newContent) => {
     console.log('✏️ [messageSlice] editMessageLocal:', conversationId, messageId);
     console.log('📝 New content:', newContent);
@@ -216,7 +211,7 @@ export const createMessageSlice = (set, get) => ({
         return {
           ...m,
           content: newContent,
-          text: newContent, // For backward compatibility
+          text: newContent,
           isEdited: true,
           editedAt: new Date().toISOString(),
         };
@@ -231,15 +226,6 @@ export const createMessageSlice = (set, get) => ({
     console.log('✅ [messageSlice] Message edited locally:', messageId);
   },
 
-  /**
-   * Edit message from socket event
-   * Called when receiving edit event from other devices/users
-   * 
-   * @param {string} conversationId - Conversation ID
-   * @param {string} messageId - Message ID
-   * @param {string} newContent - New message content
-   * @param {string} editedAt - Edit timestamp from server
-   */
   editMessageFromSocket: (conversationId, messageId, newContent, editedAt) => {
     console.log('📡 [messageSlice] editMessageFromSocket:', conversationId, messageId);
     
@@ -304,6 +290,7 @@ export const createMessageSlice = (set, get) => ({
           recalledAt: recalledAt || new Date().toISOString(),
           recalledBy,
           content: "",
+          reactions: [], // 🔥 Clear reactions on recall
         };
       }
       return m;
@@ -330,6 +317,120 @@ export const createMessageSlice = (set, get) => ({
     set({ messages: messagesMap });
     
     console.log('✅ [messageSlice] Message deleted via socket');
+  },
+
+  // ============================================
+  // 🆕 REACTION ACTIONS - OPTIMISTIC + SOCKET SYNC
+  // ============================================
+
+  /**
+   * 🎭 TOGGLE REACTION (OPTIMISTIC)
+   * Called immediately when user clicks emoji
+   * Updates UI instantly, then waits for socket confirmation
+   * 
+   * @param {string} conversationId - Conversation ID
+   * @param {string} messageId - Message ID
+   * @param {string} emoji - Unicode emoji
+   * @param {string} userId - Current user's _id (MongoDB)
+   * @param {object} userInfo - { uid, nickname, avatar }
+   */
+  toggleReactionOptimistic: (conversationId, messageId, emoji, userId, userInfo) => {
+    console.log('🎭 [messageSlice] toggleReactionOptimistic:', {
+      conversationId,
+      messageId,
+      emoji,
+      userId,
+    });
+
+    const messagesMap = new Map(get().messages);
+    const existing = messagesMap.get(conversationId) || [];
+    
+    const updated = existing.map(m => {
+      const id = m.messageId || m._id || m.clientMessageId;
+      
+      if (id !== messageId) return m;
+
+      // Get current reactions (ensure it's an array)
+      const currentReactions = Array.isArray(m.reactions) ? [...m.reactions] : [];
+      
+      // Find existing reaction from this user with this emoji
+      const existingIndex = currentReactions.findIndex(
+        r => r.user?.uid === userId && r.emoji === emoji
+      );
+
+      let newReactions;
+      
+      if (existingIndex !== -1) {
+        // Remove reaction (toggle off)
+        newReactions = currentReactions.filter((_, idx) => idx !== existingIndex);
+        console.log('➖ [messageSlice] Removing reaction (optimistic)');
+      } else {
+        // Add reaction (toggle on)
+        newReactions = [
+          ...currentReactions,
+          {
+            user: {
+              _id: userId,
+              uid: userInfo.uid,
+              nickname: userInfo.nickname,
+              avatar: userInfo.avatar,
+            },
+            emoji,
+            createdAt: new Date().toISOString(),
+            _optimistic: true, // 🔥 Mark as optimistic
+          }
+        ];
+        console.log('➕ [messageSlice] Adding reaction (optimistic)');
+      }
+
+      return {
+        ...m,
+        reactions: newReactions,
+      };
+    });
+    
+    messagesMap.set(conversationId, updated);
+    set({ messages: messagesMap });
+    
+    console.log('✅ [messageSlice] Optimistic reaction update applied');
+  },
+
+  /**
+   * 🎭 SET REACTIONS (FINAL STATE FROM SOCKET)
+   * Overwrites optimistic state with server truth
+   * Called when receiving 'message:reaction:update' from backend
+   * 
+   * @param {string} conversationId - Conversation ID
+   * @param {string} messageId - Message ID
+   * @param {Array} reactions - Final reactions array from backend
+   */
+  setReactionsFinal: (conversationId, messageId, reactions) => {
+    console.log('📡 [messageSlice] setReactionsFinal:', {
+      conversationId,
+      messageId,
+      reactionsCount: reactions.length,
+    });
+
+    const messagesMap = new Map(get().messages);
+    const existing = messagesMap.get(conversationId) || [];
+    
+    const updated = existing.map(m => {
+      const id = m.messageId || m._id || m.clientMessageId;
+      
+      if (id === messageId) {
+        return {
+          ...m,
+          reactions: reactions, // 🔥 Overwrite with server truth
+        };
+      }
+      
+      return m;
+    });
+    
+    messagesMap.set(conversationId, updated);
+    set({ messages: messagesMap });
+    
+    console.log('✅ [messageSlice] Final reactions set from socket');
   },
 
   // ============================================

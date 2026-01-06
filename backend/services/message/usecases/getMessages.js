@@ -14,6 +14,7 @@ import { ValidationError, AuthorizationError } from "../../../middleware/errorHa
  * - Filters out user-hidden messages (hiddenFor contains userId)
  * - Returns messages in chronological order (old → new)
  * - Includes hasMore flag for infinite scroll
+ * - ✅ FIXED: Populates reactions.user for display
  */
 export async function getMessages(conversationId, userId, options = {}) {
   const { before = null, limit = 50 } = options;
@@ -57,7 +58,7 @@ export async function getMessages(conversationId, userId, options = {}) {
     hasCreatedAtFilter: !!query.createdAt,
   });
 
-  // Fetch limit + 1 to check hasMore
+  // ✅ FIXED: Added populate for reactions.user
   const messages = await Message.find(query)
     .sort({ createdAt: -1 })
     .limit(parseInt(limit) + 1)
@@ -70,6 +71,10 @@ export async function getMessages(conversationId, userId, options = {}) {
         select: "uid nickname avatar",
       },
     })
+    .populate({
+      path: "reactions.user",
+      select: "uid nickname avatar",
+    })
     .lean();
 
   // Check hasMore
@@ -81,6 +86,7 @@ export async function getMessages(conversationId, userId, options = {}) {
     returned: finalMessages.length,
     hasMore,
     repliesCount: finalMessages.filter((m) => m.replyTo).length,
+    reactionsCount: finalMessages.reduce((sum, m) => sum + (m.reactions?.length || 0), 0),
   });
 
   // Reverse to return in chronological order (old → new)

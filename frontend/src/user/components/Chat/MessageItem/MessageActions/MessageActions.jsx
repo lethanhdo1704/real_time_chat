@@ -1,9 +1,11 @@
 // frontend/src/user/components/Chat/MessageItem/MessageActions/MessageActions.jsx
+
 import { useState, useRef, useEffect, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { AuthContext } from "../../../../context/AuthContext";
 import { messageService } from "../../../../services/messageService";
 import useChatStore from "../../../../store/chat/chatStore";
+import { getSocket } from "../../../../services/socketService";
 
 // Import helpers
 import {
@@ -16,12 +18,17 @@ import {
 import { ReactIcon, ReplyIcon, MoreIcon } from "./MessageActions.icons";
 import { ActionsMenu } from "./MessageActions.menu";
 import { MessageModals } from "./MessageActions.modals";
+import ReactionPicker from "../ReactionPicker";
 
 /**
- * MessageActions Component - Simplified (Edit moved to MessageBubble)
+ * MessageActions Component - WITH REACTIONS
  *
- * Main component that orchestrates all message actions
- * Edit feature now handled directly in MessageBubble
+ * Features:
+ * - Quick reactions (❤️ 😂 😮 😢 😡 👍 +)
+ * - Reply to message
+ * - More options menu
+ * - Optimistic reaction updates
+ * - Socket emission
  */
 export default function MessageActions({
   message,
@@ -32,16 +39,18 @@ export default function MessageActions({
   onCopy,
   onEdit,
   onForward,
-  onReact,
   isOneToOneChat = true,
 }) {
   const { t } = useTranslation("chat");
-  const { token } = useContext(AuthContext);
+  const { token, user } = useContext(AuthContext);
 
   // Store actions
   const hideMessageLocal = useChatStore((state) => state.hideMessageLocal);
   const recallMessageFromSocket = useChatStore(
     (state) => state.recallMessageFromSocket
+  );
+  const toggleReactionOptimistic = useChatStore(
+    (state) => state.toggleReactionOptimistic
   );
 
   // ============================================
@@ -61,6 +70,7 @@ export default function MessageActions({
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
   const reactionsRef = useRef(null);
+  const reactionButtonRef = useRef(null);
 
   // ============================================
   // PERMISSIONS
@@ -83,12 +93,12 @@ export default function MessageActions({
   }, [showMenu]);
 
   useEffect(() => {
-    if (showReactions && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
+    if (showReactions && reactionButtonRef.current) {
+      const rect = reactionButtonRef.current.getBoundingClientRect();
       const spaceAbove = rect.top;
       const spaceBelow = window.innerHeight - rect.bottom;
       setReactionsPosition(
-        spaceAbove < 60 && spaceBelow > spaceAbove ? "bottom" : "top"
+        spaceAbove < 100 && spaceBelow > spaceAbove ? "bottom" : "top"
       );
     }
   }, [showReactions]);
@@ -98,6 +108,7 @@ export default function MessageActions({
   // ============================================
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Close menu
       if (
         menuRef.current &&
         !menuRef.current.contains(event.target) &&
@@ -107,12 +118,7 @@ export default function MessageActions({
         setShowMenu(false);
       }
 
-      if (
-        reactionsRef.current &&
-        !reactionsRef.current.contains(event.target)
-      ) {
-        setShowReactions(false);
-      }
+      // Close reactions (handled by ReactionPicker)
     };
 
     if (showMenu || showReactions) {
@@ -127,18 +133,54 @@ export default function MessageActions({
   }, [showMenu, showReactions]);
 
   // ============================================
-  // HANDLERS
+  // 🆕 REACTION HANDLERS
+  // ============================================
+  /**
+   * Handle reaction selection
+   * Implements optimistic UI + socket emission
+   */
+  const handleReaction = (emoji) => {
+    console.log("🎭 [MessageActions] handleReaction:", emoji);
+
+    const messageId = message.messageId || message.uid;
+    const userId = user.uid; // MongoDB uid
+
+    if (!messageId || !userId) {
+      console.error("❌ [MessageActions] Missing messageId or userId");
+      return;
+    }
+
+    // 1️⃣ OPTIMISTIC UPDATE
+    console.log("⚡ [MessageActions] Applying optimistic update");
+    toggleReactionOptimistic(conversationId, messageId, emoji, userId, {
+      uid: user.uid,
+      nickname: user.nickname || user.fullName,
+      avatar: user.avatar,
+    });
+
+    // 2️⃣ EMIT SOCKET EVENT
+    const socket = getSocket();
+    if (!socket || !socket.connected) {
+      console.error("❌ [MessageActions] Socket not connected");
+      return;
+    }
+
+    console.log("📡 [MessageActions] Emitting message:react");
+    socket.emit("message:react", {
+      messageId,
+      emoji,
+    });
+
+    // 3️⃣ CLOSE PICKER
+    setShowReactions(false);
+  };
+
+  // ============================================
+  // OTHER HANDLERS
   // ============================================
   const handleAction = (action) => {
     action();
     setShowMenu(false);
-  };
-
-  const handleReaction = (emoji) => {
-    if (onReact) {
-      onReact(emoji);
-    }
-    setShowReactions(false);
   };
 
   const handleRecallClick = () => {
@@ -164,13 +206,13 @@ export default function MessageActions({
     setLoading(true);
 
     try {
-      const messageId = message.messageId || message._id;
+      const messageId = message.messageId || message.uid;
 
       if (recallType === "everyone") {
         console.log("↩️ Recalling message for everyone:", messageId);
         await messageService.recallMessage(messageId, token);
 
-        const recalledBy = message.sender?._id || message.sender;
+        const recalledBy = message.sender?.uid || message.sender;
         const recalledAt = new Date().toISOString();
 
         console.log("✅ API success - Updating local UI immediately");
@@ -206,7 +248,7 @@ export default function MessageActions({
     setLoading(true);
 
     try {
-      const messageId = message.messageId || message._id;
+      const messageId = message.messageId || message.uid;
       console.log("👁️‍🗨️ Hiding message:", messageId);
 
       await messageService.hideMessage(messageId, token);
@@ -226,8 +268,6 @@ export default function MessageActions({
   // ============================================
   // RENDER
   // ============================================
-  const reactions = ["❤️", "😂", "😮", "😢", "😡", "👍"];
-
   return (
     <>
       <div
@@ -235,9 +275,10 @@ export default function MessageActions({
           isMe ? "mr-1" : "ml-1"
         } relative`}
       >
-        {/* Reaction Button */}
+        {/* 🆕 Reaction Button */}
         <div className="relative">
           <button
+            ref={reactionButtonRef}
             onClick={() => setShowReactions(!showReactions)}
             className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all active:scale-95 shadow-sm"
             title={t("actions.react") || "React"}
@@ -246,34 +287,14 @@ export default function MessageActions({
             <ReactIcon />
           </button>
 
-          {/* Reactions Picker */}
-          {showReactions && (
-            <div
-              ref={reactionsRef}
-              className={`
-                absolute ${isMe ? "right-0" : "left-0"} 
-                ${
-                  reactionsPosition === "top"
-                    ? "bottom-full mb-2"
-                    : "top-full mt-2"
-                }
-                bg-white rounded-full shadow-xl border border-gray-200 
-                px-2 py-1.5 flex gap-1 z-50
-              `}
-              style={{ animation: "scaleIn 0.15s ease-out" }}
-            >
-              {reactions.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => handleReaction(emoji)}
-                  className="text-xl hover:scale-125 transition-transform active:scale-110 p-1"
-                  title={`React with ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Reaction Picker */}
+          <ReactionPicker
+            show={showReactions}
+            onClose={() => setShowReactions(false)}
+            onEmojiSelect={handleReaction}
+            position={reactionsPosition}
+            isMe={isMe}
+          />
         </div>
 
         {/* Reply Button */}
@@ -314,26 +335,6 @@ export default function MessageActions({
             onRecall={handleRecallClick}
             onHide={handleHideClick}
             t={t}
-          />
-        )}
-
-        {/* Animations */}
-        {(showMenu || showReactions) && (
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `
-                @keyframes scaleIn {
-                  from {
-                    opacity: 0;
-                    transform: scale(0.95);
-                  }
-                  to {
-                    opacity: 1;
-                    transform: scale(1);
-                  }
-                }
-              `,
-            }}
           />
         )}
       </div>

@@ -1,25 +1,22 @@
 // frontend/src/user/components/Chat/MessageItem/MessageItem.jsx
+
 import { format } from "date-fns";
 import { useState, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { AuthContext } from "../../../context/AuthContext";
 import { messageService } from "../../../services/messageService";
 import { isBigEmoji } from "../../../utils/emoji";
+import { getSocket } from "../../../services/socketService";
 import MessageSenderInfo from "./MessageSenderInfo";
 import MessageBubble from "./MessageBubble";
 import MessageActions from "./MessageActions";
 import MessageStatus from "./MessageStatus";
+import MessageReactions from "./MessageReactions";
 import useChatStore from "../../../store/chat/chatStore";
 
 /**
- * MessageItem Component - WITH READ RECEIPTS + INLINE EDIT
- *
- * ✅ Reply feature
- * ✅ Recalled message placeholder
- * ✅ Hide/Delete/Recall actions
- * ✅ Read receipts with avatars
- * ✅ REACTIVE to readReceipts changes
- * ✅ 🆕 INLINE EDIT with API integration
+ * MessageItem Component - COMPLETE WITH REACTIONS
+ * Fixed: Reactions now render outside bubble to prevent layout issues
  */
 export default function MessageItem({
   message,
@@ -33,7 +30,7 @@ export default function MessageItem({
   isHighlighted = false,
 }) {
   const { t } = useTranslation("chat");
-  const { token } = useContext(AuthContext);
+  const { token, user } = useContext(AuthContext);
 
   // Local state for edit mode
   const [isEditing, setIsEditing] = useState(false);
@@ -46,6 +43,9 @@ export default function MessageItem({
     (state) => state.setHighlightedMessage
   );
   const editMessageLocal = useChatStore((state) => state.editMessageLocal);
+  const toggleReactionOptimistic = useChatStore(
+    (state) => state.toggleReactionOptimistic
+  );
 
   // Subscribe to readReceipts for THIS conversation
   const conversationReceipts = useChatStore(
@@ -55,7 +55,7 @@ export default function MessageItem({
   // ============================================
   // MESSAGE DATA
   // ============================================
-  const messageId = message.messageId || message._id;
+  const messageId = message.messageId || message.uid;
   const isRecalled = message.isRecalled || false;
   const messageText = message.content || message.text || "";
   const isBig = !isRecalled && isBigEmoji(messageText);
@@ -138,14 +138,14 @@ export default function MessageItem({
     if (isRecalled) return;
 
     const messageData = {
-      messageId: message.messageId || message._id,
+      messageId: message.messageId || message.uid,
       content: message.content,
       type: message.type || "text",
       sender: message.sender,
       createdAt: message.createdAt,
     };
 
-    console.log("✅ Setting reply with prop conversationId:", conversationId);
+    console.log("✅ Setting reply with conversationId:", conversationId);
     setReplyingTo(conversationId, messageData);
   };
 
@@ -169,7 +169,7 @@ export default function MessageItem({
   };
 
   // ============================================
-  // 🆕 EDIT HANDLERS - WITH API INTEGRATION
+  // EDIT HANDLERS
   // ============================================
   const handleEditClick = () => {
     if (!canEdit()) {
@@ -198,14 +198,12 @@ export default function MessageItem({
 
     try {
       console.log("📝 Calling API to edit message:", messageId);
-      console.log("📝 New content:", newContent);
       
-      // 🔥 CALL REAL API
       const response = await messageService.editMessage(messageId, newContent, token);
       
       console.log("✅ API Response:", response);
 
-      // Update in store (optimistic update - đã call API xong)
+      // Update in store
       editMessageLocal(conversationId, messageId, newContent);
       
       setIsEditing(false);
@@ -213,7 +211,6 @@ export default function MessageItem({
     } catch (error) {
       console.error("❌ Edit message error:", error);
       
-      // Handle specific error codes
       let errorMessage = error.message || "Không thể chỉnh sửa tin nhắn";
       
       if (error.message.includes("NOT_SENDER")) {
@@ -240,6 +237,41 @@ export default function MessageItem({
   };
 
   // ============================================
+  // 🆕 REACTION HANDLERS
+  // ============================================
+  const handleReactionClick = (emoji) => {
+    console.log("🎭 [MessageItem] Reaction clicked:", emoji);
+
+    const userId = user.uid;
+
+    if (!userId) {
+      console.error("❌ [MessageItem] No user ID");
+      return;
+    }
+
+    // 1️⃣ OPTIMISTIC UPDATE
+    console.log("⚡ [MessageItem] Applying optimistic update");
+    toggleReactionOptimistic(conversationId, messageId, emoji, userId, {
+      uid: user.uid,
+      nickname: user.nickname || user.fullName,
+      avatar: user.avatar,
+    });
+
+    // 2️⃣ EMIT SOCKET EVENT
+    const socket = getSocket();
+    if (!socket || !socket.connected) {
+      console.error("❌ [MessageItem] Socket not connected");
+      return;
+    }
+
+    console.log("📡 [MessageItem] Emitting message:react");
+    socket.emit("message:react", {
+      messageId,
+      emoji,
+    });
+  };
+
+  // ============================================
   // OTHER HANDLERS
   // ============================================
   const handleCopy = () => {
@@ -247,7 +279,7 @@ export default function MessageItem({
   };
 
   const handleForward = () => {
-    console.log("Forward message:", message._id);
+    console.log("Forward message:", message.uid);
   };
 
   const handleRetry = () => {
@@ -263,6 +295,12 @@ export default function MessageItem({
       return "";
     }
   };
+
+  // ============================================
+  // REACTIONS DATA
+  // ============================================
+  const reactions = message?.reactions || [];
+  const hasReactions = reactions.length > 0;
 
   // ============================================
   // RECALLED MESSAGE RENDER
@@ -325,41 +363,55 @@ export default function MessageItem({
         {/* Sender Info */}
         {senderInfo && <MessageSenderInfo {...senderInfo} />}
 
-        {/* Message Bubble with Actions */}
-        <div
-          className={`flex items-end gap-1.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}
-        >
-          <MessageBubble
-            messageText={messageText}
-            isBig={isBig}
-            isMe={isMe}
-            isPending={isPending}
-            isFailed={isFailed}
-            isLastInGroup={isLastInGroup}
-            editedAt={message.editedAt}
-            replyTo={message.replyTo}
-            onReplyClick={handleReplyClick}
-            t={t}
-            // 🆕 Edit props
-            isEditing={isEditing}
-            onSaveEdit={handleSaveEdit}
-            onCancelEdit={handleCancelEdit}
-            editLoading={editLoading}
-          />
-
-          {/* Hide actions when editing */}
-          {!isEditing && (
-            <MessageActions
-              message={message}
-              conversationId={conversationId}
+        {/* Message Bubble with Actions - Wrapped together */}
+        <div className="flex flex-col">
+          <div
+            className={`flex items-end gap-1.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}
+          >
+            <MessageBubble
+              messageText={messageText}
+              isBig={isBig}
               isMe={isMe}
+              isPending={isPending}
               isFailed={isFailed}
-              onReply={handleReply}
-              onCopy={handleCopy}
-              onEdit={handleEditClick}
-              onForward={handleForward}
-              isOneToOneChat={isPrivateChat}
+              isLastInGroup={isLastInGroup}
+              editedAt={message.editedAt}
+              replyTo={message.replyTo}
+              onReplyClick={handleReplyClick}
+              t={t}
+              // Edit props
+              isEditing={isEditing}
+              onSaveEdit={handleSaveEdit}
+              onCancelEdit={handleCancelEdit}
+              editLoading={editLoading}
             />
+
+            {/* Hide actions when editing */}
+            {!isEditing && (
+              <MessageActions
+                message={message}
+                conversationId={conversationId}
+                isMe={isMe}
+                isFailed={isFailed}
+                onReply={handleReply}
+                onCopy={handleCopy}
+                onEdit={handleEditClick}
+                onForward={handleForward}
+                isOneToOneChat={isPrivateChat}
+              />
+            )}
+          </div>
+
+          {/* 🆕 REACTIONS DISPLAY (Outside bubble but aligned) */}
+          {!isEditing && hasReactions && (
+            <div className={`${isMe ? 'self-end' : 'self-start'}`}>
+              <MessageReactions
+                reactions={reactions}
+                currentUserId={user?.uid}
+                onReactionClick={handleReactionClick}
+                isMe={isMe}
+              />
+            </div>
           )}
         </div>
 

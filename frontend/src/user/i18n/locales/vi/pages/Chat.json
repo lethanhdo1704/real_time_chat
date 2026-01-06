@@ -74,6 +74,18 @@
     "confirm": "Gỡ",
     "title": "Xác nhận thu hồi",
     "subtitle": "Bạn muốn thu hồi tin nhắn này cho ai?"
+  },
+  "reactions": {
+    "heart": "Trái tim",
+    "laugh": "Cười",
+    "wow": "Ngạc nhiên",
+    "sad": "Buồn",
+    "angry": "Giận dữ",
+    "thumbsup": "Thích",
+    "reactWith": "Bày tỏ cảm xúc với {{emoji}}",
+    "showMore": "Xem thêm cảm xúc",
+    "more": "Thêm",
+    "showAll": "Hiện tất cả cảm xúc",
+    "showLess": "Ẩn bớt cảm xúc"
   }
-
 }
