@@ -1,5 +1,7 @@
-// frontend/src/components/Chat/ChatHeader.jsx
+// frontend/src/user/components/Chat/ChatWindowsHeader.jsx
 import { useTranslation } from "react-i18next";
+import AvatarImage from "../../../components/common/AvatarImage";
+import { useLastSeenFormat } from "../../../hooks/useLastSeenFormat";
 
 /**
  * ChatHeader Component
@@ -7,20 +9,27 @@ import { useTranslation } from "react-i18next";
  * ✅ Mobile: Back button on the left (Telegram-style)
  * ✅ Desktop: No back button
  * ✅ Consistent max-w-3xl with Body & Input
+ * ✅ Uses AvatarImage component for consistency
+ * ✅ Uses useLastSeenFormat hook for dynamic last seen
+ * ✅ Fixed: lastSeen prop name mismatch
+ * ✅ Fixed: Info button → Hamburger menu button
  */
 export default function ChatHeader({ 
   receiverName, 
-  receiverAvatar, 
+  receiverAvatar,
+  receiverAvatarUpdatedAt,
+  lastSeen,  // ✅ FIXED: Changed from receiverLastSeen to lastSeen
   isTyping = false,
   typingUserName,
-  isOnline = true,
+  isOnline = false,
   onCallClick,
   onVideoClick,
-  onInfoClick,
-  onBackClick,  // NEW: Back button handler
-  showBackButton = false,  // NEW: Show back button on mobile
+  onInfoClick,  // Now used for hamburger menu
+  onBackClick,
+  showBackButton = false,
 }) {
   const { t } = useTranslation("chat");
+  const lastSeenText = useLastSeenFormat(lastSeen, isOnline);  // ✅ FIXED: Use lastSeen
 
   return (
     <div className="bg-white border-b border-gray-200 shadow-sm shrink-0">
@@ -56,31 +65,17 @@ export default function ChatHeader({
               </button>
             )}
 
-            {/* Avatar with Status */}
-            <div className="relative shrink-0">
-              <div className="w-11 h-11 rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold overflow-hidden ring-2 ring-gray-100">
-                {receiverAvatar ? (
-                  <img
-                    src={receiverAvatar}
-                    alt={receiverName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-lg">
-                    {receiverName?.[0]?.toUpperCase() || "?"}
-                  </span>
-                )}
-              </div>
-
-              {/* Online Status Indicator */}
-              {isOnline && !isTyping && (
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
-              )}
-
-              {/* Typing Animation Indicator */}
-              {isTyping && (
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 border-2 border-white rounded-full animate-pulse"></span>
-              )}
+            {/* Avatar with Online Status using AvatarImage component */}
+            <div className="shrink-0">
+              <AvatarImage
+                avatar={receiverAvatar}
+                nickname={receiverName}
+                avatarUpdatedAt={receiverAvatarUpdatedAt}
+                size="md"
+                showOnlineStatus={true}
+                isOnline={isOnline}
+                variant="header"
+              />
             </div>
 
             {/* Name & Status */}
@@ -114,15 +109,15 @@ export default function ChatHeader({
                   </span>
                 </div>
               ) : (
-                /* Online Status */
+                /* Online Status or Last Seen */
                 <p className={`text-xs ${isOnline ? "text-green-500" : "text-gray-400"}`}>
                   {isOnline ? (
                     <>
                       <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                      {t("header.online") || "Online"}
+                      {t("presence.online") || "Online"}
                     </>
                   ) : (
-                    t("header.offline") || "Offline"
+                    lastSeenText || t("header.offline") || "Offline"
                   )}
                 </p>
               )}
@@ -175,27 +170,23 @@ export default function ChatHeader({
               </svg>
             </button>
 
-            {/* Info Button */}
+            {/* Three Dots Menu Button (vertical) */}
             <button
               onClick={onInfoClick}
               className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group"
-              title={t("header.info") || "Conversation info"}
+              title={t("header.moreOptions") || "Menu"}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <svg
                 className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
+                fill="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
+                <circle cx="12" cy="5" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="12" cy="19" r="2" />
               </svg>
-              </button>
+            </button>
           </div>
         </div>
       </div>

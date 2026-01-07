@@ -80,6 +80,9 @@ export default function setupChatSocket(io) {
     console.log(`💬 User connected: ${socket.uid} (${socket.id})`);
     
     try {
+      // ============================================
+      // WHY: Room management first - essential for all socket events
+      // ============================================
       const userRoom = getUserRoom(socket.uid);
       socket.join(userRoom);
       console.log(`  ↳ Joined user room: ${userRoom}`);
@@ -97,6 +100,19 @@ export default function setupChatSocket(io) {
       
       console.log(`✅ User ${socket.uid} auto-joined ${conversations.length} conversations`);
       
+      // ============================================
+      // 🟢 PRESENCE UPDATE: SET ONLINE
+      // WHY: User just connected = they are online
+      // WHY: Only update isOnline, NOT lastSeen (lastSeen = when they LEFT)
+      // ============================================
+      await User.findByIdAndUpdate(socket.userId, {
+        isOnline: true
+      });
+      
+      // ============================================
+      // BROADCAST: Tell friends this user is online
+      // WHY: Separated from DB update - different responsibilities
+      // ============================================
       await broadcastOnlineStatus(socket, io, true);
       
     } catch (error) {
@@ -347,6 +363,20 @@ export default function setupChatSocket(io) {
       console.log(`❌ User disconnected: ${socket.uid} (${socket.id})`);
       
       try {
+        // ============================================
+        // 🔴 PRESENCE UPDATE: SET OFFLINE + LAST SEEN
+        // WHY: User disconnected = they are offline NOW
+        // WHY: Update BOTH isOnline and lastSeen together
+        // WHY: lastSeen = timestamp when they LEFT (not when they were active)
+        // ============================================
+        await User.findByIdAndUpdate(socket.userId, {
+          isOnline: false,
+          lastSeen: new Date()
+        });
+        
+        // ============================================
+        // BROADCAST: Tell friends this user is offline
+        // ============================================
         await broadcastOnlineStatus(socket, io, false);
       } catch (error) {
         console.error('❌ Disconnect broadcast error:', error);
@@ -361,8 +391,20 @@ export default function setupChatSocket(io) {
 // ============================================
 // HELPER: BROADCAST ONLINE/OFFLINE STATUS
 // ============================================
+/**
+ * WHY THIS FUNCTION EXISTS:
+ * - Socket lifecycle (connect/disconnect) updates DB
+ * - This function ONLY broadcasts events to friends
+ * - NEVER updates DB here - that's socket lifecycle's job
+ * 
+ * RESPONSIBILITY: Send socket events to friends
+ * NOT RESPONSIBLE FOR: Updating User.isOnline or User.lastSeen
+ */
 async function broadcastOnlineStatus(socket, io, isOnline) {
   try {
+    // ============================================
+    // Find all friends of this user
+    // ============================================
     const friendships = await Friend.find({
       $or: [
         { user: socket.userId, status: 'accepted' },
@@ -376,16 +418,23 @@ async function broadcastOnlineStatus(socket, io, isOnline) {
         : f.user.uid;
     });
     
-    await User.findByIdAndUpdate(socket.userId, {
-      lastSeen: new Date()
-    });
+    // ============================================
+    // ❌ REMOVED: await User.findByIdAndUpdate(...)
+    // WHY: DB updates belong in socket lifecycle (connect/disconnect)
+    // WHY: This function should ONLY broadcast events
+    // WHY: Separation of concerns = easier to maintain
+    // ============================================
     
+    // ============================================
+    // Emit event to each friend's personal room
+    // ============================================
     const eventName = isOnline ? 'user_online' : 'user_offline';
     friendUids.forEach(friendUid => {
       const userRoom = getUserRoom(friendUid);
       io.to(userRoom).emit(eventName, {
         uid: socket.uid,
-        timestamp: new Date()
+        // WHY: Send lastSeen only when offline (null when online)
+        lastSeen: isOnline ? null : new Date()
       });
     });
     

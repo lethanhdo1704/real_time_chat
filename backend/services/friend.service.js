@@ -41,10 +41,10 @@ class FriendService {
     const alreadyFriends = await Friend.findOne({
       $or: [
         { user: userId, friend: friendId, status: "accepted" },
-        { user: friendId, friend: userId, status: "accepted" }
-      ]
+        { user: friendId, friend: userId, status: "accepted" },
+      ],
     });
-    
+
     if (alreadyFriends) {
       const error = new Error("Bạn đã là bạn bè với người này rồi");
       error.code = "ALREADY_FRIENDS";
@@ -55,10 +55,10 @@ class FriendService {
     const existingRequest = await Friend.findOne({
       $or: [
         { user: userId, friend: friendId, status: "pending" },
-        { user: friendId, friend: userId, status: "pending" }
-      ]
+        { user: friendId, friend: userId, status: "pending" },
+      ],
     });
-    
+
     if (existingRequest) {
       if (existingRequest.user.equals(friendId)) {
         const error = new Error("Người này đã gửi lời mời kết bạn cho bạn");
@@ -71,10 +71,10 @@ class FriendService {
     }
 
     // Tạo lời mời mới
-    const newFriend = new Friend({ 
-      user: userId, 
-      friend: friendId, 
-      status: "pending" 
+    const newFriend = new Friend({
+      user: userId,
+      friend: friendId,
+      status: "pending",
     });
     await newFriend.save();
 
@@ -86,13 +86,13 @@ class FriendService {
       sender: {
         uid: sender.uid,
         nickname: sender.nickname,
-        avatar: sender.avatar
+        avatar: sender.avatar,
       },
       receiver: {
-        uid: friendUser.uid
+        uid: friendUser.uid,
       },
       requestId: newFriend._id,
-      timestamp: newFriend.createdAt
+      timestamp: newFriend.createdAt,
     });
 
     return newFriend;
@@ -110,10 +110,10 @@ class FriendService {
     const alreadyFriends = await Friend.findOne({
       $or: [
         { user: userId, friend: friendId, status: "accepted" },
-        { user: friendId, friend: userId, status: "accepted" }
-      ]
+        { user: friendId, friend: userId, status: "accepted" },
+      ],
     });
-    
+
     if (alreadyFriends) {
       const error = new Error("Bạn đã là bạn bè với người này rồi");
       error.code = "ALREADY_FRIENDS";
@@ -126,7 +126,7 @@ class FriendService {
       friend: userId,
       status: "pending",
     });
-    
+
     if (!friendDoc) {
       const error = new Error("Không tìm thấy lời mời kết bạn");
       error.code = "REQUEST_NOT_FOUND";
@@ -145,13 +145,13 @@ class FriendService {
       accepter: {
         uid: accepter.uid,
         nickname: accepter.nickname,
-        avatar: accepter.avatar
+        avatar: accepter.avatar,
       },
       requester: {
         uid: friendUser.uid,
         nickname: friendUser.nickname,
-        avatar: friendUser.avatar
-      }
+        avatar: friendUser.avatar,
+      },
     });
 
     return friendDoc;
@@ -170,7 +170,7 @@ class FriendService {
       friend: userId,
       status: "pending",
     });
-    
+
     if (!deleted) {
       const error = new Error("Không tìm thấy lời mời kết bạn");
       error.code = "REQUEST_NOT_FOUND";
@@ -183,11 +183,11 @@ class FriendService {
     // ✅ Emit event cho socket
     friendEmitter.emitRequestRejected({
       rejecter: {
-        uid: rejecter.uid
+        uid: rejecter.uid,
       },
       requester: {
-        uid: friendUser.uid
-      }
+        uid: friendUser.uid,
+      },
     });
 
     return deleted;
@@ -206,7 +206,7 @@ class FriendService {
       friend: friendId,
       status: "pending",
     });
-    
+
     if (!deleted) {
       const error = new Error("Không tìm thấy lời mời kết bạn");
       error.code = "REQUEST_NOT_FOUND";
@@ -219,11 +219,11 @@ class FriendService {
     // ✅ Emit event cho socket
     friendEmitter.emitRequestCancelled({
       canceller: {
-        uid: canceller.uid
+        uid: canceller.uid,
       },
       receiver: {
-        uid: friendUser.uid
-      }
+        uid: friendUser.uid,
+      },
     });
 
     return deleted;
@@ -240,10 +240,10 @@ class FriendService {
     const deleted = await Friend.findOneAndDelete({
       $or: [
         { user: userId, friend: friendId, status: "accepted" },
-        { user: friendId, friend: userId, status: "accepted" }
-      ]
+        { user: friendId, friend: userId, status: "accepted" },
+      ],
     });
-    
+
     if (!deleted) {
       const error = new Error("Không tìm thấy mối quan hệ bạn bè");
       error.code = "FRIENDSHIP_NOT_FOUND";
@@ -256,11 +256,11 @@ class FriendService {
     // ✅ Emit event cho socket
     friendEmitter.emitUnfriended({
       unfriender: {
-        uid: unfriender.uid
+        uid: unfriender.uid,
       },
       unfriended: {
-        uid: friendUser.uid
-      }
+        uid: friendUser.uid,
+      },
     });
 
     return deleted;
@@ -276,9 +276,9 @@ class FriendService {
     const friendsDocs = await Friend.find({
       $or: [
         { user: userId, status: "accepted" },
-        { friend: userId, status: "accepted" }
-      ]
-    }).populate("user friend", "uid nickname avatar");
+        { friend: userId, status: "accepted" },
+      ],
+    }).populate("user friend", "uid nickname avatar isOnline lastSeen");
 
     const friends = friendsDocs.map((doc) => {
       const friendUser = doc.user._id.equals(userId) ? doc.friend : doc.user;
@@ -287,13 +287,15 @@ class FriendService {
         uid: friendUser.uid,
         nickname: friendUser.nickname,
         avatar: friendUser.avatar,
+        isOnline: friendUser.isOnline,
+        lastSeen: friendUser.lastSeen,
       };
     });
 
     // Lời mời đến
-    const requestsDocs = await Friend.find({ 
-      friend: userId, 
-      status: "pending" 
+    const requestsDocs = await Friend.find({
+      friend: userId,
+      status: "pending",
     }).populate("user", "uid nickname avatar");
 
     const requests = requestsDocs.map((doc) => ({
@@ -305,9 +307,9 @@ class FriendService {
     }));
 
     // Lời mời đã gửi
-    const sentRequestsDocs = await Friend.find({ 
-      user: userId, 
-      status: "pending" 
+    const sentRequestsDocs = await Friend.find({
+      user: userId,
+      status: "pending",
     }).populate("friend", "uid nickname avatar");
 
     const sentRequests = sentRequestsDocs.map((doc) => ({
@@ -330,21 +332,21 @@ class FriendService {
 
     // Check if searching for self
     if (userId.equals(friendId)) {
-      return { 
+      return {
         status: "self",
         user: {
           uid: friendUser.uid,
           nickname: friendUser.nickname,
-          avatar: friendUser.avatar
-        }
+          avatar: friendUser.avatar,
+        },
       };
     }
 
     const friendship = await Friend.findOne({
       $or: [
         { user: userId, friend: friendId },
-        { user: friendId, friend: userId }
-      ]
+        { user: friendId, friend: userId },
+      ],
     });
 
     // ✅ ALWAYS return user info along with status
@@ -353,8 +355,8 @@ class FriendService {
       user: {
         uid: friendUser.uid,
         nickname: friendUser.nickname,
-        avatar: friendUser.avatar
-      }
+        avatar: friendUser.avatar,
+      },
     };
 
     if (!friendship) {
@@ -387,7 +389,7 @@ class FriendService {
     const friendRequest = await Friend.findOne({
       _id: requestId,
       friend: userId,
-      status: "pending"
+      status: "pending",
     });
 
     if (!friendRequest) {
@@ -409,7 +411,7 @@ class FriendService {
       requestId: friendRequest._id,
       senderUid: sender.uid,
       receiverUid: receiver.uid,
-      seenAt: friendRequest.seenAt
+      seenAt: friendRequest.seenAt,
     });
 
     return { seenAt: friendRequest.seenAt };
@@ -425,10 +427,10 @@ class FriendService {
       {
         friend: userId,
         status: "pending",
-        seenAt: null
+        seenAt: null,
       },
       {
-        $set: { seenAt: new Date() }
+        $set: { seenAt: new Date() },
       }
     );
 
@@ -444,7 +446,7 @@ class FriendService {
     const count = await Friend.countDocuments({
       friend: userId,
       status: "pending",
-      seenAt: null
+      seenAt: null,
     });
 
     return count;

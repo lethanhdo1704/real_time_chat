@@ -280,7 +280,7 @@ export default function MessageActions({
           <button
             ref={reactionButtonRef}
             onClick={() => setShowReactions(!showReactions)}
-            className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all active:scale-95 shadow-sm"
+            className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all active:scale-95 shadow-sm cursor-pointer"
             title={t("actions.react") || "React"}
             aria-label={t("actions.react") || "React to message"}
           >
@@ -300,7 +300,7 @@ export default function MessageActions({
         {/* Reply Button */}
         <button
           onClick={onReply}
-          className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all active:scale-95 shadow-sm"
+          className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all active:scale-95 shadow-sm cursor-pointer"
           title={t("actions.reply") || "Reply"}
           aria-label={t("actions.reply") || "Reply to message"}
         >
@@ -311,7 +311,7 @@ export default function MessageActions({
         <button
           ref={buttonRef}
           onClick={() => setShowMenu(!showMenu)}
-          className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all active:scale-95 shadow-sm"
+          className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all active:scale-95 shadow-sm cursor-pointer"
           title={t("actions.more") || "More options"}
           aria-label={t("actions.more") || "More options"}
         >

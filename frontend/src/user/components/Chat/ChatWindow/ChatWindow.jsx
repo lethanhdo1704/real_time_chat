@@ -1,24 +1,29 @@
-// frontend/src/components/Chat/ChatWindow/ChatWindow.jsx - RESPONSIVE
+// frontend/src/user/components/Chat/ChatWindow/ChatWindow.jsx
+
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import useChatWindowLogic from "../../../hooks/chat/useChatWindowLogic.js";
-import ChatHeader from "../ChatHeader.jsx";
+import ChatWindowHeader from "./ChatWindowHeader.jsx";
 import ChatWindowBody from "./ChatWindowBody.jsx";
 import ChatInput from "../ChatInput.jsx";
 import ChatEmptyState from "../ChatEmptyState.jsx";
 import useChatStore from "../../../store/chat/chatStore.js";
+import useFriendStore from "../../../store/friendStore.js";
 
 /**
  * ChatWindow Component - Main Container
  * 
- * ✅ FIXED: Use activeConversationId (string) instead of activeConversation (object)
+ * ✅ Use activeConversationId (string) instead of activeConversation (object)
+ * ✅ Real-time presence: Get friend's isOnline/lastSeen from friendStore
+ * ✅ Auto-merge presence data with displayInfo
+ * ✅ Mobile responsive with back navigation
  * 
  * Responsibilities:
- * - Layout structure
- * - Compose child components
- * - Pass data from hook to children
- * - Mobile responsive with back navigation
+ * - Layout structure & composition
+ * - Merge presence data from multiple sources
+ * - Pass unified data to child components
+ * - Handle navigation & focus management
  */
 export default function ChatWindow() {
   const { t } = useTranslation("chat");
@@ -27,54 +32,60 @@ export default function ChatWindow() {
   const location = useLocation();
 
   // ============================================
-  // 🔥 GET CONVERSATION ID (FIXED - use activeConversationId)
+  // GET CONVERSATION & FRIEND DATA
   // ============================================
   const conversationId = useChatStore((state) => state.activeConversationId);
-
-  console.log("🔍 [ChatWindow] conversationId:", conversationId);
+  const activeFriend = useChatStore((state) => state.activeFriend);
 
   // ============================================
-  // ALL LOGIC IN CUSTOM HOOK
+  // GET FRIEND PRESENCE FROM STORE (Real-time)
+  // WHY: friendStore is updated by socket events (user_online/user_offline)
+  // ============================================
+  const getFriend = useFriendStore((state) => state.getFriend);
+  const friendPresence = activeFriend?.uid ? getFriend(activeFriend.uid) : null;
+
+  // ============================================
+  // GET CHAT DATA FROM HOOK
   // ============================================
   const {
-    // Display info
     displayInfo,
     typingUser,
-    
-    // Message data
     messages,
     loading,
     hasMore,
     sending,
-    
-    // Refs
     messagesContainerRef,
     typingIndicatorRef,
     hookMessagesEndRef,
-    
-    // Handlers
     handleSendMessage,
     handleTypingChange,
     handleRetryMessage,
-        
-    // User
     currentUser,
   } = useChatWindowLogic();
+
+  // ============================================
+  // 🔥 MERGE PRESENCE DATA - PRIORITY ORDER
+  // ============================================
+  // Priority 1: friendPresence from friendStore (most up-to-date)
+  // Priority 2: activeFriend from chatStore (cached)
+  // Priority 3: displayInfo default (fallback)
+  const displayInfoWithPresence = displayInfo ? {
+    ...displayInfo,
+    isOnline: friendPresence?.isOnline ?? activeFriend?.isOnline ?? displayInfo.isOnline ?? false,
+    lastSeen: friendPresence?.lastSeen ?? activeFriend?.lastSeen ?? displayInfo.lastSeen ?? null,
+  } : null;
 
   // ============================================
   // MOBILE BACK HANDLER
   // ============================================
   const handleBackClick = () => {
-    // Extract current tab from path (friends, groups, etc.)
     const pathParts = location.pathname.split("/");
     const currentTab = pathParts[1] || "friends";
     
-    // 🔥 EXIT CONVERSATION: Clear active state in store
-    // This makes hasActiveConversation = false in Home.jsx
-    // → Mobile will show ContextPanel instead of ChatWindow
+    // Clear active conversation state
     useChatStore.getState().exitConversation();
     
-    // Navigate back to control panel (list view)
+    // Navigate back to list view
     navigate(`/${currentTab}`);
   };
 
@@ -88,7 +99,7 @@ export default function ChatWindow() {
   // ============================================
   // RENDER: Empty State
   // ============================================
-  if (!displayInfo) {
+  if (!displayInfoWithPresence) {
     return <ChatEmptyState />;
   }
 
@@ -98,10 +109,12 @@ export default function ChatWindow() {
   if (loading && !messages.length) {
     return (
       <div className="flex flex-col h-full w-full bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <ChatHeader
-          receiverName={displayInfo.name}
-          receiverAvatar={displayInfo.avatar}
+        <ChatWindowHeader
+          receiverName={displayInfoWithPresence.name}
+          receiverAvatar={displayInfoWithPresence.avatar}
           isTyping={false}
+          isOnline={displayInfoWithPresence.isOnline}
+          lastSeen={displayInfoWithPresence.lastSeen}
           showBackButton={true}
           onBackClick={handleBackClick}
         />
@@ -126,12 +139,14 @@ export default function ChatWindow() {
   // ============================================
   return (
     <div className="flex flex-col h-full w-full min-h-0 bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50">
-      {/* Header */}
-      <ChatHeader
-        receiverName={displayInfo.name}
-        receiverAvatar={displayInfo.avatar}
+      {/* Header with Real-time Presence */}
+      <ChatWindowHeader
+        receiverName={displayInfoWithPresence.name}
+        receiverAvatar={displayInfoWithPresence.avatar}
         isTyping={!!typingUser}
         typingUserName={typingUser?.nickname || typingUser?.fullName}
+        isOnline={displayInfoWithPresence.isOnline}
+        lastSeen={displayInfoWithPresence.lastSeen}
         showBackButton={true}
         onBackClick={handleBackClick}
       />
@@ -142,10 +157,10 @@ export default function ChatWindow() {
         typingIndicatorRef={typingIndicatorRef}
         hookMessagesEndRef={hookMessagesEndRef}
         messages={messages}
-        conversationId={conversationId} // ✅ PASS conversationId (string)
+        conversationId={conversationId}
         loading={loading}
         hasMore={hasMore}
-        displayInfo={displayInfo}
+        displayInfo={displayInfoWithPresence}
         typingUser={typingUser}
         currentUser={currentUser}
         onRetryMessage={handleRetryMessage}
@@ -161,7 +176,7 @@ export default function ChatWindow() {
         disabled={sending}
         sending={sending}
         placeholder={
-          displayInfo.isNewConversation
+          displayInfoWithPresence.isNewConversation
             ? t("input.startConversation") || "Bắt đầu cuộc trò chuyện..."
             : t("input.placeholder") || "Nhập tin nhắn..."
         }

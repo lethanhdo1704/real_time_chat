@@ -91,5 +91,21 @@
     "showMore": "Show more reactions",
     "showAll": "Show all reactions",
     "showLess": "Show less reactions"
+  },
+  "presence": {
+    "online":"Online",
+    "justNow": "Active just now",
+    "minutesAgo": "Active {{count}}m ago",
+    "minutesAgo_one": "Active 1m ago",
+    "minutesAgo_other": "Active {{count}}m ago",
+    "hoursAgo": "Active {{count}}h ago",
+    "hoursAgo_one": "Active 1h ago",
+    "hoursAgo_other": "Active {{count}}h ago",
+    "yesterdayAt": "Active yesterday at {{time}}",
+    "daysAgo": "Active {{count}}d ago",
+    "daysAgo_one": "Active 1d ago",
+    "daysAgo_other": "Active {{count}}d ago",
+    "onDate": "Active on {{date}}",
+    "activeRecently": "Active recently"
   }
 }

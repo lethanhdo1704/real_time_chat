@@ -87,5 +87,21 @@
     "more": "Thêm",
     "showAll": "Hiện tất cả cảm xúc",
     "showLess": "Ẩn bớt cảm xúc"
+  },
+  "presence": {
+    "online": "Đang trực tuyến",
+    "justNow": "Vừa truy cập",
+    "minutesAgo": "Truy cập {{count}} phút trước",
+    "minutesAgo_one": "Truy cập 1 phút trước",
+    "minutesAgo_other": "Truy cập {{count}} phút trước",
+    "hoursAgo": "Truy cập {{count}} giờ trước",
+    "hoursAgo_one": "Truy cập 1 giờ trước",
+    "hoursAgo_other": "Truy cập {{count}} giờ trước",
+    "yesterdayAt": "Truy cập hôm qua lúc {{time}}",
+    "daysAgo": "Truy cập {{count}} ngày trước",
+    "daysAgo_one": "Truy cập 1 ngày trước",
+    "daysAgo_other": "Truy cập {{count}} ngày trước",
+    "onDate": "Truy cập ngày {{date}}",
+    "activeRecently": "Truy cập gần đây"
   }
 }

@@ -1,4 +1,3 @@
-// frontend/src/hooks/useFriendSocket.js
 import { useEffect, useCallback, useContext, useRef } from 'react';
 import { SocketContext } from '../../context/SocketContext';
 import useFriendStore from '../../store/friendStore';
@@ -7,8 +6,9 @@ import friendService from '../../services/friendService';
 /**
  * Hook để handle tất cả friend socket events
  * 
- * 🔥 ULTIMATE FIX:
- * - CHỈ fetch khi socket connected (KHÔNG fetch sớm)
+ * 🔥 COMPLETE VERSION:
+ * - Friend request events
+ * - Presence events (user_online, user_offline)
  * - Single source of truth cho friend data fetching
  */
 export default function useFriendSocket() {
@@ -24,10 +24,12 @@ export default function useFriendSocket() {
     markRequestAsSeen,
     setFriendsData,
     isCacheValid,
+    setFriendOnline,
+    setFriendOffline,
   } = useFriendStore();
 
   // ============================================
-  // EVENT HANDLERS
+  // EVENT HANDLERS - FRIEND REQUESTS
   // ============================================
   
   const handleFriendRequestReceived = useCallback((data) => {
@@ -52,23 +54,29 @@ export default function useFriendSocket() {
 
   const handleFriendRequestAccepted = useCallback((data) => {
     console.log('✅ [useFriendSocket] Friend request accepted:', data);
+    
     removeSentRequest(data.uid);
     addFriend({
       uid: data.uid,
       nickname: data.nickname,
       avatar: data.avatar,
-      timestamp: data.timestamp
+      timestamp: data.timestamp,
+      isOnline: false, // Default to offline, will be updated by presence events
+      lastSeen: null,
     });
   }, [removeSentRequest, addFriend]);
 
   const handleFriendAdded = useCallback((data) => {
     console.log('👥 [useFriendSocket] Friend added:', data);
+    
     removeFriendRequest(data.uid);
     addFriend({
       uid: data.uid,
       nickname: data.nickname,
       avatar: data.avatar,
-      timestamp: data.timestamp
+      timestamp: data.timestamp,
+      isOnline: false, // Default to offline
+      lastSeen: null,
     });
   }, [removeFriendRequest, addFriend]);
 
@@ -93,7 +101,52 @@ export default function useFriendSocket() {
   }, [markRequestAsSeen]);
 
   // ============================================
-  // 🔥 CRITICAL: ONLY fetch when socket connected
+  // 🆕 EVENT HANDLERS - PRESENCE
+  // ============================================
+  
+  /**
+   * Handle user_online event
+   * Backend sends when a friend connects
+   * 
+   * WHY: Friend just connected = they are ONLINE now
+   */
+  const handleUserOnline = useCallback((data) => {
+    const { uid } = data;
+    
+    if (!uid) {
+      console.warn('⚠️ [useFriendSocket] user_online: missing uid');
+      return;
+    }
+    
+    console.log('🟢 [useFriendSocket] User ONLINE:', uid);
+    
+    // Update store: isOnline = true, lastSeen = null
+    setFriendOnline(uid);
+  }, [setFriendOnline]);
+
+  /**
+   * Handle user_offline event
+   * Backend sends when a friend disconnects
+   * 
+   * WHY: Friend disconnected = they are OFFLINE now
+   * WHY: lastSeen = timestamp when they LEFT
+   */
+  const handleUserOffline = useCallback((data) => {
+    const { uid, lastSeen } = data;
+    
+    if (!uid) {
+      console.warn('⚠️ [useFriendSocket] user_offline: missing uid');
+      return;
+    }
+    
+    console.log('⚪ [useFriendSocket] User OFFLINE:', uid, 'lastSeen:', lastSeen);
+    
+    // Update store: isOnline = false, lastSeen = when they left
+    setFriendOffline(uid, lastSeen);
+  }, [setFriendOffline]);
+
+  // ============================================
+  // 🔥 FETCH FRIENDS DATA (on connection)
   // ============================================
   
   useEffect(() => {
@@ -145,6 +198,9 @@ export default function useFriendSocket() {
 
     console.log('🔌 [useFriendSocket] Registering friend socket listeners');
 
+    // ============================================
+    // Friend request events
+    // ============================================
     socket.on('friend_request_received', handleFriendRequestReceived);
     socket.on('friend_request_accepted', handleFriendRequestAccepted);
     socket.on('friend_added', handleFriendAdded);
@@ -153,10 +209,18 @@ export default function useFriendSocket() {
     socket.on('friend_removed', handleFriendRemoved);
     socket.on('friend_request_seen', handleFriendRequestSeen);
     
-    console.log('✅ [useFriendSocket] All friend listeners registered');
+    // ============================================
+    // 🆕 PRESENCE EVENTS (NEW)
+    // ============================================
+    socket.on('user_online', handleUserOnline);
+    socket.on('user_offline', handleUserOffline);
+    
+    console.log('✅ [useFriendSocket] All listeners registered (including presence)');
 
     return () => {
       console.log('🧹 [useFriendSocket] Cleaning up listeners');
+      
+      // Friend request cleanup
       socket.off('friend_request_received', handleFriendRequestReceived);
       socket.off('friend_request_accepted', handleFriendRequestAccepted);
       socket.off('friend_added', handleFriendAdded);
@@ -164,6 +228,10 @@ export default function useFriendSocket() {
       socket.off('friend_request_cancelled', handleFriendRequestCancelled);
       socket.off('friend_removed', handleFriendRemoved);
       socket.off('friend_request_seen', handleFriendRequestSeen);
+      
+      // Presence cleanup
+      socket.off('user_online', handleUserOnline);
+      socket.off('user_offline', handleUserOffline);
     };
   }, [
     socket,
@@ -174,7 +242,9 @@ export default function useFriendSocket() {
     handleFriendRequestRejected,
     handleFriendRequestCancelled,
     handleFriendRemoved,
-    handleFriendRequestSeen
+    handleFriendRequestSeen,
+    handleUserOnline,
+    handleUserOffline,
   ]);
 
   // Reset fetch flag on disconnect

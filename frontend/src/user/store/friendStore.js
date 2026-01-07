@@ -1,4 +1,4 @@
-// frontend/src/store/friendStore.js
+// frontend/src/user/store/friendStore.js
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 
@@ -26,8 +26,15 @@ const useFriendStore = create(
         setFriendsData: (data) => {
           const unseenCount = (data.requests || []).filter(r => !r.seenAt).length;
           
+          // ✅ Map friends with presence fields
+          const friendsWithPresence = (data.friends || []).map(friend => ({
+            ...friend,
+            isOnline: friend.isOnline ?? false,
+            lastSeen: friend.lastSeen ?? null,
+          }));
+          
           set({
-            friends: data.friends || [],
+            friends: friendsWithPresence,
             friendRequests: data.requests || [],
             sentRequests: data.sentRequests || [],
             loading: false,
@@ -103,8 +110,16 @@ const useFriendStore = create(
           if (state.friends.some(f => f.uid === friend.uid)) {
             return state;
           }
+          
+          // ✅ Add friend with presence fields
+          const friendWithPresence = {
+            ...friend,
+            isOnline: friend.isOnline ?? false,
+            lastSeen: friend.lastSeen ?? null,
+          };
+          
           return {
-            friends: [...state.friends, friend]
+            friends: [...state.friends, friendWithPresence]
           };
         }),
 
@@ -119,6 +134,65 @@ const useFriendStore = create(
         })),
 
         // ============================================
+        // 🆕 PRESENCE ACTIONS
+        // ============================================
+        
+        /**
+         * Update friend presence status
+         * Called from socket listeners
+         */
+        updateFriendPresence: (uid, presenceData) => set((state) => {
+          const friend = state.friends.find(f => f.uid === uid);
+          
+          if (!friend) {
+            console.warn(`[friendStore] Friend ${uid} not found for presence update`);
+            return state;
+          }
+          
+          console.log(`🔄 [friendStore] Updating presence for ${uid}:`, presenceData);
+          
+          return {
+            friends: state.friends.map(f => 
+              f.uid === uid 
+                ? { ...f, ...presenceData }
+                : f
+            )
+          };
+        }),
+
+        /**
+         * Set friend online
+         * WHY: lastSeen = null when online (they haven't LEFT yet)
+         */
+        setFriendOnline: (uid) => set((state) => {
+          console.log(`🟢 [friendStore] Setting ${uid} ONLINE`);
+          
+          return {
+            friends: state.friends.map(f => 
+              f.uid === uid 
+                ? { ...f, isOnline: true, lastSeen: null }
+                : f
+            )
+          };
+        }),
+
+        /**
+         * Set friend offline with lastSeen
+         * WHY: lastSeen = when they LEFT (disconnected)
+         */
+        setFriendOffline: (uid, lastSeen) => set((state) => {
+          console.log(`⚪ [friendStore] Setting ${uid} OFFLINE, lastSeen:`, lastSeen);
+          
+          return {
+            friends: state.friends.map(f => 
+              f.uid === uid 
+                ? { ...f, isOnline: false, lastSeen }
+                : f
+            )
+          };
+        }),
+
+        // ============================================
         // COMBINED OPERATIONS
         // ============================================
         
@@ -128,11 +202,18 @@ const useFriendStore = create(
             ? Math.max(0, state.unseenCount - 1)
             : state.unseenCount;
           
+          // ✅ Add presence fields when accepting request
+          const friendWithPresence = {
+            ...friendData,
+            isOnline: friendData.isOnline ?? false,
+            lastSeen: friendData.lastSeen ?? null,
+          };
+          
           return {
             friendRequests: state.friendRequests.filter(r => r.uid !== uid),
             friends: state.friends.some(f => f.uid === uid) 
               ? state.friends 
-              : [...state.friends, friendData],
+              : [...state.friends, friendWithPresence],
             unseenCount: newUnseenCount
           };
         }),
@@ -199,6 +280,25 @@ const useFriendStore = create(
             return 'request_received';
           }
           return 'none';
+        },
+
+        // 🆕 Get friend by uid
+        getFriend: (uid) => {
+          const state = get();
+          return state.friends.find(f => f.uid === uid);
+        },
+
+        // 🆕 Get online friends count
+        getOnlineFriendsCount: () => {
+          const state = get();
+          return state.friends.filter(f => f.isOnline === true).length;
+        },
+
+        // 🆕 Check if friend is online
+        isFriendOnline: (uid) => {
+          const state = get();
+          const friend = state.friends.find(f => f.uid === uid);
+          return friend?.isOnline === true;
         },
 
         // ============================================

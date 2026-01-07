@@ -1,20 +1,17 @@
-// frontend/src/user/components/Chat/ConversationItem.jsx
 import { formatDistanceToNow } from "date-fns";
 import { vi, enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 import AvatarImage from "../common/AvatarImage";
+import { useLastSeenFormat } from "../../hooks/useLastSeenFormat";
 
 /**
  * ConversationItem Component
- *
- * Displays a conversation in the sidebar
- * Works for both friends and groups
- * Shows: avatar, name, lastMessage, unreadCount, timestamp
- * 🔥 UPDATED: Gray theme + RECALLED + EDITED MESSAGE PREVIEW + FIXED AVATAR RING
+ * 
+ * WITH AUTO-UPDATING LASTSEEN
  */
 export default function ConversationItem({
   conversation,
-  friend, // For private chats with friends
+  friend,
   isActive,
   currentUserId,
   onClick,
@@ -22,65 +19,60 @@ export default function ConversationItem({
   const { t, i18n } = useTranslation("friendFeature");
   const locale = i18n.language === "vi" ? vi : enUS;
 
-  // ============================================
-  // 🔥 FIX: Normalize conversation ID
-  // ============================================
   const conversationId = conversation?.conversationId || conversation?._id;
 
   // ============================================
-  // GET DISPLAY INFO
+  // GET DISPLAY INFO - WITH PRESENCE
   // ============================================
-
   const getDisplayInfo = () => {
     if (conversation?.type === "group") {
       return {
         avatar: conversation.avatar || null,
         name: conversation.name || "Group Chat",
         avatarUpdatedAt: conversation.avatarUpdatedAt,
-        isOnline: true, // Groups are always "online"
+        isOnline: true,
+        lastSeen: null,
+        showLastSeen: false,
       };
     }
 
-    // Private chat - use friend info
     if (friend) {
+      const isOnline = friend.isOnline === true;
+      const lastSeen = friend.lastSeen || null;
+      
       return {
         avatar: friend.avatar || null,
         name: friend.nickname || friend.uid,
         avatarUpdatedAt: friend.avatarUpdatedAt,
-        isOnline: friend.isOnline || friend.status === "online" || false,
+        isOnline,
+        lastSeen,
+        showLastSeen: !isOnline && lastSeen,
       };
     }
 
-    // Fallback
     return {
       avatar: null,
       name: "Unknown",
       avatarUpdatedAt: null,
       isOnline: false,
+      lastSeen: null,
+      showLastSeen: false,
     };
   };
 
-  const { avatar, name, avatarUpdatedAt, isOnline } = getDisplayInfo();
+  const { avatar, name, avatarUpdatedAt, isOnline, lastSeen, showLastSeen } = getDisplayInfo();
+  
+  // 🔥 AUTO-UPDATE HOOK
+  const lastSeenText = useLastSeenFormat(lastSeen, isOnline);
+  
   const unreadCount = conversation?.unreadCount || 0;
   const lastMessage = conversation?.lastMessage;
   const lastMessageAt = conversation?.lastMessageAt;
 
   // ============================================
-  // FORMAT MESSAGE PREVIEW - WITH RECALLED + EDITED SUPPORT
+  // FORMAT MESSAGE PREVIEW
   // ============================================
-
   const getMessagePreview = () => {
-    // 🔥 DEBUG: Log everything
-    console.log("🔍 [ConversationItem] getMessagePreview called:", {
-      conversationId,
-      hasLastMessage: !!lastMessage,
-      isRecalled: lastMessage?.isRecalled,
-      isEdited: !!lastMessage?.editedAt,
-      content: lastMessage?.content,
-      type: lastMessage?.type,
-      editedAt: lastMessage?.editedAt,
-    });
-
     if (!lastMessage) {
       return {
         text: t("messagePreview.startConversation") || "Start conversation",
@@ -94,41 +86,16 @@ export default function ConversationItem({
     const isOwnMessage = lastMessage.sender?.uid === currentUserId;
     const senderName = isOwnMessage
       ? t("messagePreview.you") || "You"
-      : lastMessage.sender?.nickname ||
-        lastMessage.sender?.fullName ||
-        t("messagePreview.friend") ||
-        "Friend";
-
-    // ============================================
-    // 🔥 PRIORITY 1: CHECK RECALLED FIRST (HIGHEST PRIORITY)
-    // ============================================
-    console.log(
-      "🔍 [ConversationItem] Checking isRecalled:",
-      lastMessage.isRecalled
-    );
+      : lastMessage.sender?.nickname || lastMessage.sender?.fullName || t("messagePreview.friend") || "Friend";
 
     if (lastMessage.isRecalled) {
-      console.log(
-        "✅ [ConversationItem] Message IS recalled - returning recalled preview"
-      );
-
       return {
         text: isOwnMessage
-          ? t("messagePreview.youRecalled")
-          : `${senderName} ${t("messagePreview.recalled")}`,
+          ? t("messagePreview.youRecalled") || "You recalled a message"
+          : `${senderName} ${t("messagePreview.recalled") || "recalled a message"}`,
         icon: (
-          <svg
-            className="w-3.5 h-3.5 shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-            />
+          <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
           </svg>
         ),
         isSpecial: true,
@@ -137,27 +104,12 @@ export default function ConversationItem({
       };
     }
 
-    // ============================================
-    // 🆕 CHECK IF MESSAGE IS EDITED
-    // ============================================
     const isEdited = !!lastMessage.editedAt;
 
-    if (isEdited) {
-      console.log(
-        "✏️ [ConversationItem] Message is edited:",
-        lastMessage.editedAt
-      );
-    }
-
-    // ============================================
-    // NORMAL MESSAGE TYPES (only if NOT recalled)
-    // ============================================
     switch (lastMessage.type) {
       case "image":
         return {
-          text: `${senderName}: ${t("messagePreview.photo") || "Photo"}${
-            isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""
-          }`,
+          text: `${senderName}: ${t("messagePreview.photo") || "Photo"}${isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""}`,
           icon: "📷",
           isSpecial: true,
           isRecalled: false,
@@ -165,9 +117,7 @@ export default function ConversationItem({
         };
       case "file":
         return {
-          text: `${senderName}: ${t("messagePreview.file") || "File"}${
-            isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""
-          }`,
+          text: `${senderName}: ${t("messagePreview.file") || "File"}${isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""}`,
           icon: "📎",
           isSpecial: true,
           isRecalled: false,
@@ -175,9 +125,7 @@ export default function ConversationItem({
         };
       case "video":
         return {
-          text: `${senderName}: ${t("messagePreview.video") || "Video"}${
-            isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""
-          }`,
+          text: `${senderName}: ${t("messagePreview.video") || "Video"}${isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""}`,
           icon: "🎥",
           isSpecial: true,
           isRecalled: false,
@@ -185,26 +133,20 @@ export default function ConversationItem({
         };
       case "audio":
         return {
-          text: `${senderName}: ${t("messagePreview.audio") || "Audio"}${
-            isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""
-          }`,
+          text: `${senderName}: ${t("messagePreview.audio") || "Audio"}${isEdited ? ` (${t("messagePreview.edited") || "edited"})` : ""}`,
           icon: "🎵",
           isSpecial: true,
           isRecalled: false,
           isEdited,
         };
       default:
-        // Text message
         const content = lastMessage.content || "";
 
-        // 🔥 Double-check: If no content, might be recalled
         if (!content && lastMessage.isRecalled) {
           return {
             text: isOwnMessage
               ? t("messagePreview.youRecalled") || "You recalled a message"
-              : `${senderName} ${
-                  t("messagePreview.recalled") || "recalled a message"
-                }`,
+              : `${senderName} ${t("messagePreview.recalled") || "recalled a message"}`,
             icon: "↩️",
             isSpecial: true,
             isRecalled: true,
@@ -212,24 +154,14 @@ export default function ConversationItem({
           };
         }
 
-        // 🆕 IMPROVED: Calculate maxLength based on whether message is edited
-        const editedIndicator = isEdited
-          ? ` (${t("messagePreview.edited") || "edited"})`
-          : "";
+        const editedIndicator = isEdited ? ` (${t("messagePreview.edited") || "edited"})` : "";
         const editedIndicatorLength = editedIndicator.length;
-
-        // Reserve space for edited indicator
         const maxLength = 40 - (isEdited ? editedIndicatorLength : 0);
-        const truncated =
-          content.length > maxLength
-            ? content.substring(0, maxLength) + "..."
-            : content;
+        const truncated = content.length > maxLength ? content.substring(0, maxLength) + "..." : content;
 
         return {
           text: isOwnMessage
-            ? `${
-                t("messagePreview.you") || "You"
-              }: ${truncated}${editedIndicator}`
+            ? `${t("messagePreview.you") || "You"}: ${truncated}${editedIndicator}`
             : `${truncated}${editedIndicator}`,
           icon: null,
           isSpecial: false,
@@ -244,7 +176,6 @@ export default function ConversationItem({
   // ============================================
   // FORMAT TIMESTAMP
   // ============================================
-
   const formatTimestamp = (date) => {
     if (!date) return "";
     try {
@@ -253,15 +184,9 @@ export default function ConversationItem({
       const diffInHours = (now - messageDate) / (1000 * 60 * 60);
 
       if (diffInHours < 24) {
-        return formatDistanceToNow(messageDate, {
-          addSuffix: false,
-          locale,
-        });
+        return formatDistanceToNow(messageDate, { addSuffix: false, locale });
       } else {
-        return formatDistanceToNow(messageDate, {
-          addSuffix: true,
-          locale,
-        });
+        return formatDistanceToNow(messageDate, { addSuffix: true, locale });
       }
     } catch {
       return "";
@@ -273,7 +198,6 @@ export default function ConversationItem({
   // ============================================
   // RENDER
   // ============================================
-
   return (
     <div className="px-2 py-1">
       <button
@@ -335,16 +259,10 @@ export default function ConversationItem({
         <div className="flex-1 min-w-0">
           {/* Name and Timestamp */}
           <div className="flex items-baseline justify-between gap-2 mb-0.5">
-            <h3
-              className={`
-                font-semibold truncate text-[15px]
-                ${isActive ? "text-gray-900" : "text-gray-900"}
-              `}
-            >
+            <h3 className={`font-semibold truncate text-[15px] ${isActive ? "text-gray-900" : "text-gray-900"}`}>
               {name}
             </h3>
 
-            {/* Timestamp */}
             {timestamp && (
               <span
                 className={`
@@ -363,48 +281,45 @@ export default function ConversationItem({
             )}
           </div>
 
-          {/* Message Preview */}
+          {/* Message Preview OR Last Seen */}
           <div className="flex items-center gap-1.5">
-            {messagePreview.icon && (
-              <span
-                className={`shrink-0 ${
-                  typeof messagePreview.icon === "string"
-                    ? "text-sm"
-                    : "text-gray-500"
-                }`}
-              >
-                {messagePreview.icon}
-              </span>
-            )}
-            <p
-              className={`
-                text-[13px] truncate flex-1 leading-tight
-                ${
-                  // 🔥 Special styling for recalled messages
-                  messagePreview.isRecalled
-                    ? "text-gray-500 italic"
-                    : isActive
-                    ? "text-gray-700 font-medium"
-                    : unreadCount > 0
-                    ? "text-gray-900 font-semibold"
-                    : messagePreview.isSpecial
-                    ? "text-gray-600 font-medium"
-                    : "text-gray-500"
-                }
-                ${!lastMessage && !isActive ? "italic" : ""}
-                ${
-                  messagePreview.isEdited && !messagePreview.isRecalled
-                    ? "text-gray-600"
-                    : ""
-                }
-              `}
-            >
-              {messagePreview.text}
-            </p>
+            {/* 🔥 Show auto-updating lastSeen when offline and no message */}
+            {showLastSeen && !lastMessage ? (
+              <p className="text-[13px] text-gray-400 italic truncate flex-1 leading-tight">
+                {lastSeenText}
+              </p>
+            ) : (
+              <>
+                {messagePreview.icon && (
+                  <span className={`shrink-0 ${typeof messagePreview.icon === "string" ? "text-sm" : "text-gray-500"}`}>
+                    {messagePreview.icon}
+                  </span>
+                )}
+                <p
+                  className={`
+                    text-[13px] truncate flex-1 leading-tight
+                    ${
+                      messagePreview.isRecalled
+                        ? "text-gray-500 italic"
+                        : isActive
+                        ? "text-gray-700 font-medium"
+                        : unreadCount > 0
+                        ? "text-gray-900 font-semibold"
+                        : messagePreview.isSpecial
+                        ? "text-gray-600 font-medium"
+                        : "text-gray-500"
+                    }
+                    ${!lastMessage && !isActive ? "italic" : ""}
+                    ${messagePreview.isEdited && !messagePreview.isRecalled ? "text-gray-600" : ""}
+                  `}
+                >
+                  {messagePreview.text}
+                </p>
 
-            {/* Unread Indicator Dot */}
-            {unreadCount > 0 && !isActive && (
-              <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-blue-600 animate-pulse"></div>
+                {unreadCount > 0 && !isActive && (
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-blue-600 animate-pulse"></div>
+                )}
+              </>
             )}
           </div>
         </div>
