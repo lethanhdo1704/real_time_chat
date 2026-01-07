@@ -44,6 +44,7 @@ import friendsRoutes from "./routes/friend.routes.js";
 import conversationRoutes from "./routes/conversation.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 import reactionRoutes from "./routes/reaction.routes.js";
+import callRoutes from "./routes/call.routes.js"; // ✅ THÊM
 
 // ==========================
 // SOCKET
@@ -68,7 +69,7 @@ const allowedOrigins =
 
 app.use(
   cors({
-    origin: true, // ✅ allow all origins
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   })
@@ -80,7 +81,6 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Sanitize input
 app.use((req, res, next) => {
   if (req.body) sanitizeInput(req, res, next);
   else next();
@@ -105,8 +105,7 @@ connectDB();
 app.use(
   "/uploads/avatars",
   (req, res, next) => {
-    // Set cache-control headers for better performance
-    res.set("Cache-Control", "public, max-age=86400"); // 24 hours
+    res.set("Cache-Control", "public, max-age=86400");
     next();
   },
   express.static(path.join(__dirname, "uploads/avatars"))
@@ -141,6 +140,7 @@ app.use("/api/friends", auth, friendRequestLimiter, friendsRoutes);
 app.use("/api/conversations", auth, conversationRoutes);
 app.use("/api/messages", auth, messageRoutes);
 app.use("/api/reactions", auth, reactionRoutes);
+app.use("/api/calls", auth, callRoutes); // ✅ THÊM
 
 console.log("✅ All routes registered");
 
@@ -156,17 +156,16 @@ app.use(errorHandler);
 const PORT = config.port;
 const server = createServer(app);
 
-// Initialize Socket.IO with SocketEmitter and chat handlers
-// initSocket() returns { io, socketEmitter }
 const { io, socketEmitter } = initSocket(server);
 
-// Make available to app
 app.set("socketEmitter", socketEmitter);
 app.set("io", io);
 
-console.log("✅ Socket.IO initialized");
+console.log("✅ Socket.IO initialized with authentication");
 console.log("✅ SocketEmitter service ready");
 console.log("✅ Chat socket handlers ready");
+console.log("✅ Friend socket handlers ready");
+console.log("✅ Call socket handlers ready"); // ✅ THÊM
 
 // ==========================
 // START SERVER
@@ -178,6 +177,7 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`🌍 Environment: ${config.nodeEnv}`);
   console.log(`🔌 Socket.IO ready`);
   console.log(`💬 Chat system ready`);
+  console.log(`📞 Call system ready`); // ✅ THÊM
   console.log(`📁 Avatar serving: /uploads/avatars`);
   console.log("=".repeat(50) + "\n");
 });
@@ -188,18 +188,15 @@ server.listen(PORT, "0.0.0.0", () => {
 const shutdown = (signal) => {
   console.log(`\n👋 ${signal} received: shutting down gracefully...`);
 
-  // Close server
   server.close(() => {
     console.log("✅ HTTP server closed");
 
-    // Close socket connections
     io.close(() => {
       console.log("✅ Socket.IO closed");
       process.exit(0);
     });
   });
 
-  // Force close after 10s
   setTimeout(() => {
     console.error("❌ Forced shutdown after timeout");
     process.exit(1);
