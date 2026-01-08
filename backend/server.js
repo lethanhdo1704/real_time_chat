@@ -44,7 +44,7 @@ import friendsRoutes from "./routes/friend.routes.js";
 import conversationRoutes from "./routes/conversation.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 import reactionRoutes from "./routes/reaction.routes.js";
-import callRoutes from "./routes/call.routes.js"; // ✅ THÊM
+import callRoutes from "./routes/call.routes.js";
 
 // ==========================
 // SOCKET
@@ -60,16 +60,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // ==========================
-// CORS CONFIGURATION
+// CORS CONFIGURATION (FIXED)
 // ==========================
-const allowedOrigins =
-  config.nodeEnv === "production"
-    ? [config.corsOrigin]
-    : ["http://localhost:5173", "http://localhost:3000"];
-
+// 👉 Cho phép HTTPS frontend + Vite proxy
 app.use(
   cors({
-    origin: true,
+    origin: true, // allow all origins (DEV)
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   })
@@ -140,7 +136,7 @@ app.use("/api/friends", auth, friendRequestLimiter, friendsRoutes);
 app.use("/api/conversations", auth, conversationRoutes);
 app.use("/api/messages", auth, messageRoutes);
 app.use("/api/reactions", auth, reactionRoutes);
-app.use("/api/calls", auth, callRoutes); // ✅ THÊM
+app.use("/api/calls", auth, callRoutes);
 
 console.log("✅ All routes registered");
 
@@ -153,32 +149,32 @@ app.use(errorHandler);
 // ==========================
 // SERVER & SOCKET
 // ==========================
-const PORT = config.port;
+const PORT = config.port || 5000;
+
+// 👉 HTTP server (KHÔNG HTTPS – dùng proxy)
 const server = createServer(app);
 
+// 👉 Init Socket.IO (WebRTC signaling)
 const { io, socketEmitter } = initSocket(server);
 
-app.set("socketEmitter", socketEmitter);
 app.set("io", io);
+app.set("socketEmitter", socketEmitter);
 
-console.log("✅ Socket.IO initialized with authentication");
-console.log("✅ SocketEmitter service ready");
-console.log("✅ Chat socket handlers ready");
-console.log("✅ Friend socket handlers ready");
-console.log("✅ Call socket handlers ready"); // ✅ THÊM
+console.log("✅ Socket.IO initialized");
+console.log("✅ Call signaling ready");
 
 // ==========================
 // START SERVER
 // ==========================
 server.listen(PORT, "0.0.0.0", () => {
   console.log("\n" + "=".repeat(50));
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`🌐 Network: http://192.168.1.2:${PORT}`);
+  console.log(`🚀 Server running`);
+  console.log(`➡️  Local:   http://localhost:${PORT}`);
+  console.log(`➡️  Network: http://0.0.0.0:${PORT}`);
   console.log(`🌍 Environment: ${config.nodeEnv}`);
   console.log(`🔌 Socket.IO ready`);
-  console.log(`💬 Chat system ready`);
-  console.log(`📞 Call system ready`); // ✅ THÊM
-  console.log(`📁 Avatar serving: /uploads/avatars`);
+  console.log(`📞 WebRTC signaling ready`);
+  console.log(`📁 Avatars: /uploads/avatars`);
   console.log("=".repeat(50) + "\n");
 });
 

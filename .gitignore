@@ -48,3 +48,6 @@ dist-ssr
 
 # Thumbnails
 ._*
+
+# SSL certs (dev only)
+cert/
