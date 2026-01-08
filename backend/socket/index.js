@@ -3,7 +3,7 @@ import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import setupChatSocket from "./chat.socket.js";
 import setupFriendSocket from "./friend.socket.js";
-import setupCallSocket from "./call.socket.js"; // ✅ THÊM
+import setupCallSocket from "./call.socket.js";
 import socketEmitter from "../services/socketEmitter.service.js";
 import User from "../models/User.js";
 
@@ -24,7 +24,9 @@ export default function initSocket(server) {
     console.log('🔍 Socket handshake from:', req.headers.origin || 'no-origin');
   });
 
-  // ✅ SOCKET AUTHENTICATION MIDDLEWARE
+  // ============================================
+  // ✅ SOCKET AUTHENTICATION MIDDLEWARE (FIXED)
+  // ============================================
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
@@ -34,19 +36,29 @@ export default function initSocket(server) {
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id).select('-password');
+      const user = await User.findById(decoded.id).select('-passwordHash');
 
       if (!user) {
         return next(new Error('Authentication error: User not found'));
       }
 
+      // ============================================
+      // 🎯 CHUẨN HÓA: uid cho realtime, _id cho DB
+      // ============================================
       socket.user = user;
-      socket.userId = user._id.toString();
+      socket.uid = user.uid;           // ✅ PUBLIC UID (cho socket rooms)
+      socket.userId = user._id.toString(); // ✅ MONGO _ID (cho DB queries)
 
-      // ✅ JOIN USER ROOM
-      socket.join(socket.userId);
+      // ============================================
+      // ✅ JOIN ROOM = UID (KHÔNG PHẢI _id)
+      // ============================================
+      socket.join(user.uid);
 
-      console.log(`✅ Socket authenticated: ${socket.id} -> User: ${user.username} (${socket.userId})`);
+      console.log(`✅ Socket authenticated: ${socket.id}`);
+      console.log(`   ↳ UID: ${user.uid}`);
+      console.log(`   ↳ User: ${user.nickname}`);
+      console.log(`   ↳ Joined room: ${user.uid}`);
+      
       next();
     } catch (error) {
       console.error('Socket authentication error:', error);
@@ -54,31 +66,36 @@ export default function initSocket(server) {
     }
   });
 
+  // ============================================
+  // CONNECTION HANDLER
+  // ============================================
   io.on("connection", async (socket) => {
-    console.log(`✅ Client connected: ${socket.id} (${socket.user.username})`);
+    console.log(`✅ Client connected: ${socket.id} (${socket.user.nickname})`);
     
-    // ✅ SET USER ONLINE
+    // ✅ SET USER ONLINE (dùng _id cho DB)
     await User.findByIdAndUpdate(socket.userId, {
       isOnline: true,
       lastSeen: new Date()
     });
 
-    socket.broadcast.emit('user:online', { userId: socket.userId });
+    // ✅ BROADCAST ONLINE (dùng uid cho socket)
+    socket.broadcast.emit('user:online', { uid: socket.uid });
 
     socket.on("disconnect", async (reason) => {
       console.log(`❌ Client disconnected: ${socket.id} - ${reason}`);
       
-      // ✅ SET USER OFFLINE
+      // ✅ SET USER OFFLINE (dùng _id cho DB)
       await User.findByIdAndUpdate(socket.userId, {
         isOnline: false,
         lastSeen: new Date()
       });
 
-      socket.broadcast.emit('user:offline', { userId: socket.userId });
+      // ✅ BROADCAST OFFLINE (dùng uid cho socket)
+      socket.broadcast.emit('user:offline', { uid: socket.uid });
     });
   });
 
-  console.log('🔌 Socket.IO server initialized with authentication');
+  console.log('🔌 Socket.IO server initialized with UID-based rooms');
 
   socketEmitter.setIO(io);
   console.log('✅ [SocketEmitter] IO instance injected');
@@ -89,8 +106,8 @@ export default function initSocket(server) {
   setupFriendSocket(io);
   console.log('👥 Friend socket handlers initialized');
 
-  setupCallSocket(io); // ✅ THÊM
-  console.log('📞 Call socket handlers initialized');
+  setupCallSocket(io);
+  console.log('📞 Call socket handlers initialized (UID-based)');
 
   return { io, socketEmitter };
 }
