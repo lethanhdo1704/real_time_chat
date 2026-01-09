@@ -104,7 +104,7 @@ export default function NavigationColumn({
         {/* Settings Button */}
         <button
           onClick={handleSettings}
-          className="w-12 h-12 rounded-xl flex items-center justify-center mb-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
+          className="w-12 h-12 rounded-xl flex items-center justify-center mb-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200 cursor-pointer"
           style={{ 
             minWidth: '48px',
             minHeight: '48px',
@@ -119,7 +119,7 @@ export default function NavigationColumn({
         {/* Logout Button */}
         <button
           onClick={onLogout}
-          className="w-12 h-12 rounded-xl flex items-center justify-center text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
+          className="w-12 h-12 rounded-xl flex items-center justify-center text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200 cursor-pointer"
           style={{ 
             minWidth: '48px',
             minHeight: '48px',

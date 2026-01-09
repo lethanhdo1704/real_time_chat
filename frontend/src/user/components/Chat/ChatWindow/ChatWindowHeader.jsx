@@ -148,7 +148,7 @@ export default function ChatHeader({
             <button
               onClick={handleVoiceCallClick}
               disabled={!onCallClick}
-              className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group disabled:opacity-40 disabled:cursor-not-allowed"
+              className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               title={t("header.voiceCall") || "Voice call"}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -171,7 +171,7 @@ export default function ChatHeader({
             <button
               onClick={handleVideoCallClick}
               disabled={!onVideoClick}
-              className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group disabled:opacity-40 disabled:cursor-not-allowed"
+              className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               title={t("header.videoCall") || "Video call"}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -193,7 +193,7 @@ export default function ChatHeader({
             {/* Three Dots Menu Button */}
             <button
               onClick={onInfoClick}
-              className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group"
+              className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group cursor-pointer"
               title={t("header.moreOptions") || "Menu"}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >

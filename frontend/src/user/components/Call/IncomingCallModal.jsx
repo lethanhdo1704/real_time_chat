@@ -1,24 +1,26 @@
 // frontend/src/user/components/call/IncomingCallModal.jsx
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import AvatarImage from '../common/AvatarImage';
 import useCallStore from '../../store/call/callStore';
 import callSocketService from '../../services/socket/call.socket';
 import { CALL_STATE, CALL_TYPE } from '../../utils/call/callConstants';
+import { Phone, PhoneOff, MessageSquare, Clock } from 'lucide-react';
 
 /**
- * 🎯 INCOMING CALL MODAL
- * 
- * Show when: callState === INCOMING_RINGING
+ * 🎯 INCOMING CALL MODAL - MODERN DESIGN
  * 
  * Features:
- * - Caller info (avatar, name)
- * - Call type indicator (voice/video)
- * - Ringing animation
- * - Accept / Reject buttons
- * - Auto dismiss on timeout
+ * - Beautiful gradient background with blur
+ * - Pulsing avatar with animated rings
+ * - Large, accessible buttons
+ * - Quick actions (message, remind later)
+ * - Smooth animations
+ * - i18n support
  */
 export default function IncomingCallModal() {
+  const { t } = useTranslation("call");
   const [ringAnimation, setRingAnimation] = useState(false);
 
   // Call state
@@ -29,6 +31,7 @@ export default function IncomingCallModal() {
 
   // Show modal only when incoming ringing
   const isVisible = callState === CALL_STATE.INCOMING_RINGING;
+  const isVideo = callType === CALL_TYPE.VIDEO;
 
   // ============================================
   // RINGING ANIMATION
@@ -39,7 +42,6 @@ export default function IncomingCallModal() {
       const timer = setInterval(() => {
         setRingAnimation((prev) => !prev);
       }, 1000);
-
       return () => clearInterval(timer);
     }
   }, [isVisible]);
@@ -49,14 +51,12 @@ export default function IncomingCallModal() {
   // ============================================
   const handleAccept = () => {
     if (!callId) return;
-    
     console.log('[IncomingCall] Accepting call:', callId);
     callSocketService.acceptCall(callId);
   };
 
   const handleReject = () => {
     if (!callId) return;
-    
     console.log('[IncomingCall] Rejecting call:', callId);
     callSocketService.rejectCall(callId);
   };
@@ -66,90 +66,118 @@ export default function IncomingCallModal() {
   // ============================================
   if (!isVisible || !peerInfo) return null;
 
-  const isVideo = callType === CALL_TYPE.VIDEO;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 animate-slideUp">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-linear-to-br from-indigo-600 via-purple-600 to-pink-500 backdrop-blur-sm animate-fadeIn">
+      {/* Overlay blur */}
+      <div className="absolute inset-0 bg-black/20"></div>
+      
+      <div className="relative z-10 text-center px-8 py-12 max-w-md w-full">
         
-        {/* Avatar with Ring Animation */}
-        <div className="flex justify-center mb-6">
+        {/* Avatar with Animated Rings */}
+        <div className="flex justify-center mb-8">
           <div className="relative">
             {/* Pulsing rings */}
-            {ringAnimation && (
-              <>
-                <div className="absolute inset-0 -m-4 rounded-full border-4 border-blue-400 animate-ping opacity-75"></div>
-                <div className="absolute inset-0 -m-8 rounded-full border-4 border-blue-300 animate-ping opacity-50" style={{ animationDelay: '0.2s' }}></div>
-              </>
-            )}
+            <div className="absolute inset-0 -m-6 rounded-full border-4 border-white/30 animate-ping"></div>
+            <div className="absolute inset-0 -m-10 rounded-full border-4 border-white/20 animate-ping" style={{ animationDelay: '0.3s' }}></div>
+            
+            {/* Glow effect */}
+            <div className="absolute inset-0 -m-8 rounded-full bg-white/20 blur-3xl"></div>
             
             {/* Avatar */}
             <div className="relative">
               <AvatarImage
                 avatar={peerInfo.avatar}
                 nickname={peerInfo.username}
+                avatarUpdatedAt={peerInfo.avatarUpdatedAt}
                 size="2xl"
-                showOnlineStatus={false}
+                showOnlineStatus={true}
+                isOnline={true}
               />
             </div>
           </div>
         </div>
 
         {/* Caller Name */}
-        <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
+        <h2 className="text-4xl font-bold text-white mb-3 drop-shadow-lg">
           {peerInfo.username}
         </h2>
 
         {/* Call Type */}
-        <p className="text-gray-500 text-center mb-8 flex items-center justify-center gap-2">
-          {isVideo ? (
-            <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              <span>Incoming video call...</span>
-            </>
-          ) : (
-            <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-              </svg>
-              <span>Incoming voice call...</span>
-            </>
-          )}
+        <p className="text-white/90 text-xl mb-2">
+          {isVideo ? t('incomingVideoCall') : t('incomingVoiceCall')}
         </p>
 
-        {/* Action Buttons */}
-        <div className="flex gap-4 justify-center">
-          {/* Reject Button */}
+        {/* Phone number (optional) */}
+        {peerInfo.phone && (
+          <p className="text-white/70 text-sm mb-8">
+            {peerInfo.phone}
+          </p>
+        )}
+
+        {/* Main Action Buttons */}
+        <div className="flex justify-center gap-8 mt-12 mb-8">
+          
+          {/* Decline Button */}
           <button
             onClick={handleReject}
-            className="flex flex-col items-center gap-2 group"
-            aria-label="Reject call"
+            className="group flex flex-col items-center gap-3"
+            aria-label={t('decline')}
           >
-            <div className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <div className="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-2xl transition-all hover:scale-110 active:scale-95">
+              <PhoneOff className="w-10 h-10 text-white" />
             </div>
-            <span className="text-sm text-gray-600 font-medium">Decline</span>
+            <span className="text-white font-semibold text-lg">
+              {t('decline')}
+            </span>
           </button>
 
           {/* Accept Button */}
           <button
             onClick={handleAccept}
-            className="flex flex-col items-center gap-2 group"
-            aria-label="Accept call"
+            className="group flex flex-col items-center gap-3"
+            aria-label={t('accept')}
           >
-            <div className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform animate-pulse">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+            <div className="w-20 h-20 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center shadow-2xl transition-all hover:scale-110 active:scale-95 animate-bounce">
+              <Phone className="w-10 h-10 text-white" />
             </div>
-            <span className="text-sm text-gray-600 font-medium">Accept</span>
+            <span className="text-white font-semibold text-lg">
+              {t('accept')}
+            </span>
+          </button>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="flex justify-center gap-8 mt-8">
+          <button className="flex flex-col items-center gap-2 text-white/80 hover:text-white transition-colors group">
+            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:bg-white/30 transition-all">
+              <MessageSquare className="w-6 h-6" />
+            </div>
+            <span className="text-sm font-medium">
+              {t('sendMessage')}
+            </span>
+          </button>
+
+          <button className="flex flex-col items-center gap-2 text-white/80 hover:text-white transition-colors group">
+            <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:bg-white/30 transition-all">
+              <Clock className="w-6 h-6" />
+            </div>
+            <span className="text-sm font-medium">
+              {t('remindLater')}
+            </span>
           </button>
         </div>
       </div>
+
+      {/* Animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

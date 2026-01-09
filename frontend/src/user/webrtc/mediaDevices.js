@@ -3,17 +3,23 @@
 import { CALL_TYPE, MEDIA_CONSTRAINTS, CALL_ERROR } from '../utils/call/callConstants';
 
 /**
- * 🎯 MEDIA DEVICES HANDLER
+ * 🎯 MEDIA DEVICES HANDLER - FIXED VERSION
  * 
  * Responsibilities:
  * - Request camera/microphone permissions
  * - Get user media stream
  * - Handle permission errors
- * - Stop media tracks
+ * - Stop media tracks properly
+ * 
+ * ✅ FIXES:
+ * - Add delay after stopping stream
+ * - Better track cleanup
+ * - Handle "Device in use" error
  */
 class MediaDevicesHandler {
   constructor() {
     this.currentStream = null;
+    this.isStopping = false; // ✅ NEW: Flag để tránh race condition
   }
 
   /**
@@ -23,8 +29,14 @@ class MediaDevicesHandler {
    * @returns {Promise<MediaStream>}
    */
   async getUserMedia(callType) {
+    // ✅ FIX: Đợi nếu đang stop stream
+    if (this.isStopping) {
+      console.log('[Media] Waiting for previous stream to stop...');
+      await this.waitForStreamStop();
+    }
+
     // Stop existing stream trước khi request mới
-    this.stopCurrentStream();
+    await this.stopCurrentStream();
 
     try {
       const constraints = callType === CALL_TYPE.VIDEO
@@ -37,17 +49,48 @@ class MediaDevicesHandler {
       
       this.currentStream = stream;
       
-      console.log(`[Media] Stream obtained:`, {
+      console.log(`[Media] ✅ Stream obtained:`, {
+        id: stream.id,
         audioTracks: stream.getAudioTracks().length,
-        videoTracks: stream.getVideoTracks().length
+        videoTracks: stream.getVideoTracks().length,
+        active: stream.active
+      });
+
+      // Log track details
+      stream.getTracks().forEach(track => {
+        console.log(`[Media] 📹 Track:`, {
+          kind: track.kind,
+          id: track.id,
+          label: track.label,
+          enabled: track.enabled,
+          readyState: track.readyState
+        });
       });
 
       return stream;
 
     } catch (error) {
-      console.error('[Media] getUserMedia error:', error);
+      console.error('[Media] ❌ getUserMedia error:', error.name, error.message);
       
-      // Map error codes
+      // ✅ FIX: Handle "NotReadableError" (Device in use)
+      if (error.name === 'NotReadableError') {
+        console.warn('[Media] Device in use, retrying after delay...');
+        
+        // Đợi thêm 500ms và retry 1 lần
+        await this.delay(500);
+        
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
+          this.currentStream = stream;
+          console.log('[Media] ✅ Retry successful');
+          return stream;
+        } catch (retryError) {
+          console.error('[Media] ❌ Retry failed:', retryError);
+          throw new Error('Device in use');
+        }
+      }
+      
+      // Map other error codes
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
         throw new Error(CALL_ERROR.PERMISSION_DENIED);
       }
@@ -62,18 +105,64 @@ class MediaDevicesHandler {
 
   /**
    * Stop current stream (khi end call)
+   * ✅ FIX: Thêm delay để browser release device
    */
-  stopCurrentStream() {
-    if (this.currentStream) {
-      console.log('[Media] Stopping stream');
+  async stopCurrentStream() {
+    if (!this.currentStream) {
+      return;
+    }
+
+    this.isStopping = true;
+    
+    console.log('[Media] 🛑 Stopping stream:', this.currentStream.id);
+    
+    try {
+      const tracks = this.currentStream.getTracks();
       
-      this.currentStream.getTracks().forEach(track => {
-        track.stop();
-        console.log(`[Media] Stopped ${track.kind} track`);
+      // Stop tất cả tracks
+      tracks.forEach(track => {
+        if (track.readyState === 'live') {
+          track.stop();
+          console.log(`[Media] 🛑 Stopped ${track.kind} track:`, track.id);
+        }
       });
       
+      // Clear reference
       this.currentStream = null;
+      
+      // ✅ CRITICAL: Đợi browser release device
+      await this.delay(200);
+      
+      console.log('[Media] ✅ Stream stopped and device released');
+      
+    } catch (error) {
+      console.error('[Media] Error stopping stream:', error);
+    } finally {
+      this.isStopping = false;
     }
+  }
+
+  /**
+   * ✅ NEW: Đợi cho stream stop xong
+   */
+  async waitForStreamStop(maxWait = 2000) {
+    const startTime = Date.now();
+    
+    while (this.isStopping && (Date.now() - startTime) < maxWait) {
+      await this.delay(50);
+    }
+    
+    if (this.isStopping) {
+      console.warn('[Media] ⚠️ Stream stop timeout');
+      this.isStopping = false;
+    }
+  }
+
+  /**
+   * ✅ NEW: Helper delay function
+   */
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -88,7 +177,7 @@ class MediaDevicesHandler {
       track.enabled = enabled;
     });
 
-    console.log(`[Media] Audio ${enabled ? 'enabled' : 'disabled'}`);
+    console.log(`[Media] 🎤 Audio ${enabled ? 'enabled' : 'disabled'}`);
     return true;
   }
 
@@ -104,7 +193,7 @@ class MediaDevicesHandler {
       track.enabled = enabled;
     });
 
-    console.log(`[Media] Video ${enabled ? 'enabled' : 'disabled'}`);
+    console.log(`[Media] 📹 Video ${enabled ? 'enabled' : 'disabled'}`);
     return true;
   }
 
@@ -125,11 +214,11 @@ class MediaDevicesHandler {
         facingMode: newFacingMode
       });
 
-      console.log(`[Media] Camera switched to ${newFacingMode}`);
+      console.log(`[Media] 🔄 Camera switched to ${newFacingMode}`);
       return true;
 
     } catch (error) {
-      console.error('[Media] Failed to switch camera:', error);
+      console.error('[Media] ❌ Failed to switch camera:', error);
       return false;
     }
   }
@@ -159,6 +248,26 @@ class MediaDevicesHandler {
    */
   getStream() {
     return this.currentStream;
+  }
+
+  /**
+   * ✅ NEW: Force cleanup (emergency)
+   */
+  forceCleanup() {
+    console.log('[Media] 🚨 Force cleanup');
+    
+    if (this.currentStream) {
+      this.currentStream.getTracks().forEach(track => {
+        try {
+          track.stop();
+        } catch (e) {
+          // Ignore errors
+        }
+      });
+      this.currentStream = null;
+    }
+    
+    this.isStopping = false;
   }
 }
 

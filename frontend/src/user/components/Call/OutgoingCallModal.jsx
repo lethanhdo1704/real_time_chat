@@ -1,23 +1,26 @@
 // frontend/src/user/components/call/OutgoingCallModal.jsx
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import AvatarImage from '../common/AvatarImage';
 import useCallStore from '../../store/call/callStore';
 import callSocketService from '../../services/socket/call.socket';
 import { CALL_STATE, CALL_TYPE } from '../../utils/call/callConstants';
+import { Video, Phone, PhoneOff } from 'lucide-react';
 
 /**
- * 🎯 OUTGOING CALL MODAL
- * 
- * Show when: callState === OUTGOING_RINGING
+ * 🎯 OUTGOING CALL MODAL - MODERN DESIGN
  * 
  * Features:
- * - Callee info (avatar, name)
- * - Call type indicator (voice/video)
- * - Ringing animation & sound
+ * - Beautiful gradient background
+ * - Animated dots for "calling..."
+ * - Large avatar with pulsing rings
  * - Cancel button
+ * - Call type indicator
+ * - i18n support
  */
 export default function OutgoingCallModal() {
+  const { t } = useTranslation("call");
   const [dots, setDots] = useState('');
 
   // Call state
@@ -28,6 +31,7 @@ export default function OutgoingCallModal() {
 
   // Show modal only when outgoing ringing
   const isVisible = callState === CALL_STATE.OUTGOING_RINGING;
+  const isVideo = callType === CALL_TYPE.VIDEO;
 
   // ============================================
   // ANIMATED DOTS
@@ -40,7 +44,6 @@ export default function OutgoingCallModal() {
           return prev + '.';
         });
       }, 500);
-
       return () => clearInterval(timer);
     }
   }, [isVisible]);
@@ -50,11 +53,9 @@ export default function OutgoingCallModal() {
   // ============================================
   const handleCancel = () => {
     if (!callId) {
-      // Nếu chưa có callId (chưa nhận call:initiated) → reset local
       useCallStore.getState().resetCall();
       return;
     }
-    
     console.log('[OutgoingCall] Canceling call:', callId);
     callSocketService.endCall(callId);
   };
@@ -64,24 +65,30 @@ export default function OutgoingCallModal() {
   // ============================================
   if (!isVisible || !peerInfo) return null;
 
-  const isVideo = callType === CALL_TYPE.VIDEO;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-blue-900/90 to-purple-900/90 backdrop-blur-sm animate-fadeIn">
-      <div className="text-center px-8 py-12 max-w-sm w-full">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-linear-to-br from-blue-900/95 via-indigo-900/95 to-purple-900/95 backdrop-blur-sm animate-fadeIn">
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/30"></div>
+      
+      <div className="relative z-10 text-center px-8 py-12 max-w-md w-full">
         
-        {/* Avatar with Pulsing Ring */}
+        {/* Avatar with Pulsing Rings */}
         <div className="flex justify-center mb-8">
           <div className="relative">
-            {/* Animated rings */}
+            {/* Animated rings - continuous pulse */}
             <div className="absolute inset-0 -m-6 rounded-full border-4 border-white/30 animate-ping"></div>
             <div className="absolute inset-0 -m-10 rounded-full border-4 border-white/20 animate-ping" style={{ animationDelay: '0.3s' }}></div>
+            <div className="absolute inset-0 -m-14 rounded-full border-4 border-white/10 animate-ping" style={{ animationDelay: '0.6s' }}></div>
+            
+            {/* Glow effect */}
+            <div className="absolute inset-0 -m-8 rounded-full bg-blue-400/30 blur-3xl animate-pulse"></div>
             
             {/* Avatar */}
-            <div className="relative ring-4 ring-white/50 rounded-full">
+            <div className="relative">
               <AvatarImage
                 avatar={peerInfo.avatar}
                 nickname={peerInfo.username}
+                avatarUpdatedAt={peerInfo.avatarUpdatedAt}
                 size="2xl"
                 showOnlineStatus={false}
               />
@@ -90,47 +97,80 @@ export default function OutgoingCallModal() {
         </div>
 
         {/* Callee Name */}
-        <h2 className="text-3xl font-bold text-white mb-3">
+        <h2 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">
           {peerInfo.username}
         </h2>
 
-        {/* Status Text */}
-        <p className="text-white/80 text-lg mb-2 flex items-center justify-center gap-2">
+        {/* Phone number (optional) */}
+        {peerInfo.phone && (
+          <p className="text-white/80 text-lg mb-3">
+            {peerInfo.phone}
+          </p>
+        )}
+
+        {/* Status Text with Icon */}
+        <div className="flex items-center justify-center gap-3 mb-2">
           {isVideo ? (
             <>
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              <span>Video calling{dots}</span>
+              <Video className="w-6 h-6 text-white/90" />
+              <p className="text-white/90 text-xl font-medium">
+                {t('videoCalling')}{dots}
+              </p>
             </>
           ) : (
             <>
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-              </svg>
-              <span>Calling{dots}</span>
+              <Phone className="w-6 h-6 text-white/90" />
+              <p className="text-white/90 text-xl font-medium">
+                {t('calling')}{dots}
+              </p>
             </>
           )}
+        </div>
+
+        <p className="text-white/70 text-base mb-16">
+          {t('waitingForAnswer')}
         </p>
 
-        <p className="text-white/60 text-sm mb-12">
-          Waiting for answer...
-        </p>
+        {/* Waveform Animation */}
+        <div className="flex items-center justify-center gap-1.5 mb-16">
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className="w-1.5 bg-white/70 rounded-full animate-pulse"
+              style={{
+                height: `${Math.random() * 32 + 16}px`,
+                animationDelay: `${i * 0.15}s`,
+                animationDuration: '1.5s'
+              }}
+            />
+          ))}
+        </div>
 
         {/* Cancel Button */}
         <button
           onClick={handleCancel}
           className="flex flex-col items-center gap-3 mx-auto group"
-          aria-label="Cancel call"
+          aria-label={t('cancel')}
         >
-          <div className="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
-            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+          <div className="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-2xl transition-all hover:scale-110 active:scale-95">
+            <PhoneOff className="w-10 h-10 text-white" />
           </div>
-          <span className="text-white font-medium text-lg">Cancel</span>
+          <span className="text-white font-semibold text-lg">
+            {t('cancel')}
+          </span>
         </button>
       </div>
+
+      {/* Animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
