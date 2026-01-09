@@ -1,12 +1,14 @@
-// frontend/src/pages/Home.jsx - FIXED MOBILE PADDING + onLogout for ContextPanel
+// frontend/src/user/pages/Home.jsx - FULL UPDATED WITH CALL INTEGRATION
+
 import { useContext, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import ChatWindow from "../components/Chat/ChatWindow";
+import ChatWindow from "../components/Chat/ChatWindow/ChatWindow";
 import { AuthContext } from "../context/AuthContext";
 import NavigationColumn from "../components/Home/NavigationColumn";
 import ContextPanel from "../components/Home/ContextPanel";
 import BottomNavigation from "../components/Home/BottomNavigation";
+import { CallManager } from "../components/Call";
 import { useFriendRequestCount } from "../hooks/friends/useFriendRequestCount";
 import { useHomeChat } from "../hooks/chat/useHomeChat";
 import { useGlobalSocket } from "../hooks/socket/useGlobalSocket";
@@ -15,6 +17,20 @@ import useChatStore from "../store/chat/chatStore";
 import useFriendStore from "../store/friendStore";
 import useRestoreChatFromUrl from "../hooks/chat/useRestoreChatFromUrl";
 
+/**
+ * 🏠 HOME COMPONENT
+ * 
+ * Main application layout with:
+ * - Desktop: NavigationColumn + ContextPanel + ChatWindow
+ * - Mobile: ContextPanel OR ChatWindow + BottomNavigation
+ * 
+ * ✅ UPDATED: Integrated CallManager for call UI
+ * 
+ * CallManager will render:
+ * - IncomingCallModal (when receiving call)
+ * - OutgoingCallModal (when calling)
+ * - CallScreen (during call)
+ */
 export default function Home() {
   const { t } = useTranslation("home");
   const { user, logout, loading } = useContext(AuthContext);
@@ -226,7 +242,7 @@ export default function Home() {
           onSelectFriend={handleSelectFriend}
           onSelectConversation={handleSelectConversationWithRoute}
           onUpdateRequestCount={setRequestCount}
-          onLogout={handleLogout} // ← ADD THIS for mobile menu
+          onLogout={handleLogout}
         />
       </div>
 
@@ -252,7 +268,7 @@ export default function Home() {
       </div>
 
       {/* ===============================================
-          MOBILE LAYOUT (< 768px) — FIXED: Removed pb-16
+          MOBILE LAYOUT (< 768px)
           =============================================== */}
 
       <div className="md:hidden flex flex-col w-full h-full overflow-hidden">
@@ -266,7 +282,7 @@ export default function Home() {
               onSelectConversation={handleSelectConversationWithRoute}
               onUpdateRequestCount={setRequestCount}
               onBack={handleMobileBack}
-              onLogout={handleLogout} // ← ADD THIS for mobile menu
+              onLogout={handleLogout}
             />
           </div>
         )}
@@ -277,7 +293,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* FIXED: BottomNavigation now handles its own spacing with pb-safe */}
         {!hasActiveConversation && (
           <BottomNavigation
             activeTab={activeTab}
@@ -287,6 +302,13 @@ export default function Home() {
         )}
 
       </div>
+
+      {/* ===============================================
+          🎯 CALL MANAGER - GLOBAL OVERLAY
+          Renders call UI on top of everything
+          =============================================== */}
+      <CallManager />
+
     </div>
   );
 }

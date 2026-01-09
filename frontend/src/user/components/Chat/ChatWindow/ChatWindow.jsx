@@ -10,6 +10,10 @@ import ChatInput from "../ChatInput.jsx";
 import ChatEmptyState from "../ChatEmptyState.jsx";
 import useChatStore from "../../../store/chat/chatStore.js";
 import useFriendStore from "../../../store/friendStore.js";
+import useCallStore from "../../../store/call/callStore.js";
+import callSocketService from "../../../services/socket/call.socket.js";
+import { CALL_TYPE } from "../../../utils/call/callConstants.js";
+import { useSocket } from "../../../context/SocketContext.jsx"; // ✅ Import useSocket
 
 /**
  * ChatWindow Component - Main Container
@@ -18,18 +22,25 @@ import useFriendStore from "../../../store/friendStore.js";
  * ✅ Real-time presence: Get friend's isOnline/lastSeen from friendStore
  * ✅ Auto-merge presence data with displayInfo
  * ✅ Mobile responsive with back navigation
+ * ✅ UPDATED: Call functionality integrated
  * 
  * Responsibilities:
  * - Layout structure & composition
  * - Merge presence data from multiple sources
  * - Pass unified data to child components
  * - Handle navigation & focus management
+ * - Handle call actions
  */
 export default function ChatWindow() {
   const { t } = useTranslation("chat");
   const inputRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // ============================================
+  // SOCKET (for call functionality)
+  // ============================================
+  const { socket } = useSocket(); // ✅ Get socket from context
 
   // ============================================
   // GET CONVERSATION & FRIEND DATA
@@ -39,10 +50,15 @@ export default function ChatWindow() {
 
   // ============================================
   // GET FRIEND PRESENCE FROM STORE (Real-time)
-  // WHY: friendStore is updated by socket events (user_online/user_offline)
   // ============================================
   const getFriend = useFriendStore((state) => state.getFriend);
   const friendPresence = activeFriend?.uid ? getFriend(activeFriend.uid) : null;
+
+  // ============================================
+  // CALL STORE
+  // ============================================
+  const startOutgoingCall = useCallStore((state) => state.startOutgoingCall);
+  const isBusy = useCallStore((state) => state.isBusy);
 
   // ============================================
   // GET CHAT DATA FROM HOOK
@@ -64,16 +80,91 @@ export default function ChatWindow() {
   } = useChatWindowLogic();
 
   // ============================================
-  // 🔥 MERGE PRESENCE DATA - PRIORITY ORDER
+  // 🔥 MERGE PRESENCE DATA
   // ============================================
-  // Priority 1: friendPresence from friendStore (most up-to-date)
-  // Priority 2: activeFriend from chatStore (cached)
-  // Priority 3: displayInfo default (fallback)
   const displayInfoWithPresence = displayInfo ? {
     ...displayInfo,
     isOnline: friendPresence?.isOnline ?? activeFriend?.isOnline ?? displayInfo.isOnline ?? false,
     lastSeen: friendPresence?.lastSeen ?? activeFriend?.lastSeen ?? displayInfo.lastSeen ?? null,
   } : null;
+
+  // ============================================
+  // CALL HANDLERS
+  // ============================================
+  
+  /**
+   * Handle voice call button click
+   */
+  const handleVoiceCall = () => {
+    if (!activeFriend?.uid) {
+      console.error('[ChatWindow] No active friend UID');
+      return;
+    }
+
+    if (!socket || !socket.connected) {
+      console.error('[ChatWindow] Socket not connected');
+      // TODO: Show toast "Connection error"
+      return;
+    }
+
+    if (isBusy()) {
+      console.warn('[ChatWindow] Already in a call');
+      // TODO: Show toast "Already in a call"
+      return;
+    }
+
+    console.log('[ChatWindow] Starting voice call with:', activeFriend.uid);
+
+    // Update store state
+    startOutgoingCall(
+      activeFriend.uid,
+      {
+        username: displayInfoWithPresence.name,
+        avatar: displayInfoWithPresence.avatar,
+      },
+      CALL_TYPE.VOICE
+    );
+
+    // Emit socket event
+    callSocketService.startCall(activeFriend.uid, CALL_TYPE.VOICE);
+  };
+
+  /**
+   * Handle video call button click
+   */
+  const handleVideoCall = () => {
+    if (!activeFriend?.uid) {
+      console.error('[ChatWindow] No active friend UID');
+      return;
+    }
+
+    if (!socket || !socket.connected) {
+      console.error('[ChatWindow] Socket not connected');
+      // TODO: Show toast "Connection error"
+      return;
+    }
+
+    if (isBusy()) {
+      console.warn('[ChatWindow] Already in a call');
+      // TODO: Show toast "Already in a call"
+      return;
+    }
+
+    console.log('[ChatWindow] Starting video call with:', activeFriend.uid);
+
+    // Update store state
+    startOutgoingCall(
+      activeFriend.uid,
+      {
+        username: displayInfoWithPresence.name,
+        avatar: displayInfoWithPresence.avatar,
+      },
+      CALL_TYPE.VIDEO
+    );
+
+    // Emit socket event
+    callSocketService.startCall(activeFriend.uid, CALL_TYPE.VIDEO);
+  };
 
   // ============================================
   // MOBILE BACK HANDLER
@@ -117,6 +208,8 @@ export default function ChatWindow() {
           lastSeen={displayInfoWithPresence.lastSeen}
           showBackButton={true}
           onBackClick={handleBackClick}
+          onCallClick={handleVoiceCall}
+          onVideoClick={handleVideoCall}
         />
 
         <div className="flex-1 flex items-center justify-center px-4">
@@ -139,7 +232,7 @@ export default function ChatWindow() {
   // ============================================
   return (
     <div className="flex flex-col h-full w-full min-h-0 bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50">
-      {/* Header with Real-time Presence */}
+      {/* Header with Real-time Presence & Call Buttons */}
       <ChatWindowHeader
         receiverName={displayInfoWithPresence.name}
         receiverAvatar={displayInfoWithPresence.avatar}
@@ -149,6 +242,8 @@ export default function ChatWindow() {
         lastSeen={displayInfoWithPresence.lastSeen}
         showBackButton={true}
         onBackClick={handleBackClick}
+        onCallClick={handleVoiceCall}
+        onVideoClick={handleVideoCall}
       />
 
       {/* Body: Messages + Typing + Empty States */}

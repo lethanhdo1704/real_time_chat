@@ -1,6 +1,6 @@
-// frontend/src/user/components/Chat/ChatWindowsHeader.jsx
+// frontend/src/user/components/Chat/ChatWindow/ChatWindowHeader.jsx
 import { useTranslation } from "react-i18next";
-import AvatarImage from "../../../components/common/AvatarImage";
+import AvatarImage from "../../common/AvatarImage";
 import { useLastSeenFormat } from "../../../hooks/useLastSeenFormat";
 
 /**
@@ -11,25 +11,43 @@ import { useLastSeenFormat } from "../../../hooks/useLastSeenFormat";
  * ✅ Consistent max-w-3xl with Body & Input
  * ✅ Uses AvatarImage component for consistency
  * ✅ Uses useLastSeenFormat hook for dynamic last seen
- * ✅ Fixed: lastSeen prop name mismatch
- * ✅ Fixed: Info button → Hamburger menu button
+ * ✅ UPDATED: Call button handlers with null check
  */
 export default function ChatHeader({ 
   receiverName, 
   receiverAvatar,
   receiverAvatarUpdatedAt,
-  lastSeen,  // ✅ FIXED: Changed from receiverLastSeen to lastSeen
+  lastSeen,
   isTyping = false,
   typingUserName,
   isOnline = false,
-  onCallClick,
-  onVideoClick,
-  onInfoClick,  // Now used for hamburger menu
-  onBackClick,
+  onCallClick,      // Voice call handler
+  onVideoClick,     // Video call handler
+  onInfoClick,      // Menu handler
+  onBackClick,      // Back button handler
   showBackButton = false,
 }) {
   const { t } = useTranslation("chat");
-  const lastSeenText = useLastSeenFormat(lastSeen, isOnline);  // ✅ FIXED: Use lastSeen
+  const lastSeenText = useLastSeenFormat(lastSeen, isOnline);
+
+  // ============================================
+  // HANDLE CALL CLICKS
+  // ============================================
+  const handleVoiceCallClick = () => {
+    if (onCallClick) {
+      onCallClick();
+    } else {
+      console.warn('[ChatHeader] onCallClick not provided');
+    }
+  };
+
+  const handleVideoCallClick = () => {
+    if (onVideoClick) {
+      onVideoClick();
+    } else {
+      console.warn('[ChatHeader] onVideoClick not provided');
+    }
+  };
 
   return (
     <div className="bg-white border-b border-gray-200 shadow-sm shrink-0">
@@ -65,7 +83,7 @@ export default function ChatHeader({
               </button>
             )}
 
-            {/* Avatar with Online Status using AvatarImage component */}
+            {/* Avatar with Online Status */}
             <div className="shrink-0">
               <AvatarImage
                 avatar={receiverAvatar}
@@ -128,8 +146,9 @@ export default function ChatHeader({
           <div className="flex items-center gap-2 shrink-0">
             {/* Voice Call Button */}
             <button
-              onClick={onCallClick}
-              className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group"
+              onClick={handleVoiceCallClick}
+              disabled={!onCallClick}
+              className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group disabled:opacity-40 disabled:cursor-not-allowed"
               title={t("header.voiceCall") || "Voice call"}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -150,8 +169,9 @@ export default function ChatHeader({
 
             {/* Video Call Button */}
             <button
-              onClick={onVideoClick}
-              className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group"
+              onClick={handleVideoCallClick}
+              disabled={!onVideoClick}
+              className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group disabled:opacity-40 disabled:cursor-not-allowed"
               title={t("header.videoCall") || "Video call"}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -170,7 +190,7 @@ export default function ChatHeader({
               </svg>
             </button>
 
-            {/* Three Dots Menu Button (vertical) */}
+            {/* Three Dots Menu Button */}
             <button
               onClick={onInfoClick}
               className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group"
