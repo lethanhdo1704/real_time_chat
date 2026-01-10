@@ -1,5 +1,8 @@
 // frontend/src/services/messageService.js
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+// 🔥 FIX: Dùng relative path để Vite proxy xử lý
+// KHÔNG dùng localhost:5000 nữa
+const API_BASE_URL = "/api";
 
 const authHeaders = (token) => ({
   Authorization: `Bearer ${token}`,
@@ -18,7 +21,10 @@ export const messageService = {
 
     const res = await fetch(
       `${API_BASE_URL}/messages/${conversationId}?${params}`,
-      { headers: authHeaders(token) }
+      { 
+        headers: authHeaders(token),
+        credentials: 'include', // 🔥 Thêm credentials
+      }
     );
 
     if (!res.ok) {
@@ -38,6 +44,7 @@ export const messageService = {
       method: "POST",
       headers: authHeaders(token),
       body: JSON.stringify({ conversationIds }),
+      credentials: 'include',
     });
 
     if (!res.ok) {
@@ -79,6 +86,7 @@ export const messageService = {
       method: "POST",
       headers: authHeaders(token),
       body: JSON.stringify(body),
+      credentials: 'include',
     });
 
     if (!res.ok) {
@@ -98,6 +106,7 @@ export const messageService = {
       method: "POST",
       headers: authHeaders(token),
       body: JSON.stringify({ conversationId }),
+      credentials: 'include',
     });
 
     if (!res.ok) {
@@ -117,6 +126,7 @@ export const messageService = {
       method: "PUT",
       headers: authHeaders(token),
       body: JSON.stringify({ content }),
+      credentials: 'include',
     });
 
     if (!res.ok) {
@@ -141,6 +151,7 @@ export const messageService = {
     const res = await fetch(`${API_BASE_URL}/messages/${messageId}/hide`, {
       method: "POST",
       headers: authHeaders(token),
+      credentials: 'include',
     });
 
     if (!res.ok) {
@@ -161,6 +172,7 @@ export const messageService = {
     const res = await fetch(`${API_BASE_URL}/messages/${messageId}/delete-for-me`, {
       method: "DELETE",
       headers: authHeaders(token),
+      credentials: 'include',
     });
 
     if (!res.ok) {
@@ -182,6 +194,7 @@ export const messageService = {
     const res = await fetch(`${API_BASE_URL}/messages/${messageId}/recall`, {
       method: "POST",
       headers: authHeaders(token),
+      credentials: 'include',
     });
 
     if (!res.ok) {
@@ -203,6 +216,7 @@ export const messageService = {
     const res = await fetch(`${API_BASE_URL}/messages/${messageId}`, {
       method: "DELETE",
       headers: authHeaders(token),
+      credentials: 'include',
     });
 
     if (!res.ok) {

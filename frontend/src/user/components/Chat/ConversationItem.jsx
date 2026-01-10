@@ -1,13 +1,19 @@
+// frontend/src/user/components/Chat/conversationItem.jsx
 import { formatDistanceToNow } from "date-fns";
 import { vi, enUS } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
+import { useMemo } from "react";
 import AvatarImage from "../common/AvatarImage";
 import { useLastSeenFormat } from "../../hooks/useLastSeenFormat";
+import useChatStore from "../../store/chat/chatStore";
 
 /**
  * ConversationItem Component
  * 
- * WITH AUTO-UPDATING LASTSEEN
+ * ✅ Auto-updating lastSeen
+ * 🔥 FIXED: Proper Zustand subscription for lastMessage auto-update
+ * 
+ * KEY FIX: Use shallow comparison to detect nested changes
  */
 export default function ConversationItem({
   conversation,
@@ -20,6 +26,47 @@ export default function ConversationItem({
   const locale = i18n.language === "vi" ? vi : enUS;
 
   const conversationId = conversation?.conversationId || conversation?._id;
+
+  // ============================================
+  // 🔥 FIXED: SUBSCRIBE WITH EQUALITY FUNCTION
+  // ============================================
+  
+  /**
+   * Subscribe to lastMessage with shallow equality check
+   * This ensures re-render when lastMessage content changes
+   */
+  const storeLastMessage = useChatStore(
+    (state) => {
+      if (!conversationId) return null;
+      const conv = state.conversations.get(conversationId);
+      return conv?.lastMessage || null;
+    },
+    // 🔥 Custom equality function - compare by messageId + content + flags
+    (prev, next) => {
+      if (prev === next) return true;
+      if (!prev || !next) return prev === next;
+      
+      const prevId = prev.messageId || prev._id;
+      const nextId = next.messageId || next._id;
+      
+      // Different messages
+      if (prevId !== nextId) return false;
+      
+      // Same message, check if content/state changed
+      return (
+        prev.content === next.content &&
+        prev.isRecalled === next.isRecalled &&
+        prev.isEdited === next.isEdited &&
+        prev.editedAt === next.editedAt &&
+        prev.recalledAt === next.recalledAt
+      );
+    }
+  );
+
+  // Use store message if available, fallback to prop
+  const lastMessage = storeLastMessage || conversation?.lastMessage;
+  const lastMessageAt = conversation?.lastMessageAt;
+  const unreadCount = conversation?.unreadCount || 0;
 
   // ============================================
   // GET DISPLAY INFO - WITH PRESENCE
@@ -64,10 +111,6 @@ export default function ConversationItem({
   
   // 🔥 AUTO-UPDATE HOOK
   const lastSeenText = useLastSeenFormat(lastSeen, isOnline);
-  
-  const unreadCount = conversation?.unreadCount || 0;
-  const lastMessage = conversation?.lastMessage;
-  const lastMessageAt = conversation?.lastMessageAt;
 
   // ============================================
   // FORMAT MESSAGE PREVIEW
@@ -171,7 +214,7 @@ export default function ConversationItem({
     }
   };
 
-  const messagePreview = getMessagePreview();
+  const messagePreview = useMemo(() => getMessagePreview(), [lastMessage, currentUserId, t]);
 
   // ============================================
   // FORMAT TIMESTAMP
@@ -194,6 +237,18 @@ export default function ConversationItem({
   };
 
   const timestamp = formatTimestamp(lastMessageAt);
+
+  // ============================================
+  // 🔥 DEBUG LOG (Remove in production)
+  // ============================================
+  if (process.env.NODE_ENV === 'development' && conversationId) {
+    console.log(`[ConversationItem ${conversationId.slice(-4)}] Render:`, {
+      hasStoreMessage: !!storeLastMessage,
+      hasPropMessage: !!conversation?.lastMessage,
+      isRecalled: lastMessage?.isRecalled,
+      content: lastMessage?.content?.slice(0, 20),
+    });
+  }
 
   // ============================================
   // RENDER

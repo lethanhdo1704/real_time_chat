@@ -1,7 +1,9 @@
 // frontend/src/store/chat/messageSlice.js
 
 /**
- * Message Slice - WITH READ RECEIPTS + EDIT + 🆕 REACTIONS
+ * Message Slice - WITH READ RECEIPTS + EDIT + REACTIONS + 🔥 LASTMESSAGE SYNC
+ * 
+ * 🔥 CRITICAL FIX: All socket mutations now sync with conversation.lastMessage
  * 
  * Manages all message-related state including:
  * - Messages per conversation (Map)
@@ -11,17 +13,52 @@
  * - Highlighted messages
  * - Read receipts (avatars below messages)
  * - Edit message support
- * - 🆕 REACTIONS (optimistic + socket sync)
- * 
- * Reactions Structure:
- * reactions: [
- *   {
- *     user: { _id, uid, nickname, avatar },
- *     emoji: "❤️",
- *     createdAt: "2024-01-06T..."
- *   }
- * ]
+ * - Reactions (optimistic + socket sync)
+ * - 🔥 NEW: Auto-sync lastMessage when editing/recalling/deleting
  */
+
+// ============================================
+// 🔥 HELPER: SYNC LASTMESSAGE WITH CONVERSATION
+// ============================================
+
+/**
+ * Helper function to update conversation.lastMessage when message changes
+ * Call this after any message mutation that might affect lastMessage
+ */
+const _syncLastMessageWithConversation = (conversationId, messageId, updates, get, set) => {
+  const conversations = new Map(get().conversations);
+  const conversation = conversations.get(conversationId);
+  
+  if (!conversation?.lastMessage) {
+    return; // No lastMessage to sync
+  }
+
+  const lastMessageId = conversation.lastMessage.messageId || conversation.lastMessage._id;
+  
+  // Only sync if the changed message IS the lastMessage
+  if (lastMessageId !== messageId) {
+    return;
+  }
+
+  console.log('🔄 [messageSlice] Syncing lastMessage with conversation:', {
+    conversationId,
+    messageId,
+    updates: Object.keys(updates),
+  });
+
+  // Update conversation's lastMessage
+  conversations.set(conversationId, {
+    ...conversation,
+    lastMessage: {
+      ...conversation.lastMessage,
+      ...updates,
+    },
+  });
+
+  set({ conversations });
+  console.log('✅ [messageSlice] LastMessage synced with conversation');
+};
+
 export const createMessageSlice = (set, get) => ({
   // ============================================
   // STATE
@@ -204,17 +241,18 @@ export const createMessageSlice = (set, get) => ({
     const messagesMap = new Map(get().messages);
     const existing = messagesMap.get(conversationId) || [];
     
+    const updates = {
+      content: newContent,
+      text: newContent,
+      isEdited: true,
+      editedAt: new Date().toISOString(),
+    };
+    
     const updated = existing.map(m => {
       const id = m.messageId || m._id || m.clientMessageId;
       
       if (id === messageId) {
-        return {
-          ...m,
-          content: newContent,
-          text: newContent,
-          isEdited: true,
-          editedAt: new Date().toISOString(),
-        };
+        return { ...m, ...updates };
       }
       
       return m;
@@ -232,17 +270,18 @@ export const createMessageSlice = (set, get) => ({
     const messagesMap = new Map(get().messages);
     const existing = messagesMap.get(conversationId) || [];
     
+    const updates = {
+      content: newContent,
+      text: newContent,
+      isEdited: true,
+      editedAt: editedAt || new Date().toISOString(),
+    };
+    
     const updated = existing.map(m => {
       const id = m.messageId || m._id || m.clientMessageId;
       
       if (id === messageId) {
-        return {
-          ...m,
-          content: newContent,
-          text: newContent,
-          isEdited: true,
-          editedAt: editedAt || new Date().toISOString(),
-        };
+        return { ...m, ...updates };
       }
       
       return m;
@@ -252,6 +291,9 @@ export const createMessageSlice = (set, get) => ({
     set({ messages: messagesMap });
     
     console.log('✅ [messageSlice] Message edited from socket:', messageId);
+    
+    // 🔥 NEW: Sync with conversation.lastMessage
+    _syncLastMessageWithConversation(conversationId, messageId, updates, get, set);
   },
 
   // ============================================
@@ -281,17 +323,18 @@ export const createMessageSlice = (set, get) => ({
     const messagesMap = new Map(get().messages);
     const existing = messagesMap.get(conversationId) || [];
     
+    const updates = {
+      isRecalled: true,
+      recalledAt: recalledAt || new Date().toISOString(),
+      recalledBy,
+      content: "",
+      reactions: [], // Clear reactions on recall
+    };
+    
     const updated = existing.map(m => {
       const id = m.messageId || m._id || m.clientMessageId;
       if (id === messageId) {
-        return {
-          ...m,
-          isRecalled: true,
-          recalledAt: recalledAt || new Date().toISOString(),
-          recalledBy,
-          content: "",
-          reactions: [], // 🔥 Clear reactions on recall
-        };
+        return { ...m, ...updates };
       }
       return m;
     });
@@ -300,6 +343,9 @@ export const createMessageSlice = (set, get) => ({
     set({ messages: messagesMap });
     
     console.log('✅ [messageSlice] Message recalled via socket');
+    
+    // 🔥 NEW: Sync with conversation.lastMessage
+    _syncLastMessageWithConversation(conversationId, messageId, updates, get, set);
   },
 
   deleteMessageFromSocket: (conversationId, messageId) => {
@@ -307,6 +353,12 @@ export const createMessageSlice = (set, get) => ({
     
     const messagesMap = new Map(get().messages);
     const existing = messagesMap.get(conversationId) || [];
+    
+    // Check if deleting lastMessage
+    const conversations = new Map(get().conversations);
+    const conversation = conversations.get(conversationId);
+    const isLastMessage = conversation?.lastMessage 
+      && (conversation.lastMessage.messageId || conversation.lastMessage._id) === messageId;
     
     const filtered = existing.filter(m => {
       const id = m.messageId || m._id || m.clientMessageId;
@@ -317,23 +369,37 @@ export const createMessageSlice = (set, get) => ({
     set({ messages: messagesMap });
     
     console.log('✅ [messageSlice] Message deleted via socket');
+    
+    // 🔥 NEW: If deleted message was lastMessage, find new lastMessage
+    if (isLastMessage && filtered.length > 0) {
+      const newLastMessage = filtered[filtered.length - 1];
+      
+      console.log('🔄 [messageSlice] Updating lastMessage after deletion:', newLastMessage._id);
+      
+      conversations.set(conversationId, {
+        ...conversation,
+        lastMessage: newLastMessage,
+        lastMessageAt: newLastMessage.createdAt,
+      });
+      
+      set({ conversations });
+    } else if (isLastMessage && filtered.length === 0) {
+      console.log('🔄 [messageSlice] No messages left, clearing lastMessage');
+      
+      conversations.set(conversationId, {
+        ...conversation,
+        lastMessage: null,
+        lastMessageAt: null,
+      });
+      
+      set({ conversations });
+    }
   },
 
   // ============================================
-  // 🆕 REACTION ACTIONS - OPTIMISTIC + SOCKET SYNC
+  // REACTION ACTIONS - OPTIMISTIC + SOCKET SYNC
   // ============================================
 
-  /**
-   * 🎭 TOGGLE REACTION (OPTIMISTIC)
-   * Called immediately when user clicks emoji
-   * Updates UI instantly, then waits for socket confirmation
-   * 
-   * @param {string} conversationId - Conversation ID
-   * @param {string} messageId - Message ID
-   * @param {string} emoji - Unicode emoji
-   * @param {string} userId - Current user's _id (MongoDB)
-   * @param {object} userInfo - { uid, nickname, avatar }
-   */
   toggleReactionOptimistic: (conversationId, messageId, emoji, userId, userInfo) => {
     console.log('🎭 [messageSlice] toggleReactionOptimistic:', {
       conversationId,
@@ -350,10 +416,8 @@ export const createMessageSlice = (set, get) => ({
       
       if (id !== messageId) return m;
 
-      // Get current reactions (ensure it's an array)
       const currentReactions = Array.isArray(m.reactions) ? [...m.reactions] : [];
       
-      // Find existing reaction from this user with this emoji
       const existingIndex = currentReactions.findIndex(
         r => r.user?.uid === userId && r.emoji === emoji
       );
@@ -361,11 +425,9 @@ export const createMessageSlice = (set, get) => ({
       let newReactions;
       
       if (existingIndex !== -1) {
-        // Remove reaction (toggle off)
         newReactions = currentReactions.filter((_, idx) => idx !== existingIndex);
         console.log('➖ [messageSlice] Removing reaction (optimistic)');
       } else {
-        // Add reaction (toggle on)
         newReactions = [
           ...currentReactions,
           {
@@ -377,7 +439,7 @@ export const createMessageSlice = (set, get) => ({
             },
             emoji,
             createdAt: new Date().toISOString(),
-            _optimistic: true, // 🔥 Mark as optimistic
+            _optimistic: true,
           }
         ];
         console.log('➕ [messageSlice] Adding reaction (optimistic)');
@@ -395,15 +457,6 @@ export const createMessageSlice = (set, get) => ({
     console.log('✅ [messageSlice] Optimistic reaction update applied');
   },
 
-  /**
-   * 🎭 SET REACTIONS (FINAL STATE FROM SOCKET)
-   * Overwrites optimistic state with server truth
-   * Called when receiving 'message:reaction:update' from backend
-   * 
-   * @param {string} conversationId - Conversation ID
-   * @param {string} messageId - Message ID
-   * @param {Array} reactions - Final reactions array from backend
-   */
   setReactionsFinal: (conversationId, messageId, reactions) => {
     console.log('📡 [messageSlice] setReactionsFinal:', {
       conversationId,
@@ -420,7 +473,7 @@ export const createMessageSlice = (set, get) => ({
       if (id === messageId) {
         return {
           ...m,
-          reactions: reactions, // 🔥 Overwrite with server truth
+          reactions: reactions,
         };
       }
       
