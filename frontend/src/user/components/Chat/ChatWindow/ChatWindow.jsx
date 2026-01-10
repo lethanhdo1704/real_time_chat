@@ -272,8 +272,8 @@ export default function ChatWindow() {
         sending={sending}
         placeholder={
           displayInfoWithPresence.isNewConversation
-            ? t("input.startConversation") || "Bắt đầu cuộc trò chuyện..."
-            : t("input.placeholder") || "Nhập tin nhắn..."
+            ? t("input.startConversation")
+            : t("input.placeholder")
         }
       />
     </div>

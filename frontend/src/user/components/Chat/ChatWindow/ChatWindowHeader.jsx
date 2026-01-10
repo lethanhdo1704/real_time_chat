@@ -3,16 +3,6 @@ import { useTranslation } from "react-i18next";
 import AvatarImage from "../../common/AvatarImage";
 import { useLastSeenFormat } from "../../../hooks/useLastSeenFormat";
 
-/**
- * ChatHeader Component
- * 
- * ✅ Mobile: Back button on the left (Telegram-style)
- * ✅ Desktop: No back button
- * ✅ Consistent max-w-3xl with Body & Input
- * ✅ Uses AvatarImage component for consistency
- * ✅ Uses useLastSeenFormat hook for dynamic last seen
- * ✅ UPDATED: Call button handlers with null check
- */
 export default function ChatHeader({ 
   receiverName, 
   receiverAvatar,
@@ -121,8 +111,8 @@ export default function ChatHeader({
                   </span>
                   <span>
                     {typingUserName 
-                      ? `${typingUserName} ${t("header.isTyping") || "is typing"}`
-                      : t("header.typing") || "typing..."
+                      ? `${typingUserName} ${t("header.isTyping")}`
+                      : t("header.typing")
                     }
                   </span>
                 </div>
@@ -132,10 +122,10 @@ export default function ChatHeader({
                   {isOnline ? (
                     <>
                       <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                      {t("presence.online") || "Online"}
+                      {t("presence.online")}
                     </>
                   ) : (
-                    lastSeenText || t("header.offline") || "Offline"
+                    lastSeenText || t("header.offline")
                   )}
                 </p>
               )}
@@ -149,7 +139,7 @@ export default function ChatHeader({
               onClick={handleVoiceCallClick}
               disabled={!onCallClick}
               className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              title={t("header.voiceCall") || "Voice call"}
+              title={t("header.voiceCall")}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <svg
@@ -172,7 +162,7 @@ export default function ChatHeader({
               onClick={handleVideoCallClick}
               disabled={!onVideoClick}
               className="p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors group disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              title={t("header.videoCall") || "Video call"}
+              title={t("header.videoCall")}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <svg

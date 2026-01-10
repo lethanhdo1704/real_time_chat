@@ -63,13 +63,14 @@
   "messagePreview": {
     "you": "You",
     "friend": "Friend",
-    "photo": "📷 Sent a photo",
-    "file": "📎 Sent a file",
-    "video": "🎥 Sent a video",
-    "audio": "🎵 Sent a voice message",
-    "startConversation": "👋 Start a conversation",
+    "photo": "Sent a photo",
+    "file": "Sent a file",
+    "video": "Sent a video",
+    "audio": "Sent a voice message",
+    "startConversation": "Start a conversation",
     "recalled": "recalled a message",
-    "youRecalled": "You recalled a message"
+    "youRecalled": "You recalled a message",
+    "edited": "Edited"
   },
 
   "common": {
