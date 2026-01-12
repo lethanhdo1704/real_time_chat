@@ -4,17 +4,15 @@ import { useState, useEffect, useRef, useContext } from "react";
 import { Check, X } from "lucide-react";
 import { renderMessage } from "../../../utils/renderMessage";
 import MessageReactions from "./MessageReactions";
-import MediaAttachment from "./MediaAttachment";
+import AttachmentsGrid from "./AttachmentsGrid"; // 🔥 NEW IMPORT
 import { AuthContext } from "../../../context/AuthContext";
 
 /**
- * MessageBubble Component - WITH ATTACHMENTS SUPPORT
+ * MessageBubble Component - WITH ATTACHMENTS OUTSIDE BUBBLE
  * 
- * Features:
- * - Shows replied message at top of bubble
- * - Inline edit mode (textarea + Save/Cancel)
- * - 🆕 ATTACHMENTS display (images, videos, audio, files)
- * - REACTIONS display below content
+ * ✅ Attachments render FIRST, outside the bubble (Telegram/Messenger style)
+ * ✅ Text bubble only shows if there's text content
+ * ✅ File-only messages have no colored bubble
  */
 export default function MessageBubble({
   messageText,
@@ -110,145 +108,153 @@ export default function MessageBubble({
     return text.substring(0, maxLength) + "...";
   };
 
-  const reactions = message?.reactions || [];
-  const hasReactions = reactions.length > 0;
-
   return (
-    <div className="inline-flex flex-col">
-      {/* Message Bubble */}
-      <div 
-        className={`
-          rounded-2xl ${getBubbleCorner()} 
-          transition-all duration-200 ${getBubbleColor()} 
-          ${replyTo || hasAttachments ? 'px-2.5 py-2 sm:px-3 sm:py-2' : 'px-3 py-2 sm:px-4 sm:py-2.5'}
-        `}
-      >
-        {/* Replied Message Section */}
-        {replyTo && !isEditing && (
-          <div
-            onClick={() => onReplyClick && onReplyClick(replyTo.messageId)}
-            className={`
-              mb-2 rounded-lg px-2.5 py-2 cursor-pointer
-              border-l-3 transition-all duration-200
-              ${isMe 
-                ? 'bg-blue-600/20 border-blue-300 hover:bg-blue-600/30' 
-                : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-              }
-            `}
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <svg
-                className={`h-3 w-3 shrink-0 ${isMe ? 'text-blue-200' : 'text-gray-500'}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                strokeWidth={2.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-                />
-              </svg>
-              <span className={`text-xs font-medium ${isMe ? 'text-blue-100' : 'text-gray-700'}`}>
-                {replyTo.sender?.nickname || "Unknown"}
-              </span>
-            </div>
-            <p className={`text-xs ${isMe ? 'text-blue-50' : 'text-gray-600'} line-clamp-2`}>
-              {truncateReply(replyTo.content)}
-            </p>
-          </div>
-        )}
-
-        {/* Main Message Content */}
-        {isEditing ? (
-          /* EDIT MODE */
-          <div className="flex flex-col gap-2">
-            <textarea
-              ref={textareaRef}
-              value={draftContent}
-              onChange={(e) => setDraftContent(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={editLoading}
-              placeholder="Nhập tin nhắn..."
-              className="w-full min-h-15 max-h-75 px-0 py-0 text-[14px] sm:text-[15px] leading-[1.4] bg-transparent border-none outline-none resize-none text-gray-900 disabled:opacity-50"
-              style={{ 
-                fontFamily: "inherit",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word"
-              }}
-            />
-            
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-300">
-              <span className="text-xs text-gray-500">
-                {t("message.editHint") || "Enter để lưu • Esc để hủy"}
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={onCancelEdit}
-                  disabled={editLoading}
-                  className="p-1.5 rounded-full hover:bg-gray-200 text-gray-600 disabled:opacity-50 transition-colors"
-                  title={t("actions.cancel") || "Hủy (Esc)"}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={editLoading || !draftContent.trim() || draftContent.trim() === messageText.trim()}
-                  className="p-1.5 rounded-full bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                  title={t("actions.save") || "Lưu (Enter)"}
-                >
-                  {editLoading ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Check className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* NORMAL MODE */
-          <>
-            {/* Text Content */}
-            {hasText && (
-              <div className={isBig ? "text-4xl leading-none" : "text-[14px] sm:text-[15px] leading-[1.4] whitespace-pre-wrap wrap-break-word"}>
-                {renderMessage(messageText)}
-              </div>
-            )}
-
-            {/* 🔥 ATTACHMENTS */}
-            {hasAttachments && (
-              <div className="space-y-2">
-                {attachments.map((attachment, index) => (
-                  <MediaAttachment
-                    key={index}
-                    attachment={attachment}
-                    isMe={isMe}
-                  />
-                ))}
-              </div>
-            )}
-            
-            {/* EDITED INDICATOR */}
-            {editedAt && (
-              <span className={`text-[10px] mt-1 italic ${isMe ? "text-blue-100" : "text-gray-400"}`}>
-                {t("message.edited") || "edited"}
-              </span>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* REACTIONS DISPLAY */}
-      {!isEditing && hasReactions && (
-        <MessageReactions
-          reactions={reactions}
-          currentUserId={user?.uid}
-          onReactionClick={onReactionClick}
-          isMe={isMe}
-        />
+    <div className="inline-flex flex-col gap-1.5 max-w-full">
+      {/* 🎯 TELEGRAM-STYLE: File without bubble, text with bubble */}
+      
+      {/* Case 1: File-only message (NO BUBBLE) */}
+      {hasAttachments && !hasText && !isEditing && (
+        <div className="w-full">
+          <AttachmentsGrid 
+            attachments={attachments}
+            isMe={isMe}
+          />
+        </div>
       )}
+
+      {/* Case 2: Text message (WITH BUBBLE) */}
+      {(hasText || isEditing) && (
+        <div 
+          className={`
+            rounded-2xl ${getBubbleCorner()} 
+            transition-all duration-200 ${getBubbleColor()} 
+            overflow-hidden
+            ${replyTo ? 'px-2.5 py-2 sm:px-3 sm:py-2' : hasAttachments ? 'p-0' : 'px-3 py-2 sm:px-4 sm:py-2.5'}
+          `}
+        >
+          {/* File INSIDE bubble (when has text) */}
+          {hasAttachments && hasText && !isEditing && (
+            <div className="mb-0">
+              <AttachmentsGrid 
+                attachments={attachments}
+                isMe={isMe}
+              />
+            </div>
+          )}
+
+          {/* Divider between file and text */}
+          {hasAttachments && hasText && !isEditing && (
+            <div className={`h-px ${isMe ? 'bg-blue-400/30' : 'bg-gray-200'} my-0`} />
+          )}
+
+          {/* Text content wrapper */}
+          <div className={hasAttachments && hasText ? 'px-3 py-2 sm:px-4 sm:py-2.5' : ''}>
+            {/* Replied Message Section */}
+            {replyTo && !isEditing && (
+              <div
+                onClick={() => onReplyClick && onReplyClick(replyTo.messageId)}
+                className={`
+                  mb-2 rounded-lg px-2.5 py-2 cursor-pointer
+                  border-l-3 transition-all duration-200
+                  ${isMe 
+                    ? 'bg-blue-600/20 border-blue-300 hover:bg-blue-600/30' 
+                    : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                  }
+                `}
+              >
+                <div className="flex items-center gap-1.5 mb-1">
+                  <svg
+                    className={`h-3 w-3 shrink-0 ${isMe ? 'text-blue-200' : 'text-gray-500'}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                    />
+                  </svg>
+                  <span className={`text-xs font-medium ${isMe ? 'text-blue-100' : 'text-gray-700'}`}>
+                    {replyTo.sender?.nickname || "Unknown"}
+                  </span>
+                </div>
+                <p className={`text-xs ${isMe ? 'text-blue-50' : 'text-gray-600'} line-clamp-2`}>
+                  {truncateReply(replyTo.content)}
+                </p>
+              </div>
+            )}
+
+            {/* Main Text Content */}
+            {isEditing ? (
+              /* EDIT MODE */
+              <div className="flex flex-col gap-2">
+                <textarea
+                  ref={textareaRef}
+                  value={draftContent}
+                  onChange={(e) => setDraftContent(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={editLoading}
+                  placeholder="Nhập tin nhắn..."
+                  className="w-full min-h-15 max-h-75 px-0 py-0 text-[14px] sm:text-[15px] leading-[1.4] bg-transparent border-none outline-none resize-none text-gray-900 disabled:opacity-50"
+                  style={{ 
+                    fontFamily: "inherit",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word"
+                  }}
+                />
+                
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-300">
+                  <span className="text-xs text-gray-500">
+                    {t("message.editHint") || "Enter để lưu • Esc để hủy"}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={onCancelEdit}
+                      disabled={editLoading}
+                      className="p-1.5 rounded-full hover:bg-gray-200 text-gray-600 disabled:opacity-50 transition-colors"
+                      title={t("actions.cancel") || "Hủy (Esc)"}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      disabled={editLoading || !draftContent.trim() || draftContent.trim() === messageText.trim()}
+                      className="p-1.5 rounded-full bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                      title={t("actions.save") || "Lưu (Enter)"}
+                    >
+                      {editLoading ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* NORMAL MODE - TEXT ONLY */
+              <>
+                {hasText && (
+                  <div className={isBig ? "text-4xl leading-none" : "text-[14px] sm:text-[15px] leading-[1.4] whitespace-pre-wrap wrap-break-word"}>
+                    {renderMessage(messageText)}
+                  </div>
+                )}
+                
+                {/* EDITED INDICATOR */}
+                {editedAt && (
+                  <span className={`text-[10px] mt-1 italic ${isMe ? "text-blue-100" : "text-gray-400"}`}>
+                    {t("message.edited") || "edited"}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 🚫 REACTIONS REMOVED - MessageItem will handle it */}
     </div>
   );
 }

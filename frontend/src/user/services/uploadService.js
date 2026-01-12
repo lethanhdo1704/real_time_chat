@@ -230,6 +230,9 @@ export const uploadService = {
 
   /**
    * Validate file before upload
+   * 
+   * 🔥 UPDATED: Only validate size, not MIME type
+   * Backend will handle MIME type validation with allowUnknownTypes
    */
   validateFile(file, limits) {
     if (!file || !file.size) {
@@ -241,15 +244,16 @@ export const uploadService = {
       throw new Error(`File exceeds maximum size of ${maxSizeGB}GB`);
     }
 
-    if (limits?.supportedTypes && !limits.supportedTypes.includes(file.type)) {
-      throw new Error(`File type ${file.type} is not supported`);
-    }
+    // 🔥 REMOVED: MIME type validation
+    // Backend handles all MIME types with allowUnknownTypes flag
 
     return true;
   },
 
   /**
    * Validate batch of files
+   * 
+   * 🔥 UPDATED: Only validate size and count, not MIME types
    */
   validateBatch(files, limits) {
     if (!files || files.length === 0) {
@@ -260,7 +264,7 @@ export const uploadService = {
       throw new Error(`Maximum ${limits.maxFilesPerBatch} files per batch`);
     }
 
-    // Validate each file
+    // Validate each file (size only)
     files.forEach((file, index) => {
       try {
         this.validateFile(file, limits);

@@ -40,6 +40,11 @@ class FileUploadService {
       'image/gif': 'image',
       'image/webp': 'image',
       'image/svg+xml': 'image',
+      'image/bmp': 'image',
+      'image/tiff': 'image',
+      'image/x-icon': 'image',
+      'image/heic': 'image',
+      'image/heif': 'image',
       
       // Videos
       'video/mp4': 'video',
@@ -47,6 +52,11 @@ class FileUploadService {
       'video/ogg': 'video',
       'video/quicktime': 'video',
       'video/x-msvideo': 'video',
+      'video/x-matroska': 'video',
+      'video/mpeg': 'video',
+      'video/3gpp': 'video',
+      'video/x-flv': 'video',
+      'video/x-ms-wmv': 'video',
       
       // Audio
       'audio/mpeg': 'audio',
@@ -56,19 +66,69 @@ class FileUploadService {
       'audio/webm': 'audio',
       'audio/aac': 'audio',
       'audio/m4a': 'audio',
+      'audio/x-m4a': 'audio',
+      'audio/flac': 'audio',
+      'audio/x-flac': 'audio',
+      'audio/wma': 'audio',
       
-      // Documents
+      // Documents - PDF
       'application/pdf': 'file',
+      
+      // Documents - Microsoft Office (Legacy)
       'application/msword': 'file',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'file',
       'application/vnd.ms-excel': 'file',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'file',
+      'application/vnd.ms-powerpoint': 'file',
+      
+      // Documents - Microsoft Office (OpenXML)
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'file', // .docx
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'file', // .xlsx
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'file', // .pptx
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.template': 'file', // .dotx
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.template': 'file', // .xltx
+      'application/vnd.openxmlformats-officedocument.presentationml.template': 'file', // .potx
+      
+      // Documents - OpenOffice/LibreOffice
+      'application/vnd.oasis.opendocument.text': 'file', // .odt
+      'application/vnd.oasis.opendocument.spreadsheet': 'file', // .ods
+      'application/vnd.oasis.opendocument.presentation': 'file', // .odp
+      
+      // Documents - Text
       'text/plain': 'file',
+      'text/csv': 'file',
+      'text/html': 'file',
+      'text/xml': 'file',
+      'application/xml': 'file',
+      'application/json': 'file',
+      'text/markdown': 'file',
+      'text/rtf': 'file',
+      'application/rtf': 'file',
+      
+      // Archives
       'application/zip': 'file',
       'application/x-zip-compressed': 'file',
       'application/x-rar-compressed': 'file',
+      'application/x-rar': 'file',
       'application/x-7z-compressed': 'file',
+      'application/x-tar': 'file',
+      'application/gzip': 'file',
+      'application/x-gzip': 'file',
+      'application/x-bzip2': 'file',
+      
+      // Programming/Development
+      'text/javascript': 'file',
+      'application/javascript': 'file',
+      'text/css': 'file',
+      'application/x-python': 'file',
+      'text/x-python': 'file',
+      'application/java-archive': 'file', // .jar
+      
+      // Other
+      'application/octet-stream': 'file', // Generic binary
     };
+
+    // 🔥 FALLBACK: Allow ANY file type not in the map
+    // This makes the service support ALL file types
+    this.allowUnknownTypes = true;
 
     // Size limits
     this.limits = {
@@ -86,18 +146,32 @@ class FileUploadService {
   }
 
   /**
-   * 🔥 CLASSIFY FILE TYPE
+   * 🔥 CLASSIFY FILE TYPE - WITH FALLBACK
    * 
    * @param {string} mimeType - MIME type from FE
    * @returns {string} 'image' | 'video' | 'audio' | 'file'
    */
   classifyFileType(mimeType) {
     const normalized = mimeType.toLowerCase();
-    return this.mimeTypeMap[normalized] || 'file';
+    
+    // Check exact match
+    if (this.mimeTypeMap[normalized]) {
+      return this.mimeTypeMap[normalized];
+    }
+    
+    // 🔥 FALLBACK: Classify by MIME type prefix
+    if (this.allowUnknownTypes) {
+      if (normalized.startsWith('image/')) return 'image';
+      if (normalized.startsWith('video/')) return 'video';
+      if (normalized.startsWith('audio/')) return 'audio';
+    }
+    
+    // Default to 'file'
+    return 'file';
   }
 
   /**
-   * 🔥 VALIDATE SINGLE FILE
+   * 🔥 VALIDATE SINGLE FILE - WITH FLEXIBLE MIME CHECK
    * 
    * @param {object} file
    * @param {string} file.name - Original filename
@@ -122,9 +196,18 @@ class FileUploadService {
       );
     }
 
-    // Check MIME type
-    if (!this.mimeTypeMap[file.mime.toLowerCase()]) {
-      throw new Error(`File type "${file.mime}" is not supported`);
+    // 🔥 FLEXIBLE MIME TYPE CHECK
+    // If allowUnknownTypes is true, we accept any MIME type
+    if (!this.allowUnknownTypes) {
+      const normalized = file.mime.toLowerCase();
+      const isKnownType = this.mimeTypeMap[normalized] || 
+                          normalized.startsWith('image/') ||
+                          normalized.startsWith('video/') ||
+                          normalized.startsWith('audio/');
+      
+      if (!isKnownType) {
+        throw new Error(`File type "${file.mime}" is not supported`);
+      }
     }
 
     return true;
@@ -367,7 +450,8 @@ class FileUploadService {
       maxBatchSize: this.limits.maxBatchSize,
       maxBatchSizeGB: this.limits.maxBatchSize / 1024 / 1024 / 1024,
       maxFilesPerBatch: this.limits.maxFilesPerBatch,
-      supportedTypes: Object.keys(this.mimeTypeMap),
+      supportedTypes: this.allowUnknownTypes ? ['*'] : Object.keys(this.mimeTypeMap),
+      allowUnknownTypes: this.allowUnknownTypes,
     };
   }
 }

@@ -48,8 +48,8 @@ export default function MessageItem({
   );
 
   // Subscribe to readReceipts for THIS conversation
-  const conversationReceipts = useChatStore(
-    (state) => state.readReceipts?.get(conversationId)
+  const conversationReceipts = useChatStore((state) =>
+    state.readReceipts?.get(conversationId)
   );
 
   // ============================================
@@ -70,11 +70,11 @@ export default function MessageItem({
     if (!isMe) return false;
     if (isRecalled) return false;
     if (isFailed) return false;
-    
+
     // Check 15-minute time limit
     const messageAge = Date.now() - new Date(message.createdAt).getTime();
     const FIFTEEN_MINUTES = 15 * 60 * 1000;
-    
+
     return messageAge < FIFTEEN_MINUTES;
   };
 
@@ -83,10 +83,10 @@ export default function MessageItem({
   // ============================================
   const readUsers = conversationReceipts
     ? (conversationReceipts.get(messageId) || []).filter(
-        u => u.userUid !== message.sender?.uid
+        (u) => u.userUid !== message.sender?.uid
       )
     : [];
-  
+
   const showReadReceipts = isMe && readUsers.length > 0;
 
   // ============================================
@@ -113,7 +113,7 @@ export default function MessageItem({
         color: "text-red-500",
       };
     }
-    
+
     if (isPending) {
       return {
         text: t("message.sending") || "Sending...",
@@ -176,7 +176,7 @@ export default function MessageItem({
       console.warn("⚠️ Cannot edit this message");
       return;
     }
-    
+
     setEditError(null);
     setIsEditing(true);
   };
@@ -198,33 +198,43 @@ export default function MessageItem({
 
     try {
       console.log("📝 Calling API to edit message:", messageId);
-      
-      const response = await messageService.editMessage(messageId, newContent, token);
-      
+
+      const response = await messageService.editMessage(
+        messageId,
+        newContent,
+        token
+      );
+
       console.log("✅ API Response:", response);
 
       // Update in store
       editMessageLocal(conversationId, messageId, newContent);
-      
+
       setIsEditing(false);
       console.log("✅ Message edited successfully");
     } catch (error) {
       console.error("❌ Edit message error:", error);
-      
+
       let errorMessage = error.message || "Không thể chỉnh sửa tin nhắn";
-      
+
       if (error.message.includes("NOT_SENDER")) {
-        errorMessage = t("errors.notSender") || "Bạn không phải người gửi tin nhắn này";
+        errorMessage =
+          t("errors.notSender") || "Bạn không phải người gửi tin nhắn này";
       } else if (error.message.includes("EDIT_TIME_EXPIRED")) {
-        errorMessage = t("errors.editTimeExpired") || "Đã quá 15 phút, không thể chỉnh sửa";
+        errorMessage =
+          t("errors.editTimeExpired") || "Đã quá 15 phút, không thể chỉnh sửa";
       } else if (error.message.includes("MESSAGE_RECALLED")) {
-        errorMessage = t("errors.messageRecalled") || "Không thể chỉnh sửa tin nhắn đã thu hồi";
+        errorMessage =
+          t("errors.messageRecalled") ||
+          "Không thể chỉnh sửa tin nhắn đã thu hồi";
       } else if (error.message.includes("MESSAGE_DELETED")) {
-        errorMessage = t("errors.messageDeleted") || "Không thể chỉnh sửa tin nhắn đã xóa";
+        errorMessage =
+          t("errors.messageDeleted") || "Không thể chỉnh sửa tin nhắn đã xóa";
       } else if (error.message.includes("CONTENT_TOO_LONG")) {
-        errorMessage = t("errors.contentTooLong") || "Nội dung quá dài (tối đa 5000 ký tự)";
+        errorMessage =
+          t("errors.contentTooLong") || "Nội dung quá dài (tối đa 5000 ký tự)";
       }
-      
+
       setEditError(errorMessage);
     } finally {
       setEditLoading(false);
@@ -309,15 +319,21 @@ export default function MessageItem({
     return (
       <div
         id={`message-${messageId}`}
-        className={`flex w-full ${isMe ? "justify-end" : "justify-start"} group relative`}
+        className={`flex w-full ${
+          isMe ? "justify-end" : "justify-start"
+        } group relative`}
       >
         <div
-          className={`flex w-full flex-col ${isMe ? "items-end" : "items-start"} max-w-[85%] sm:max-w-[75%]`}
+          className={`flex w-full flex-col ${
+            isMe ? "items-end" : "items-start"
+          } max-w-[85%] sm:max-w-[75%]`}
         >
           {senderInfo && <MessageSenderInfo {...senderInfo} />}
 
           <div
-            className={`inline-flex items-center gap-2 rounded-2xl ${isMe ? "rounded-br-md" : "rounded-bl-md"} px-4 py-2.5 bg-gray-100 text-gray-500 border border-gray-200`}
+            className={`inline-flex items-center gap-2 rounded-2xl ${
+              isMe ? "rounded-br-md" : "rounded-bl-md"
+            } px-4 py-2.5 bg-gray-100 text-gray-500 border border-gray-200`}
           >
             <svg
               className="w-4 h-4 shrink-0"
@@ -340,7 +356,9 @@ export default function MessageItem({
           </div>
 
           <div
-            className={`text-xs text-gray-400 mt-1 px-1 ${isMe ? "text-right" : "text-left"}`}
+            className={`text-xs text-gray-400 mt-1 px-1 ${
+              isMe ? "text-right" : "text-left"
+            }`}
           >
             {formatTime(message.recalledAt || message.createdAt)}
           </div>
@@ -355,10 +373,16 @@ export default function MessageItem({
   return (
     <div
       id={`message-${messageId}`}
-      className={`flex w-full ${isMe ? "justify-end" : "justify-start"} group relative transition-all duration-300 ${isHighlighted ? "animate-highlight" : ""}`}
+      className={`flex w-full ${
+        isMe ? "justify-end" : "justify-start"
+      } group relative transition-all duration-300 ${
+        isHighlighted ? "animate-highlight" : ""
+      }`}
     >
       <div
-        className={`flex w-full flex-col ${isMe ? "items-end" : "items-start"} max-w-[85%] sm:max-w-[75%]`}
+        className={`flex w-full flex-col ${
+          isMe ? "items-end" : "items-start"
+        } max-w-[85%] sm:max-w-[75%]`}
       >
         {/* Sender Info */}
         {senderInfo && <MessageSenderInfo {...senderInfo} />}
@@ -366,7 +390,9 @@ export default function MessageItem({
         {/* Message Bubble with Actions - Wrapped together */}
         <div className="flex flex-col">
           <div
-            className={`flex items-end gap-1.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}
+            className={`flex items-end gap-1.5 ${
+              isMe ? "flex-row-reverse" : "flex-row"
+            }`}
           >
             <MessageBubble
               messageText={messageText}
@@ -384,6 +410,9 @@ export default function MessageItem({
               onSaveEdit={handleSaveEdit}
               onCancelEdit={handleCancelEdit}
               editLoading={editLoading}
+              message={message}
+              conversationId={conversationId}
+              onReactionClick={handleReactionClick}
             />
 
             {/* Hide actions when editing */}
@@ -404,7 +433,7 @@ export default function MessageItem({
 
           {/* 🆕 REACTIONS DISPLAY (Outside bubble but aligned) */}
           {!isEditing && hasReactions && (
-            <div className={`${isMe ? 'self-end' : 'self-start'}`}>
+            <div className={`${isMe ? "self-end" : "self-start"}`}>
               <MessageReactions
                 reactions={reactions}
                 currentUserId={user?.uid}
@@ -417,9 +446,7 @@ export default function MessageItem({
 
         {/* Error Message */}
         {editError && (
-          <div className="mt-2 text-xs text-red-500 px-1">
-            {editError}
-          </div>
+          <div className="mt-2 text-xs text-red-500 px-1">{editError}</div>
         )}
 
         {/* Status + Read Receipts */}

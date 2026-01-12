@@ -146,15 +146,33 @@ export default function useChatWindowLogic() {
   });
 
   // ============================================
-  // HANDLERS
+  // 🔥 FIXED: HANDLERS - SUPPORT ATTACHMENTS
   // ============================================
-  const handleSendMessage = async (text, replyToId = null) => {
-    if (!text.trim()) return;
+  
+  /**
+   * 🔥 FIXED: handleSendMessage now accepts attachments parameter
+   * 
+   * Called from:
+   * - ChatInput → useChatInput.sendMessage() → onSendMessage()
+   * 
+   * @param {string} text - Message text content
+   * @param {string|null} replyToId - Reply message ID
+   * @param {Array} attachments - File attachments from upload (default: [])
+   */
+  const handleSendMessage = async (text, replyToId = null, attachments = []) => {
+    // 🔥 FIX: Allow empty text if has attachments
+    if (!text.trim() && (!attachments || attachments.length === 0)) {
+      console.warn('⚠️ [useChatWindowLogic] No content to send');
+      return;
+    }
 
     console.log("📤 [useChatWindowLogic] Sending message:", {
       conversationId: activeConversationId,
+      recipientId: activeFriend?.uid,
       hasReply: !!replyToId,
       replyToId,
+      hasAttachments: attachments?.length > 0,
+      attachmentsCount: attachments?.length || 0,
     });
 
     try {
@@ -172,15 +190,20 @@ export default function useChatWindowLogic() {
           content: text.trim(),
           type: "text",
           replyTo: replyToData,
+          attachments: attachments || [], // 🔥 FIXED: Pass attachments to useSendMessage
         }
       );
 
       if (result) {
-        console.log("✅ Message sent successfully");
+        console.log("✅ [useChatWindowLogic] Message sent successfully:", {
+          messageId: result.message?.messageId,
+          hasAttachments: result.message?.attachments?.length > 0,
+        });
         scrollToBottom("smooth");
       }
     } catch (error) {
-      console.error("❌ Failed to send message:", error);
+      console.error("❌ [useChatWindowLogic] Failed to send message:", error);
+      throw error; // Re-throw for error handling in ChatInput
     }
   };
 
@@ -196,16 +219,24 @@ export default function useChatWindowLogic() {
 
   const handleRetryMessage = async (failedMessage) => {
     try {
+      console.log("🔄 [useChatWindowLogic] Retrying message:", {
+        clientMessageId: failedMessage.clientMessageId,
+        hasAttachments: failedMessage.attachments?.length > 0,
+      });
+
       await retryMessage(failedMessage.clientMessageId, {
         conversationId: activeConversationId,
         recipientId: activeFriend?.uid,
         content: failedMessage.content,
         type: failedMessage.type,
         replyTo: failedMessage.replyTo,
-        attachments: failedMessage.attachments,
+        attachments: failedMessage.attachments || [], // 🔥 FIXED: Include attachments in retry
       });
+
+      console.log("✅ [useChatWindowLogic] Message retried successfully");
     } catch (error) {
-      console.error("❌ Retry failed:", error);
+      console.error("❌ [useChatWindowLogic] Retry failed:", error);
+      throw error;
     }
   };
 

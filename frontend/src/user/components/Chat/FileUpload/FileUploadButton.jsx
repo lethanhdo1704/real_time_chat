@@ -3,15 +3,6 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-/**
- * 🔥 FINAL CORRECT VERSION: FileUploadButton
- * 
- * Fixed issues:
- * 1. ✅ Proper ref attached to input
- * 2. ✅ PAPERCLIP icon (NOT plus sign!)
- * 3. ✅ Inline style for hidden input
- * 4. ✅ Debug logs for troubleshooting
- */
 export default function FileUploadButton({ onFilesSelect, disabled = false }) {
   const { t } = useTranslation('chat');
   const fileInputRef = useRef(null);
@@ -85,12 +76,12 @@ export default function FileUploadButton({ onFilesSelect, disabled = false }) {
 
   return (
     <>
-      {/* 🔥 Hidden File Input with proper ref */}
+      {/* 🔥 Hidden File Input - ACCEPTS ALL FILE TYPES */}
       <input
         ref={fileInputRef}
         type="file"
         multiple
-        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar,.7z"
+        accept="*/*"
         onChange={handleFileChange}
         onClick={() => console.log('📁 [FileUploadButton] Input clicked directly')}
         disabled={disabled}
@@ -99,7 +90,7 @@ export default function FileUploadButton({ onFilesSelect, disabled = false }) {
         data-testid="file-upload-input"
       />
 
-      {/* 🔥 Upload Button with PAPERCLIP icon (NOT PLUS!) */}
+      {/* 🔥 Upload Button with PAPERCLIP icon */}
       <button
         type="button"
         onClick={handleClick}
@@ -118,11 +109,7 @@ export default function FileUploadButton({ onFilesSelect, disabled = false }) {
         title={t("input.uploadFile") || "Upload file"}
         data-testid="file-upload-button"
       >
-        {/* 
-          🔥🔥🔥 CRITICAL: PAPERCLIP ICON 🔥🔥🔥
-          DO NOT CHANGE THIS PATH!
-          This is the attachment/paperclip icon, NOT a plus sign!
-        */}
+        {/* PAPERCLIP ICON */}
         <svg
           className="w-5 h-5"
           fill="none"

@@ -7,9 +7,11 @@ import useChatStore from '../../store/chat/chatStore';
 import chatApi from '../../services/chatApi';
 
 /**
- * useSendMessage Hook - With Reply Support
+ * useSendMessage Hook - With Reply + Attachments Support
  * 
  * ✅ Accepts replyTo parameter
+ * ✅ Accepts attachments parameter
+ * ✅ 🔥 FIXED: Allows file-only messages (empty text + attachments)
  * ✅ Includes replyTo in optimistic message
  * ✅ Passes replyTo to API
  * ✅ Preserves reply data in confirmed message
@@ -30,9 +32,16 @@ const useSendMessage = () => {
 
   const sendMessage = useCallback(
     async (conversationId, recipientId, { content, type = 'text', replyTo, attachments }) => {
-      // Validation
-      if (!content?.trim()) {
-        setError('Message content is required');
+      // ============================================
+      // 🔥 FIXED VALIDATION - ALLOW FILE-ONLY MESSAGES
+      // ============================================
+      
+      const hasContent = content?.trim().length > 0;
+      const hasAttachments = attachments && attachments.length > 0;
+
+      // Must have either content OR attachments
+      if (!hasContent && !hasAttachments) {
+        setError('Message content or attachments is required');
         return null;
       }
 
@@ -50,7 +59,7 @@ const useSendMessage = () => {
       const clientMessageId = `${user.uid}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const tempConversationId = conversationId || 'pending';
 
-      // 🔥 Create optimistic message WITH replyTo
+      // 🔥 Create optimistic message WITH replyTo + attachments
       const optimisticMessage = {
         messageId: clientMessageId,
         clientMessageId,
@@ -60,9 +69,9 @@ const useSendMessage = () => {
           nickname: user.nickname || user.fullName,
           avatar: user.avatar,
         },
-        content: content.trim(),
+        content: content?.trim() || '', // 🔥 Allow empty content
         type,
-        replyTo: replyTo || null, // 🔥 Include reply data
+        replyTo: replyTo || null,
         attachments: attachments || [],
         createdAt: new Date().toISOString(),
         _optimistic: true,
@@ -76,37 +85,41 @@ const useSendMessage = () => {
         // Add optimistic message to UI
         addOptimisticMessage(clientMessageId, optimisticMessage);
 
-        console.log('📤 Sending message:', {
+        console.log('📤 [useSendMessage] Sending message:', {
           conversationId: conversationId || 'NEW',
           recipientId,
           clientMessageId,
+          hasContent,
+          hasAttachments,
+          attachmentsCount: attachments?.length || 0,
           hasReply: !!replyTo,
           replyToId: replyTo?.messageId,
         });
 
-        // 🔥 Call API with replyTo
+        // 🔥 Call API with replyTo + attachments
         const response = await chatApi.sendMessage({
           conversationId,
           recipientId,
-          content: content.trim(),
+          content: content?.trim() || '', // 🔥 Send empty string if no content
           clientMessageId,
           type,
-          replyTo: replyTo?.messageId || null, // 🔥 Send only messageId
-          attachments,
+          replyTo: replyTo?.messageId || null,
+          attachments: attachments || [],
         });
 
         const { message: realMessage, conversation: newConversation } = response;
 
-        console.log('✅ Message sent:', {
+        console.log('✅ [useSendMessage] Message sent:', {
           clientMessageId,
           messageId: realMessage.messageId,
           conversationCreated: !!newConversation,
           hasReply: !!realMessage.replyTo,
+          hasAttachments: realMessage.attachments?.length > 0,
         });
 
         // If conversation was just created
         if (newConversation && !conversationId) {
-          console.log('🆕 New conversation created:', newConversation._id);
+          console.log('🆕 [useSendMessage] New conversation created:', newConversation._id);
           
           const actualConversationId = newConversation._id;
           
@@ -127,7 +140,7 @@ const useSendMessage = () => {
           });
           
           // 5️⃣ SET STORE STATE BEFORE NAVIGATE
-          console.log('🎯 Setting active conversation:', actualConversationId);
+          console.log('🎯 [useSendMessage] Setting active conversation:', actualConversationId);
           setActiveConversation(actualConversationId);
           setActiveFriend(null);
           
@@ -135,7 +148,7 @@ const useSendMessage = () => {
           setTimeout(() => {
             const tab = newConversation.type === 'group' ? 'groups' : 'friends';
             navigate(`/${tab}/${actualConversationId}`, { replace: true });
-            console.log('🔄 Navigated to new conversation:', actualConversationId);
+            console.log('🔄 [useSendMessage] Navigated to new conversation:', actualConversationId);
           }, 50);
           
         } else {
@@ -152,7 +165,7 @@ const useSendMessage = () => {
         };
 
       } catch (err) {
-        console.error('❌ Failed to send message:', err);
+        console.error('❌ [useSendMessage] Failed to send message:', err);
 
         // Mark as failed
         confirmOptimisticMessage(tempConversationId, clientMessageId, {
@@ -187,13 +200,16 @@ const useSendMessage = () => {
     async (failedClientMessageId, messageData) => {
       const { conversationId, recipientId, content, type, replyTo, attachments } = messageData;
 
-      console.log('🔄 Retrying message:', failedClientMessageId);
+      console.log('🔄 [useSendMessage] Retrying message:', {
+        failedClientMessageId,
+        hasAttachments: attachments?.length > 0,
+      });
 
       // Remove failed message
       const convId = conversationId || 'pending';
       removeOptimisticMessage(failedClientMessageId, convId);
 
-      // Resend with replyTo
+      // Resend with replyTo + attachments
       return sendMessage(conversationId, recipientId, {
         content,
         type,
