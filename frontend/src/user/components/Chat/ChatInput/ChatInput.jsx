@@ -1,17 +1,17 @@
 // frontend/src/user/components/Chat/ChatInput/ChatInput.jsx
 
-import { forwardRef, useContext } from "react";
+import { forwardRef, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import EmojiPicker from "../EmojiPicker";
 import useChatInput from "./useChatInput";
 import useReply from "./useReply";
 import useTyping from "./UseTyping";
 import useEmojiInput from "./UseEmojiInput";
-import { useFileUpload } from "../../../hooks/chat/useFileUpload";
+import { useFileUpload } from "../../../hooks/chat/useFileUpload"; // ✅ Giữ nguyên hook gốc
 import { AuthContext } from "../../../context/AuthContext";
 import FilePreview from "../FileUpload/FilePreview";
 import UploadProgress from "../FileUpload/UploadProgress";
-import FileUploadButton from "../FileUpload/FileUploadButton"; // 🔥 NEW IMPORT
+import FileUploadButton from "../FileUpload/FileUploadButton";
 
 const ChatInput = forwardRef(({ 
   onSendMessage, 
@@ -29,12 +29,12 @@ const ChatInput = forwardRef(({
     sending,
   });
 
-  // File upload hook
+  // File upload hook - GIỮ NGUYÊN
   const {
     uploading,
     uploadProgress,
     uploadSpeed,
-    uploadError,
+    uploadError: rawUploadError, // ✅ Đổi tên để xử lý
     selectedFiles,
     selectFiles,
     uploadFiles,
@@ -42,6 +42,50 @@ const ChatInput = forwardRef(({
     clearFiles,
     removeFile,
   } = useFileUpload();
+
+  // ============================================
+  // 🔥 TRANSLATE ERROR MESSAGE - THÊM VÀO ĐÂY
+  // ============================================
+  const uploadError = useMemo(() => {
+    if (!rawUploadError) return null;
+    
+    const errorMsg = typeof rawUploadError === 'string' 
+      ? rawUploadError 
+      : rawUploadError.message || rawUploadError.toString();
+    
+    // Map error patterns to translation keys
+    const errorPatterns = [
+      { pattern: /exceeds maximum size of (\d+)GB/i, key: 'uploadService.fileExceedsMaxSize', extract: true },
+      { pattern: /Maximum (\d+) files per batch/i, key: 'uploadService.maxFilesPerBatch', extract: true },
+      { pattern: /Batch total size.*exceeds/i, key: 'uploadService.batchSizeExceeds' },
+      { pattern: /Invalid file/i, key: 'uploadService.invalidFile' },
+      { pattern: /No files selected/i, key: 'uploadService.noFilesSelected' },
+      { pattern: /Upload cancelled/i, key: 'uploadService.uploadCancelled' },
+      { pattern: /network error/i, key: 'uploadService.uploadFailedNetwork' },
+      { pattern: /Failed to generate upload URL/i, key: 'uploadService.failedToGenerateUrl' },
+      { pattern: /Failed to generate upload URLs/i, key: 'uploadService.failedToGenerateUrls' },
+      { pattern: /Failed to get upload limits/i, key: 'uploadService.failedToGetLimits' },
+      { pattern: /Upload failed with status (\d+)/i, key: 'uploadService.uploadFailedStatus', extract: true },
+      { pattern: /Failed to cancel upload/i, key: 'uploadService.failedToCancelUpload' },
+      { pattern: /Failed to delete file/i, key: 'uploadService.failedToDeleteFile' },
+      { pattern: /Failed to delete files/i, key: 'uploadService.failedToDeleteFiles' },
+      { pattern: /File #(\d+):/i, key: 'uploadService.fileError', extract: true },
+    ];
+    
+    // Try to match error patterns
+    for (const { pattern, key, extract } of errorPatterns) {
+      const match = errorMsg.match(pattern);
+      if (match) {
+        if (extract && match[1]) {
+          return t(key, { value: match[1] });
+        }
+        return t(key);
+      }
+    }
+    
+    // Fallback: return original error message
+    return errorMsg;
+  }, [rawUploadError, t]);
 
   // Existing hooks
   const {
@@ -87,9 +131,6 @@ const ChatInput = forwardRef(({
   // 🔥 FILE UPLOAD HANDLERS
   // ============================================
   
-  /**
-   * Handle files selected from FileUploadButton
-   */
   const handleFilesSelect = async (files) => {
     console.log('📁 [ChatInput] Files selected from button:', {
       count: files.length,
@@ -114,9 +155,6 @@ const ChatInput = forwardRef(({
     }
   };
 
-  /**
-   * Handle send message with files
-   */
   const handleSend = async () => {
     console.log('📤 [ChatInput] Send clicked:', {
       text: text.trim().length,
@@ -182,7 +220,7 @@ const ChatInput = forwardRef(({
 
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-gray-700">
-                {t("input.replyingTo") || "Replying to"} {replyingTo.sender?.nickname || "Unknown"}
+                {t("input.replyingTo")} {replyingTo.sender?.nickname || t("message.unknownSender")}
               </p>
               <p className="text-xs text-gray-500 truncate">
                 {truncateText(replyingTo.content, 60)}
@@ -193,7 +231,7 @@ const ChatInput = forwardRef(({
               type="button"
               onClick={handleClearReply}
               className="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors"
-              title={t("input.cancelReply") || "Cancel reply"}
+              title={t("input.cancelReply")}
             >
               <svg
                 className="h-4 w-4"
@@ -233,7 +271,7 @@ const ChatInput = forwardRef(({
           </div>
         )}
 
-        {/* UPLOAD ERROR */}
+        {/* UPLOAD ERROR - ✅ Sử dụng uploadError đã được dịch */}
         {uploadError && (
           <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm text-red-700">
             {uploadError}
@@ -262,7 +300,7 @@ const ChatInput = forwardRef(({
               }
             `}
           >
-            {/* 🔥 LEFT SLOT - FileUploadButton Component */}
+            {/* LEFT SLOT - FileUploadButton Component */}
             <FileUploadButton
               onFilesSelect={handleFilesSelect}
               disabled={disabled || sending || uploading}
@@ -279,12 +317,12 @@ const ChatInput = forwardRef(({
               placeholder={
                 placeholder ||
                 (disabled 
-                  ? t("input.disabled") || "Select a conversation to start chatting"
+                  ? t("input.disabled")
                   : sending || uploading
-                  ? t("input.sending") || "Sending..."
+                  ? t("input.sending")
                   : replyingTo
-                  ? t("input.replyPlaceholder") || "Type your reply..."
-                  : t("input.placeholder") || "Type a message...")
+                  ? t("input.replyPlaceholder")
+                  : t("input.placeholder"))
               }
               className={`
                 flex-1 resize-none bg-transparent
@@ -322,7 +360,7 @@ const ChatInput = forwardRef(({
                       : "text-gray-600 hover:text-blue-600 hover:bg-gray-100 active:scale-95"
                   }
                 `}
-                title={t("input.selectEmoji") || "Select emoji"}
+                title={t("input.selectEmoji")}
               >
                 <svg
                   className="w-5 h-5"
@@ -355,7 +393,7 @@ const ChatInput = forwardRef(({
                       : "bg-blue-600 text-white hover:bg-blue-800 active:scale-95"
                   }
                 `}
-                title={sending || uploading ? (t("input.sending") || "Sending...") : (t("input.send") || "Send")}
+                title={sending || uploading ? t("input.sending") : t("input.send")}
               >
                 {sending || uploading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

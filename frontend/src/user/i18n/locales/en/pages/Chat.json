@@ -61,7 +61,8 @@
     "save": "Save",
     "close": "Close (Esc)",
     "zoomIn": "Zoom in",
-    "zoomOut": "Zoom out"
+    "zoomOut": "Zoom out",
+    "remove": "Remove"
   },
   "hide": {
     "title": "Hide Message",
@@ -131,5 +132,22 @@
     "uploading": "Uploading {{count}} file...",
     "uploading_plural": "Uploading {{count}} files...",
     "cancelUpload": "Cancel upload"
+  },
+    "uploadService": {
+    "failedToGetLimits": "Failed to get upload limits",
+    "failedToGenerateUrl": "Failed to generate upload URL",
+    "failedToGenerateUrls": "Failed to generate upload URLs",
+    "uploadFailedStatus": "Upload failed (error {{value}})",
+    "uploadFailedNetwork": "Upload failed - network error",
+    "uploadCancelled": "Upload cancelled",
+    "failedToCancelUpload": "Failed to cancel upload",
+    "failedToDeleteFile": "Failed to delete file",
+    "failedToDeleteFiles": "Failed to delete files",
+    "invalidFile": "Invalid file",
+    "fileExceedsMaxSize": "File exceeds maximum size of {{value}}GB",
+    "noFilesSelected": "No files selected",
+    "maxFilesPerBatch": "Maximum {{value}} files allowed per upload",
+    "fileError": "File #{{value}} has an error",
+    "batchSizeExceeds": "Total file size is too large"
   }
 }

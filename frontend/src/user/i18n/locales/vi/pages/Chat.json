@@ -128,5 +128,22 @@
     "uploading": "Đang tải lên {{count}} file...",
     "uploading_plural": "Đang tải lên {{count}} files...",
     "cancelUpload": "Hủy tải lên"
+  },
+    "uploadService": {
+    "failedToGetLimits": "Không thể lấy giới hạn tải lên",
+    "failedToGenerateUrl": "Không thể tạo URL tải lên",
+    "failedToGenerateUrls": "Không thể tạo các URL tải lên",
+    "uploadFailedStatus": "Tải lên thất bại (lỗi {{value}})",
+    "uploadFailedNetwork": "Tải lên thất bại - lỗi mạng",
+    "uploadCancelled": "Đã hủy tải lên",
+    "failedToCancelUpload": "Không thể hủy tải lên",
+    "failedToDeleteFile": "Không thể xóa file",
+    "failedToDeleteFiles": "Không thể xóa các files",
+    "invalidFile": "File không hợp lệ",
+    "fileExceedsMaxSize": "File vượt quá kích thước tối đa {{value}}GB",
+    "noFilesSelected": "Chưa chọn file nào",
+    "maxFilesPerBatch": "Tối đa {{value}} files mỗi lần tải lên",
+    "fileError": "File #{{value}} có lỗi",
+    "batchSizeExceeds": "Tổng kích thước files quá lớn"
   }
 }
