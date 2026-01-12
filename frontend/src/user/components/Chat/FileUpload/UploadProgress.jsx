@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react';
 import { uploadService } from '../../../services/uploadService';
+import { useTranslation } from 'react-i18next';
 
 /**
  * UploadProgress Component
@@ -18,6 +19,8 @@ export default function UploadProgress({
   filesCount = 0,
   onCancel 
 }) {
+  const { t } = useTranslation("chat");
+
   if (progress === 0 && speed === 0) return null;
 
   return (
@@ -27,7 +30,7 @@ export default function UploadProgress({
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
           <span className="text-sm font-medium text-blue-900">
-            Uploading {filesCount} file{filesCount > 1 ? 's' : ''}...
+            {t('uploadProgress.uploading', { count: filesCount })}
           </span>
         </div>
 
@@ -36,7 +39,7 @@ export default function UploadProgress({
           <button
             onClick={onCancel}
             className="shrink-0 p-1 rounded-full text-blue-600 hover:bg-blue-100 transition-colors"
-            title="Cancel upload"
+            title={t('uploadProgress.cancelUpload')}
           >
             <X className="w-4 h-4" />
           </button>

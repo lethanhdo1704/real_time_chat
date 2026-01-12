@@ -16,14 +16,16 @@
     "edited": "Đã chỉnh sửa",
     "editHint": "Enter để lưu • Esc để hủy",
     "failed": "Gửi tin nhắn thất bại",
-    "sending": "Đang gửi"
+    "sending": "Đang gửi",
+    "unknownSender": "Không xác định",
+    "typePlaceholder": "Nhập tin nhắn..."
   },
   "input": {
     "startConversation": "Bắt đầu cuộc trò chuyện mới",
     "placeholder": "Nhập tin nhắn...",
     "selectEmoji": "Chọn emoji",
     "send": "Gửi",
-    "uploadImage": "Tải ảnh lên",
+    "uploadFile": "Tải tập tin lên",
     "replyingTo": "Đang trả lời"
   },
   "emoji": {
@@ -55,7 +57,12 @@
     "forward": "Chuyển tiếp",
     "edit": "Chỉnh sửa",
     "hideButton": "Ẩn tin nhắn",
-    "recallButton": "Thu hồi"
+    "recallButton": "Thu hồi",
+    "cancel":"Hủy",
+    "save":"Lưu",
+    "close": "Đóng (Esc)",
+    "zoomIn": "Phóng to",
+    "zoomOut": "Thu nhỏ"
   },
   "hide": {
     "title": "Ẩn tin nhắn",
@@ -105,5 +112,21 @@
     "daysAgo_other": "Truy cập {{count}} ngày trước",
     "onDate": "Truy cập ngày {{date}}",
     "activeRecently": "Truy cập gần đây"
+  },
+  "file": {
+    "download": "Tải xuống",
+    "loadError": "Không thể tải ảnh",
+    "audioNotSupported": "Trình duyệt không hỗ trợ phát audio",
+    "videoNotSupported": "Trình duyệt không hỗ trợ phát video"
+  },
+   "filePreview": {
+    "filesSelected": "{{count}} file đã chọn",
+    "filesSelected_plural": "{{count}} files đã chọn",
+    "clearAll": "Xóa tất cả"
+  },
+   "uploadProgress": {
+    "uploading": "Đang tải lên {{count}} file...",
+    "uploading_plural": "Đang tải lên {{count}} files...",
+    "cancelUpload": "Hủy tải lên"
   }
 }

@@ -1,18 +1,20 @@
-// frontend/src/user/components/Chat/MessageItem/ImageAttachment.jsx
+// frontend/src/user/components/Chat/MessageItem/FileUpload/ImageAttachment.jsx
 
 import { useState } from 'react';
-import { Download, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, X, ZoomIn, ZoomOut, Eye } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
- * ImageAttachment Component - MESSENGER STYLE
+ * ImageAttachment Component - BEAUTIFUL GRADIENT STYLE
  * 
  * Features:
- * - Rounded corners to match message bubble
- * - Lazy load with blur placeholder
- * - Click to open lightbox
- * - Zoom in/out in lightbox
+ * - Beautiful gradient overlay on hover
+ * - Smooth animations
+ * - Lightbox with zoom controls
+ * - Download functionality
  */
 export default function ImageAttachment({ attachment, isMe }) {
+  const { t } = useTranslation("chat");
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
@@ -64,8 +66,8 @@ export default function ImageAttachment({ attachment, isMe }) {
 
   if (error) {
     return (
-      <div className="p-3 bg-gray-100 rounded-lg border border-gray-200">
-        <p className="text-sm text-gray-500">Failed to load image</p>
+      <div className="p-4 bg-linear-to-br from-red-50 to-red-100 rounded-xl border border-red-200">
+        <p className="text-sm text-red-600">{t('file.loadError')}</p>
       </div>
     );
   }
@@ -74,12 +76,12 @@ export default function ImageAttachment({ attachment, isMe }) {
     <>
       {/* Image Thumbnail */}
       <div 
-        className="relative rounded-lg overflow-hidden cursor-pointer group max-w-sm"
+        className="relative rounded-xl overflow-hidden cursor-pointer group max-w-sm shadow-md hover:shadow-xl transition-all duration-300"
         onClick={handleImageClick}
       >
-        {/* Blur placeholder */}
+        {/* Blur placeholder with gradient */}
         {!loaded && (
-          <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+          <div className="absolute inset-0 bg-linear-to-br from-blue-100 via-purple-100 to-pink-100 animate-pulse" />
         )}
 
         {/* Actual image */}
@@ -90,16 +92,38 @@ export default function ImageAttachment({ attachment, isMe }) {
           onLoad={() => setLoaded(true)}
           onError={() => setError(true)}
           className={`
-            w-full h-auto transition-all duration-300
+            w-full h-auto transition-all duration-500
             ${loaded ? 'opacity-100' : 'opacity-0'}
             group-hover:scale-105
           `}
         />
 
-        {/* Hover overlay */}
+        {/* Hover overlay with gradient */}
         {loaded && (
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
-            <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+            {/* Info overlay at bottom */}
+            <div className="absolute bottom-0 left-0 right-0 p-3 flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">{name}</p>
+              </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload();
+                }}
+                className="p-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg transition-all ml-2"
+                title={t('file.download')}
+              >
+                <Download className="w-4 h-4 text-white" />
+              </button>
+            </div>
+            
+            {/* Center zoom icon */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-full">
+                <Eye className="w-6 h-6 text-white" />
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -107,7 +131,7 @@ export default function ImageAttachment({ attachment, isMe }) {
       {/* Lightbox */}
       {showLightbox && (
         <div 
-          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center animate-in fade-in duration-200"
           onClick={handleCloseLightbox}
           onKeyDown={handleKeyDown}
           tabIndex={0}
@@ -115,7 +139,8 @@ export default function ImageAttachment({ attachment, isMe }) {
           {/* Close button */}
           <button
             onClick={handleCloseLightbox}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+            className="absolute top-4 right-4 p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all hover:scale-110 z-10"
+            title={t('actions.close')}
           >
             <X className="w-6 h-6" />
           </button>
@@ -128,9 +153,10 @@ export default function ImageAttachment({ attachment, isMe }) {
                 handleZoomOut();
               }}
               disabled={zoom <= 0.5}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors disabled:opacity-50"
+              className="p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all hover:scale-110 disabled:opacity-50 disabled:hover:scale-100"
+              title={t('actions.zoomOut')}
             >
-              <ZoomOut className="w-6 h-6" />
+              <ZoomOut className="w-5 h-5" />
             </button>
             <button
               onClick={(e) => {
@@ -138,13 +164,14 @@ export default function ImageAttachment({ attachment, isMe }) {
                 handleZoomIn();
               }}
               disabled={zoom >= 3}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors disabled:opacity-50"
+              className="p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all hover:scale-110 disabled:opacity-50 disabled:hover:scale-100"
+              title={t('actions.zoomIn')}
             >
-              <ZoomIn className="w-6 h-6" />
+              <ZoomIn className="w-5 h-5" />
             </button>
-            <span className="px-3 py-2 rounded-full bg-white/10 text-white text-sm">
+            <div className="px-4 py-3 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm font-medium">
               {Math.round(zoom * 100)}%
-            </span>
+            </div>
           </div>
 
           {/* Download button */}
@@ -153,7 +180,8 @@ export default function ImageAttachment({ attachment, isMe }) {
               e.stopPropagation();
               handleDownload();
             }}
-            className="absolute bottom-4 right-4 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+            className="absolute bottom-4 right-4 p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all hover:scale-110 z-10"
+            title={t('file.download')}
           >
             <Download className="w-6 h-6" />
           </button>

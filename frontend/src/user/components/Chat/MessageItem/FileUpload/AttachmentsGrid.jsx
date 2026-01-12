@@ -1,36 +1,28 @@
-// frontend/src/user/components/Chat/MessageItem/AttachmentsGrid.jsx
+// frontend/src/user/components/Chat/MessageItem/FileUpload/AttachmentsGrid.jsx
 
 import ImageAttachment from './ImageAttachment';
 import VideoAttachment from './VideoAttachment';
 import AudioAttachment from './AudioAttachment';
 import FileAttachment from './FileAttachment';
 
-/**
- * AttachmentsGrid Component - MESSENGER STYLE
- * 
- * Smart layout based on number of attachments:
- * - 1 file: Full width
- * - 2 files: 2 columns
- * - 3+ files: Grid 2x2
- * 
- * All attachments have beautiful gradient backgrounds
- */
-export default function AttachmentsGrid({ attachments, isMe }) {
+export default function AttachmentsGrid({ attachments, isMe, t }) {
   if (!attachments || attachments.length === 0) return null;
 
   const renderAttachment = (attachment, index) => {
     const { mediaType } = attachment;
 
+    const commonProps = { attachment, isMe, t };
+
     switch (mediaType) {
       case 'image':
-        return <ImageAttachment key={index} attachment={attachment} isMe={isMe} />;
+        return <ImageAttachment key={index} {...commonProps} />;
       case 'video':
-        return <VideoAttachment key={index} attachment={attachment} isMe={isMe} />;
+        return <VideoAttachment key={index} {...commonProps} />;
       case 'audio':
-        return <AudioAttachment key={index} attachment={attachment} isMe={isMe} />;
+        return <AudioAttachment key={index} {...commonProps} />;
       case 'file':
       default:
-        return <FileAttachment key={index} attachment={attachment} isMe={isMe} />;
+        return <FileAttachment key={index} {...commonProps} />;
     }
   };
 
@@ -51,7 +43,7 @@ export default function AttachmentsGrid({ attachments, isMe }) {
   };
 
   return (
-    <div className={getGridClass()}>
+    <div className={`${getGridClass()} animate-in slide-in-from-bottom duration-300`}>
       {attachments.map((attachment, index) => renderAttachment(attachment, index))}
     </div>
   );

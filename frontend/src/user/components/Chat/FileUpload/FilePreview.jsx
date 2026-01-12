@@ -2,6 +2,7 @@
 
 import { X, File, Image, Video, Music } from 'lucide-react';
 import { uploadService } from '../../../services/uploadService';
+import { useTranslation } from 'react-i18next';
 
 /**
  * 🔥 FIXED: FilePreview Component
@@ -17,6 +18,8 @@ import { uploadService } from '../../../services/uploadService';
  * }
  */
 export default function FilePreview({ files, onRemove, onClear }) {
+  const { t } = useTranslation("chat");
+
   console.log('🔍 [FilePreview] Render:', {
     filesCount: files.length,
     files: files.map(f => ({
@@ -48,7 +51,7 @@ export default function FilePreview({ files, onRemove, onClear }) {
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-gray-700">
-            {files.length} file{files.length > 1 ? 's' : ''} selected
+            {t('filePreview.filesSelected', { count: files.length })}
           </span>
           <span className="text-xs text-gray-500">
             ({getTotalSize()})
@@ -59,7 +62,7 @@ export default function FilePreview({ files, onRemove, onClear }) {
           onClick={onClear}
           className="text-xs text-gray-500 hover:text-red-600 transition-colors"
         >
-          Clear all
+          {t('filePreview.clearAll')}
         </button>
       </div>
 
@@ -83,6 +86,7 @@ export default function FilePreview({ files, onRemove, onClear }) {
                 <button
                   onClick={() => onRemove(index)}
                   className="absolute top-1 right-1 p-1 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
+                  title={t('actions.remove')}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -107,6 +111,7 @@ export default function FilePreview({ files, onRemove, onClear }) {
                 <button
                   onClick={() => onRemove(index)}
                   className="shrink-0 p-1 text-gray-400 hover:text-red-600 transition-colors"
+                  title={t('actions.remove')}
                 >
                   <X className="w-4 h-4" />
                 </button>

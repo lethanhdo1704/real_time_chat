@@ -15,16 +15,17 @@
     "recalled": "This message has been recalled",
     "edited": "Edited",
     "editHint": "Press Enter to save • Esc to cancel",
-    "failed" : "Failed to send message",
-    "sending": "Sending"
-
+    "failed": "Failed to send message",
+    "sending": "Sending",
+    "typePlaceholder": "Type a message...",
+    "unknownSender": "Unknown"
   },
   "input": {
     "startConversation": "Start a new conversation",
     "placeholder": "Type a message...",
     "selectEmoji": "Select emoji",
     "send": "Send",
-    "uploadImage": "Upload Image",
+    "uploadFile": "Upload file",
     "replyingTo": "Replying to"
   },
   "emoji": {
@@ -55,7 +56,12 @@
     "copy": "Copy",
     "forward": "Forward",
     "edit": "Edit",
-    "recallButton": "Recall"
+    "recallButton": "Recall",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close (Esc)",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out"
   },
   "hide": {
     "title": "Hide Message",
@@ -95,7 +101,7 @@
     "showLess": "Show less reactions"
   },
   "presence": {
-    "online":"Online",
+    "online": "Online",
     "justNow": "Active just now",
     "minutesAgo": "Active {{count}}m ago",
     "minutesAgo_one": "Active 1m ago",
@@ -109,5 +115,21 @@
     "daysAgo_other": "Active {{count}}d ago",
     "onDate": "Active on {{date}}",
     "activeRecently": "Active recently"
+  },
+  "file": {
+    "download": "Download",
+    "loadError": "Unable to load image",
+    "audioNotSupported": "Your browser does not support audio playback",
+    "videoNotSupported": "Your browser does not support video playback"
+  },
+   "filePreview": {
+    "filesSelected": "{{count}} file selected",
+    "filesSelected_plural": "{{count}} files selected",
+    "clearAll": "Clear all"
+  },
+   "uploadProgress": {
+    "uploading": "Uploading {{count}} file...",
+    "uploading_plural": "Uploading {{count}} files...",
+    "cancelUpload": "Cancel upload"
   }
 }

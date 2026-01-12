@@ -3,16 +3,16 @@
 import { useState, useEffect, useRef, useContext } from "react";
 import { Check, X } from "lucide-react";
 import { renderMessage } from "../../../utils/renderMessage";
-import MessageReactions from "./MessageReactions";
-import AttachmentsGrid from "./AttachmentsGrid"; // 🔥 NEW IMPORT
+import AttachmentsGrid from "./FileUpload/AttachmentsGrid"; 
 import { AuthContext } from "../../../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 /**
- * MessageBubble Component - WITH ATTACHMENTS OUTSIDE BUBBLE
+ * MessageBubble Component - WITH BEAUTIFUL GRADIENT ATTACHMENTS
  * 
- * ✅ Attachments render FIRST, outside the bubble (Telegram/Messenger style)
- * ✅ Text bubble only shows if there's text content
- * ✅ File-only messages have no colored bubble
+ * ✅ Attachments with beautiful gradients (Messenger/Telegram style)
+ * ✅ Smooth animations and hover effects
+ * ✅ i18n support throughout
  */
 export default function MessageBubble({
   messageText,
@@ -24,7 +24,6 @@ export default function MessageBubble({
   editedAt,
   replyTo,
   onReplyClick,
-  t,
   // Edit props
   isEditing = false,
   onSaveEdit,
@@ -36,6 +35,7 @@ export default function MessageBubble({
   onReactionClick,
 }) {
   const { user } = useContext(AuthContext);
+  const { t } = useTranslation("chat");
   const [draftContent, setDraftContent] = useState(messageText);
   const textareaRef = useRef(null);
 
@@ -99,7 +99,7 @@ export default function MessageBubble({
     if (!isMe) return "bg-white text-gray-800 shadow-sm hover:shadow-md border border-gray-100";
     if (isPending) return "bg-blue-400 text-white opacity-60";
     if (isFailed) return "bg-red-100 text-red-800 border border-red-300";
-    return "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-sm hover:shadow-md";
+    return "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg";
   };
 
   const truncateReply = (text, maxLength = 100) => {
@@ -109,10 +109,10 @@ export default function MessageBubble({
   };
 
   return (
-    <div className="inline-flex flex-col gap-1.5 max-w-full">
-      {/* 🎯 TELEGRAM-STYLE: File without bubble, text with bubble */}
+    <div className="inline-flex flex-col gap-2 max-w-full">
+      {/* 🎨 BEAUTIFUL GRADIENT STYLE: File attachments */}
       
-      {/* Case 1: File-only message (NO BUBBLE) */}
+      {/* Case 1: File-only message (NO BUBBLE - just beautiful gradients) */}
       {hasAttachments && !hasText && !isEditing && (
         <div className="w-full">
           <AttachmentsGrid 
@@ -127,7 +127,7 @@ export default function MessageBubble({
         <div 
           className={`
             rounded-2xl ${getBubbleCorner()} 
-            transition-all duration-200 ${getBubbleColor()} 
+            transition-all duration-300 ${getBubbleColor()} 
             overflow-hidden
             ${replyTo ? 'px-2.5 py-2 sm:px-3 sm:py-2' : hasAttachments ? 'p-0' : 'px-3 py-2 sm:px-4 sm:py-2.5'}
           `}
@@ -177,7 +177,7 @@ export default function MessageBubble({
                     />
                   </svg>
                   <span className={`text-xs font-medium ${isMe ? 'text-blue-100' : 'text-gray-700'}`}>
-                    {replyTo.sender?.nickname || "Unknown"}
+                    {replyTo.sender?.nickname || t('message.unknownSender')}
                   </span>
                 </div>
                 <p className={`text-xs ${isMe ? 'text-blue-50' : 'text-gray-600'} line-clamp-2`}>
@@ -196,7 +196,7 @@ export default function MessageBubble({
                   onChange={(e) => setDraftContent(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={editLoading}
-                  placeholder="Nhập tin nhắn..."
+                  placeholder={t('message.typePlaceholder')}
                   className="w-full min-h-15 max-h-75 px-0 py-0 text-[14px] sm:text-[15px] leading-[1.4] bg-transparent border-none outline-none resize-none text-gray-900 disabled:opacity-50"
                   style={{ 
                     fontFamily: "inherit",
@@ -207,22 +207,22 @@ export default function MessageBubble({
                 
                 <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-300">
                   <span className="text-xs text-gray-500">
-                    {t("message.editHint") || "Enter để lưu • Esc để hủy"}
+                    {t("message.editHint")}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={onCancelEdit}
                       disabled={editLoading}
-                      className="p-1.5 rounded-full hover:bg-gray-200 text-gray-600 disabled:opacity-50 transition-colors"
-                      title={t("actions.cancel") || "Hủy (Esc)"}
+                      className="p-1.5 rounded-full hover:bg-gray-200 text-gray-600 disabled:opacity-50 transition-all hover:scale-110"
+                      title={t("actions.cancel")}
                     >
                       <X className="w-4 h-4" />
                     </button>
                     <button
                       onClick={handleSave}
                       disabled={editLoading || !draftContent.trim() || draftContent.trim() === messageText.trim()}
-                      className="p-1.5 rounded-full bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                      title={t("actions.save") || "Lưu (Enter)"}
+                      className="p-1.5 rounded-full bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-300 disabled:cursor-not-allowed transition-all hover:scale-110"
+                      title={t("actions.save")}
                     >
                       {editLoading ? (
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -245,7 +245,7 @@ export default function MessageBubble({
                 {/* EDITED INDICATOR */}
                 {editedAt && (
                   <span className={`text-[10px] mt-1 italic ${isMe ? "text-blue-100" : "text-gray-400"}`}>
-                    {t("message.edited") || "edited"}
+                    {t("message.edited")}
                   </span>
                 )}
               </>
@@ -253,8 +253,6 @@ export default function MessageBubble({
           </div>
         </div>
       )}
-
-      {/* 🚫 REACTIONS REMOVED - MessageItem will handle it */}
     </div>
   );
 }
