@@ -14,7 +14,9 @@
     "youRecalled": "Bạn đã thu hồi tin nhắn này",
     "recalled": "Tin nhắn đã bị thu hồi",
     "edited": "Đã chỉnh sửa",
-    "editHint": "Enter để lưu • Esc để hủy"
+    "editHint": "Enter để lưu • Esc để hủy",
+    "failed": "Gửi tin nhắn thất bại",
+    "sending": "Đang gửi"
   },
   "input": {
     "startConversation": "Bắt đầu cuộc trò chuyện mới",

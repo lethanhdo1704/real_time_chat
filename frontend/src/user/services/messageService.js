@@ -1,7 +1,5 @@
-// frontend/src/services/messageService.js
+// frontend/src/user/services/messageService.js
 
-// 🔥 FIX: Dùng relative path để Vite proxy xử lý
-// KHÔNG dùng localhost:5000 nữa
 const API_BASE_URL = "/api";
 
 const authHeaders = (token) => ({
@@ -23,7 +21,7 @@ export const messageService = {
       `${API_BASE_URL}/messages/${conversationId}?${params}`,
       { 
         headers: authHeaders(token),
-        credentials: 'include', // 🔥 Thêm credentials
+        credentials: 'include',
       }
     );
 
@@ -56,7 +54,7 @@ export const messageService = {
   },
 
   /**
-   * Send a message - WITH REPLY SUPPORT
+   * 🔥 Send a message - WITH REPLY + ATTACHMENTS SUPPORT
    */
   async sendMessage(
     conversationId,
@@ -71,8 +69,12 @@ export const messageService = {
       conversationId,
       content,
       type,
-      attachments,
     };
+
+    // 🔥 Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      body.attachments = attachments;
+    }
 
     if (replyTo) {
       body.replyTo = replyTo;
@@ -138,15 +140,6 @@ export const messageService = {
     return response.data;
   },
 
-  // ============================================
-  // 🆕 3 LOẠI XÓA TIN NHẮN
-  // ============================================
-
-  /**
-   * 🔥 KIỂU 1: Hide Message (Gỡ tin nhắn)
-   * POST /api/messages/:messageId/hide
-   * Anyone can hide any message from their view
-   */
   async hideMessage(messageId, token) {
     const res = await fetch(`${API_BASE_URL}/messages/${messageId}/hide`, {
       method: "POST",
@@ -163,11 +156,6 @@ export const messageService = {
     return response;
   },
 
-  /**
-   * 🔥 KIỂU 2: Delete For Me (Xóa tin nhắn của mình)
-   * DELETE /api/messages/:messageId/delete-for-me
-   * Only sender can delete their own message
-   */
   async deleteForMe(messageId, token) {
     const res = await fetch(`${API_BASE_URL}/messages/${messageId}/delete-for-me`, {
       method: "DELETE",
@@ -184,12 +172,6 @@ export const messageService = {
     return response;
   },
 
-  /**
-   * 🔥 KIỂU 3: Recall Message (Thu hồi)
-   * POST /api/messages/:messageId/recall
-   * Only sender can recall within 15 minutes
-   * Socket event broadcasts to all members
-   */
   async recallMessage(messageId, token) {
     const res = await fetch(`${API_BASE_URL}/messages/${messageId}/recall`, {
       method: "POST",
@@ -206,10 +188,6 @@ export const messageService = {
     return response;
   },
 
-  /**
-   * ⚠️ DEPRECATED: Old delete (now admin delete)
-   * Use hideMessage or deleteForMe instead
-   */
   async deleteMessage(messageId, token) {
     console.warn("⚠️ deleteMessage is deprecated, use hideMessage or deleteForMe");
     

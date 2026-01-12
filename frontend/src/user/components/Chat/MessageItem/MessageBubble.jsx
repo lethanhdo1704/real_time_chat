@@ -4,16 +4,17 @@ import { useState, useEffect, useRef, useContext } from "react";
 import { Check, X } from "lucide-react";
 import { renderMessage } from "../../../utils/renderMessage";
 import MessageReactions from "./MessageReactions";
+import MediaAttachment from "./MediaAttachment";
 import { AuthContext } from "../../../context/AuthContext";
 
 /**
- * MessageBubble Component - WITH REACTIONS
+ * MessageBubble Component - WITH ATTACHMENTS SUPPORT
  * 
  * Features:
  * - Shows replied message at top of bubble
  * - Inline edit mode (textarea + Save/Cancel)
- * - 🆕 REACTIONS display below content
- * - Clickable reactions to toggle
+ * - 🆕 ATTACHMENTS display (images, videos, audio, files)
+ * - REACTIONS display below content
  */
 export default function MessageBubble({
   messageText,
@@ -31,7 +32,7 @@ export default function MessageBubble({
   onSaveEdit,
   onCancelEdit,
   editLoading = false,
-  // 🆕 Reaction props
+  // Reaction props
   message,
   conversationId,
   onReactionClick,
@@ -40,11 +41,15 @@ export default function MessageBubble({
   const [draftContent, setDraftContent] = useState(messageText);
   const textareaRef = useRef(null);
 
+  // Extract attachments
+  const attachments = message?.attachments || [];
+  const hasAttachments = attachments.length > 0;
+  const hasText = messageText && messageText.trim().length > 0;
+
   // Reset draft content when editing starts
   useEffect(() => {
     if (isEditing) {
       setDraftContent(messageText);
-      // Auto-focus and place cursor at end
       setTimeout(() => {
         if (textareaRef.current) {
           textareaRef.current.focus();
@@ -87,14 +92,12 @@ export default function MessageBubble({
   };
 
   const getBubbleColor = () => {
-    // Edit mode has special style
     if (isEditing) {
       return isMe 
         ? "bg-blue-50 text-gray-900 border-2 border-blue-400 shadow-lg"
         : "bg-gray-50 text-gray-900 border-2 border-gray-400 shadow-lg";
     }
     
-    // Normal mode
     if (!isMe) return "bg-white text-gray-800 shadow-sm hover:shadow-md border border-gray-100";
     if (isPending) return "bg-blue-400 text-white opacity-60";
     if (isFailed) return "bg-red-100 text-red-800 border border-red-300";
@@ -107,7 +110,6 @@ export default function MessageBubble({
     return text.substring(0, maxLength) + "...";
   };
 
-  // Get reactions from message
   const reactions = message?.reactions || [];
   const hasReactions = reactions.length > 0;
 
@@ -118,7 +120,7 @@ export default function MessageBubble({
         className={`
           rounded-2xl ${getBubbleCorner()} 
           transition-all duration-200 ${getBubbleColor()} 
-          ${replyTo ? 'px-2.5 py-2 sm:px-3 sm:py-2' : 'px-3 py-2 sm:px-4 sm:py-2.5'}
+          ${replyTo || hasAttachments ? 'px-2.5 py-2 sm:px-3 sm:py-2' : 'px-3 py-2 sm:px-4 sm:py-2.5'}
         `}
       >
         {/* Replied Message Section */}
@@ -134,7 +136,6 @@ export default function MessageBubble({
               }
             `}
           >
-            {/* Replied Author */}
             <div className="flex items-center gap-1.5 mb-1">
               <svg
                 className={`h-3 w-3 shrink-0 ${isMe ? 'text-blue-200' : 'text-gray-500'}`}
@@ -153,17 +154,15 @@ export default function MessageBubble({
                 {replyTo.sender?.nickname || "Unknown"}
               </span>
             </div>
-
-            {/* Replied Content */}
             <p className={`text-xs ${isMe ? 'text-blue-50' : 'text-gray-600'} line-clamp-2`}>
               {truncateReply(replyTo.content)}
             </p>
           </div>
         )}
 
-        {/* Main Message Content - 2 Modes */}
+        {/* Main Message Content */}
         {isEditing ? (
-          /* EDIT MODE - Textarea + Save/Cancel */
+          /* EDIT MODE */
           <div className="flex flex-col gap-2">
             <textarea
               ref={textareaRef}
@@ -180,7 +179,6 @@ export default function MessageBubble({
               }}
             />
             
-            {/* Edit Actions */}
             <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-300">
               <span className="text-xs text-gray-500">
                 {t("message.editHint") || "Enter để lưu • Esc để hủy"}
@@ -210,11 +208,27 @@ export default function MessageBubble({
             </div>
           </div>
         ) : (
-          /* NORMAL MODE - Display message */
+          /* NORMAL MODE */
           <>
-            <div className={isBig ? "text-4xl leading-none" : "text-[14px] sm:text-[15px] leading-[1.4] whitespace-pre-wrap wrap-break-word"}>
-              {renderMessage(messageText)}
-            </div>
+            {/* Text Content */}
+            {hasText && (
+              <div className={isBig ? "text-4xl leading-none" : "text-[14px] sm:text-[15px] leading-[1.4] whitespace-pre-wrap wrap-break-word"}>
+                {renderMessage(messageText)}
+              </div>
+            )}
+
+            {/* 🔥 ATTACHMENTS */}
+            {hasAttachments && (
+              <div className="space-y-2">
+                {attachments.map((attachment, index) => (
+                  <MediaAttachment
+                    key={index}
+                    attachment={attachment}
+                    isMe={isMe}
+                  />
+                ))}
+              </div>
+            )}
             
             {/* EDITED INDICATOR */}
             {editedAt && (
@@ -226,7 +240,7 @@ export default function MessageBubble({
         )}
       </div>
 
-      {/* 🆕 REACTIONS DISPLAY (Below bubble) */}
+      {/* REACTIONS DISPLAY */}
       {!isEditing && hasReactions && (
         <MessageReactions
           reactions={reactions}

@@ -45,6 +45,7 @@ import conversationRoutes from "./routes/conversation.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 import reactionRoutes from "./routes/reaction.routes.js";
 import callRoutes from "./routes/call.routes.js";
+import uploadRoutes from "./routes/upload.routes.js"; // 🔥 NEW
 
 // ==========================
 // SOCKET
@@ -137,6 +138,7 @@ app.use("/api/conversations", auth, conversationRoutes);
 app.use("/api/messages", auth, messageRoutes);
 app.use("/api/reactions", auth, reactionRoutes);
 app.use("/api/calls", auth, callRoutes);
+app.use("/api/upload", uploadRoutes); // 🔥 NEW - Upload routes (auth inside route)
 
 console.log("✅ All routes registered");
 
@@ -175,6 +177,7 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`🔌 Socket.IO ready`);
   console.log(`📞 WebRTC signaling ready`);
   console.log(`📁 Avatars: /uploads/avatars`);
+  console.log(`📤 Upload: R2 ${config.r2.enabled ? 'Enabled ✅' : 'Disabled ❌'}`); // 🔥 NEW
   console.log("=".repeat(50) + "\n");
 });
 

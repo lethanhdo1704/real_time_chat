@@ -10,21 +10,22 @@ class MessageController {
       const {
         conversationId,
         recipientId,
-        content,
+        content = "", // 🔥 FIX: Default to empty string
         clientMessageId,
         type,
         replyTo,
-        attachments,
+        attachments = [], // 🔥 FIX: Default to empty array
       } = req.body;
 
       // ============================================
       // VALIDATION
       // ============================================
 
-      if (!content) {
+      // 🔥 FIX: Allow empty content if attachments exist
+      if (!content && (!attachments || attachments.length === 0)) {
         return res.status(400).json({
           success: false,
-          message: "content is required",
+          message: "Either content or attachments is required",
         });
       }
 
@@ -98,7 +99,8 @@ class MessageController {
         conversationId: finalConversationId,
         clientMessageId,
         senderId: req.user.id,
-        contentLength: content.length,
+        contentLength: content?.length || 0,
+        attachmentsCount: attachments?.length || 0,
       });
 
       const result = await messageService.sendMessage({
@@ -114,6 +116,7 @@ class MessageController {
       console.log("✅ [MessageController] Message sent:", {
         messageId: result.message.messageId,
         clientMessageId: result.message.clientMessageId,
+        hasAttachments: result.message.attachments?.length > 0,
       });
 
       // ============================================
@@ -255,29 +258,11 @@ class MessageController {
   /**
    * ✅ IMPROVED: Edit message
    * PUT /api/messages/:messageId
-   * 
-   * Request body:
-   * {
-   *   "content": "Updated message content"
-   * }
-   * 
-   * Response:
-   * {
-   *   "success": true,
-   *   "data": {
-   *     "message": { ... },
-   *     "conversationId": "..."
-   *   }
-   * }
    */
   async editMessage(req, res, next) {
     try {
       const { messageId } = req.params;
       const { content } = req.body;
-
-      // ============================================
-      // VALIDATION
-      // ============================================
 
       if (!content) {
         return res.status(400).json({
@@ -287,7 +272,6 @@ class MessageController {
         });
       }
 
-      // Trim content
       const trimmedContent = content.trim();
 
       if (trimmedContent.length === 0) {
@@ -312,21 +296,13 @@ class MessageController {
         contentLength: trimmedContent.length
       });
 
-      // ============================================
-      // EXECUTE USE CASE
-      // ============================================
-
       const result = await messageService.editMessage(
         messageId,
-        req.user.id, // MongoDB _id
+        req.user.id,
         trimmedContent
       );
 
       console.log("✅ [MessageController] Message edited successfully");
-
-      // ============================================
-      // RESPONSE
-      // ============================================
 
       res.json({
         success: true,
@@ -338,16 +314,13 @@ class MessageController {
 
     } catch (error) {
       console.error("❌ [MessageController] editMessage error:", error.message);
-      
-      // Pass to error handler middleware
       next(error);
     }
   }
 
   /**
-   * 🆕 KIỂU 1: Hide message (Gỡ tin nhắn - bất kỳ message nào)
+   * Hide message
    * POST /api/messages/:messageId/hide
-   * Business rule: Anyone can hide any message from their view
    */
   async hideMessage(req, res, next) {
     try {
@@ -374,9 +347,8 @@ class MessageController {
   }
 
   /**
-   * 🆕 KIỂU 2: Delete for me (Xóa tin nhắn của chính mình - chỉ mình tôi thấy)
+   * Delete for me
    * DELETE /api/messages/:messageId/delete-for-me
-   * Business rule: Only sender can delete their own message from their view
    */
   async deleteForMe(req, res, next) {
     try {
@@ -403,7 +375,7 @@ class MessageController {
   }
 
   /**
-   * 🆕 KIỂU 3: Recall message (Thu hồi - mọi người thấy)
+   * Recall message
    * POST /api/messages/:messageId/recall
    */
   async recallMessage(req, res, next) {
@@ -431,9 +403,8 @@ class MessageController {
   }
 
   /**
-   * 🔧 PRIORITY 1: Admin delete message (highest priority)
+   * Admin delete message
    * DELETE /api/messages/:messageId
-   * Business rule: Only admin/owner can permanently delete
    */
   async deleteMessage(req, res, next) {
     try {

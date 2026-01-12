@@ -14,7 +14,9 @@
     "youRecalled": "You have recalled this message",
     "recalled": "This message has been recalled",
     "edited": "Edited",
-    "editHint": "Press Enter to save • Esc to cancel"
+    "editHint": "Press Enter to save • Esc to cancel",
+    "failed" : "Failed to send message",
+    "sending": "Sending"
 
   },
   "input": {

@@ -1,33 +1,81 @@
 // backend/services/fileUpload.service.js
-import { v2 as cloudinary } from 'cloudinary';
+import r2Service from './storage/r2.service.js';
 import { getEnvConfig } from '../config/validateEnv.js';
 import crypto from 'crypto';
 
 /**
- * File Upload Service
- * Handles file uploads to Cloudinary
+ * 🔥 FILE UPLOAD SERVICE - R2 VERSION
+ * 
+ * Responsibilities:
+ * - Validate files (size, mime, batch total)
+ * - Classify files (image/video/audio/file)
+ * - Generate presigned URLs via R2
+ * - Delete files from R2
+ * 
+ * ❌ NOT responsible for:
+ * - Creating Message documents
+ * - Socket events
+ * - Business logic
+ * 
+ * @production
  */
 
 class FileUploadService {
   constructor() {
-    const config = getEnvConfig();
-    
-    if (!config.cloudinary.enabled) {
-      console.warn('⚠️  Cloudinary not configured. File upload disabled.');
-      this.enabled = false;
-      return;
+    this.config = getEnvConfig();
+    this.enabled = this.config.r2.enabled;
+
+    if (!this.enabled) {
+      console.warn('⚠️  R2 not configured. File upload disabled.');
+    } else {
+      console.log('✅ FileUpload service initialized with R2');
     }
 
-    // Configure Cloudinary
-    cloudinary.config({
-      cloud_name: config.cloudinary.cloudName,
-      api_key: config.cloudinary.apiKey,
-      api_secret: config.cloudinary.apiSecret,
-      secure: true
-    });
+    // File type classification
+    this.mimeTypeMap = {
+      // Images
+      'image/jpeg': 'image',
+      'image/jpg': 'image',
+      'image/png': 'image',
+      'image/gif': 'image',
+      'image/webp': 'image',
+      'image/svg+xml': 'image',
+      
+      // Videos
+      'video/mp4': 'video',
+      'video/webm': 'video',
+      'video/ogg': 'video',
+      'video/quicktime': 'video',
+      'video/x-msvideo': 'video',
+      
+      // Audio
+      'audio/mpeg': 'audio',
+      'audio/mp3': 'audio',
+      'audio/wav': 'audio',
+      'audio/ogg': 'audio',
+      'audio/webm': 'audio',
+      'audio/aac': 'audio',
+      'audio/m4a': 'audio',
+      
+      // Documents
+      'application/pdf': 'file',
+      'application/msword': 'file',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'file',
+      'application/vnd.ms-excel': 'file',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'file',
+      'text/plain': 'file',
+      'application/zip': 'file',
+      'application/x-zip-compressed': 'file',
+      'application/x-rar-compressed': 'file',
+      'application/x-7z-compressed': 'file',
+    };
 
-    this.enabled = true;
-    console.log('✅ Cloudinary configured');
+    // Size limits
+    this.limits = {
+      maxFileSize: 1 * 1024 * 1024 * 1024, // 1GB per file (same as batch)
+      maxBatchSize: 1 * 1024 * 1024 * 1024, // 1GB per batch
+      maxFilesPerBatch: 20, // Max 20 files in one batch
+    };
   }
 
   /**
@@ -38,253 +86,289 @@ class FileUploadService {
   }
 
   /**
-   * Upload image to Cloudinary
-   * @param {Buffer|string} file - File buffer or base64 string
-   * @param {object} options - Upload options
+   * 🔥 CLASSIFY FILE TYPE
+   * 
+   * @param {string} mimeType - MIME type from FE
+   * @returns {string} 'image' | 'video' | 'audio' | 'file'
    */
-  async uploadImage(file, options = {}) {
-    if (!this.enabled) {
-      throw new Error('File upload is not configured. Please set CLOUDINARY credentials.');
-    }
-
-    try {
-      const uploadOptions = {
-        folder: options.folder || 'chat-app/images',
-        resource_type: 'image',
-        allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-        max_file_size: 5 * 1024 * 1024, // 5MB
-        ...options
-      };
-
-      // Generate unique public_id if not provided
-      if (!uploadOptions.public_id) {
-        uploadOptions.public_id = `${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
-      }
-
-      const result = await cloudinary.uploader.upload(file, uploadOptions);
-
-      return {
-        url: result.secure_url,
-        publicId: result.public_id,
-        format: result.format,
-        width: result.width,
-        height: result.height,
-        size: result.bytes,
-        type: 'image',
-        name: `${result.public_id}.${result.format}`
-      };
-    } catch (error) {
-      console.error('❌ Image upload error:', error);
-      throw new Error(`Image upload failed: ${error.message}`);
-    }
+  classifyFileType(mimeType) {
+    const normalized = mimeType.toLowerCase();
+    return this.mimeTypeMap[normalized] || 'file';
   }
 
   /**
-   * Upload file (non-image) to Cloudinary
-   * @param {Buffer|string} file - File buffer or base64 string
-   * @param {object} options - Upload options
+   * 🔥 VALIDATE SINGLE FILE
+   * 
+   * @param {object} file
+   * @param {string} file.name - Original filename
+   * @param {number} file.size - File size in bytes
+   * @param {string} file.mime - MIME type
+   * @throws {Error} If validation fails
    */
-  async uploadFile(file, options = {}) {
-    if (!this.enabled) {
-      throw new Error('File upload is not configured');
+  validateFile(file) {
+    // Check required fields
+    if (!file.name || !file.size || !file.mime) {
+      throw new Error('Invalid file metadata: name, size, and mime are required');
     }
-
-    try {
-      const uploadOptions = {
-        folder: options.folder || 'chat-app/files',
-        resource_type: 'raw',
-        max_file_size: 10 * 1024 * 1024, // 10MB
-        ...options
-      };
-
-      if (!uploadOptions.public_id) {
-        uploadOptions.public_id = `${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
-      }
-
-      const result = await cloudinary.uploader.upload(file, uploadOptions);
-
-      return {
-        url: result.secure_url,
-        publicId: result.public_id,
-        format: result.format,
-        size: result.bytes,
-        type: 'file',
-        name: options.originalName || `${result.public_id}.${result.format}`
-      };
-    } catch (error) {
-      console.error('❌ File upload error:', error);
-      throw new Error(`File upload failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Upload video to Cloudinary
-   * @param {Buffer|string} file - File buffer or base64 string
-   * @param {object} options - Upload options
-   */
-  async uploadVideo(file, options = {}) {
-    if (!this.enabled) {
-      throw new Error('File upload is not configured');
-    }
-
-    try {
-      const uploadOptions = {
-        folder: options.folder || 'chat-app/videos',
-        resource_type: 'video',
-        allowed_formats: ['mp4', 'mov', 'avi', 'webm'],
-        max_file_size: 50 * 1024 * 1024, // 50MB
-        ...options
-      };
-
-      if (!uploadOptions.public_id) {
-        uploadOptions.public_id = `${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
-      }
-
-      const result = await cloudinary.uploader.upload(file, uploadOptions);
-
-      return {
-        url: result.secure_url,
-        publicId: result.public_id,
-        format: result.format,
-        duration: result.duration,
-        size: result.bytes,
-        type: 'video',
-        name: `${result.public_id}.${result.format}`
-      };
-    } catch (error) {
-      console.error('❌ Video upload error:', error);
-      throw new Error(`Video upload failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Delete file from Cloudinary
-   * @param {string} publicId - Cloudinary public ID
-   * @param {string} resourceType - 'image', 'video', or 'raw'
-   */
-  async deleteFile(publicId, resourceType = 'image') {
-    if (!this.enabled) {
-      return { success: false, message: 'File upload not configured' };
-    }
-
-    try {
-      const result = await cloudinary.uploader.destroy(publicId, {
-        resource_type: resourceType
-      });
-
-      return {
-        success: result.result === 'ok',
-        result: result.result
-      };
-    } catch (error) {
-      console.error('❌ File delete error:', error);
-      throw new Error(`File deletion failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Get file info from Cloudinary
-   * @param {string} publicId - Cloudinary public ID
-   * @param {string} resourceType - 'image', 'video', or 'raw'
-   */
-  async getFileInfo(publicId, resourceType = 'image') {
-    if (!this.enabled) {
-      throw new Error('File upload is not configured');
-    }
-
-    try {
-      const result = await cloudinary.api.resource(publicId, {
-        resource_type: resourceType
-      });
-
-      return {
-        publicId: result.public_id,
-        url: result.secure_url,
-        format: result.format,
-        size: result.bytes,
-        createdAt: result.created_at,
-        type: result.resource_type
-      };
-    } catch (error) {
-      console.error('❌ Get file info error:', error);
-      throw new Error(`Failed to get file info: ${error.message}`);
-    }
-  }
-
-  /**
-   * Generate thumbnail from video
-   * @param {string} publicId - Cloudinary public ID of video
-   */
-  async generateVideoThumbnail(publicId) {
-    if (!this.enabled) {
-      throw new Error('File upload is not configured');
-    }
-
-    try {
-      // Generate thumbnail URL (Cloudinary transformation)
-      const thumbnailUrl = cloudinary.url(publicId, {
-        resource_type: 'video',
-        format: 'jpg',
-        transformation: [
-          { width: 300, height: 300, crop: 'fill' },
-          { quality: 'auto' }
-        ]
-      });
-
-      return {
-        url: thumbnailUrl
-      };
-    } catch (error) {
-      console.error('❌ Generate thumbnail error:', error);
-      throw new Error(`Thumbnail generation failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Validate file before upload
-   * @param {object} file - File metadata
-   * @param {string} type - 'image', 'video', or 'file'
-   */
-  validateFile(file, type = 'image') {
-    const limits = {
-      image: {
-        maxSize: 5 * 1024 * 1024, // 5MB
-        allowedFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-      },
-      video: {
-        maxSize: 50 * 1024 * 1024, // 50MB
-        allowedFormats: ['mp4', 'mov', 'avi', 'webm'],
-        allowedMimeTypes: ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm']
-      },
-      file: {
-        maxSize: 10 * 1024 * 1024, // 10MB
-        allowedFormats: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'zip'],
-        allowedMimeTypes: [
-          'application/pdf',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'application/vnd.ms-excel',
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'text/plain',
-          'application/zip'
-        ]
-      }
-    };
-
-    const limit = limits[type];
 
     // Check file size
-    if (file.size > limit.maxSize) {
-      throw new Error(`File size exceeds limit of ${limit.maxSize / 1024 / 1024}MB`);
+    if (file.size <= 0) {
+      throw new Error('File size must be greater than 0');
     }
 
-    // Check mime type
-    if (!limit.allowedMimeTypes.includes(file.mimetype)) {
-      throw new Error(`File type ${file.mimetype} is not allowed`);
+    if (file.size > this.limits.maxFileSize) {
+      throw new Error(
+        `File "${file.name}" exceeds maximum size of ${this.limits.maxFileSize / 1024 / 1024 / 1024}GB`
+      );
+    }
+
+    // Check MIME type
+    if (!this.mimeTypeMap[file.mime.toLowerCase()]) {
+      throw new Error(`File type "${file.mime}" is not supported`);
     }
 
     return true;
+  }
+
+  /**
+   * 🔥 VALIDATE BATCH OF FILES
+   * 
+   * Critical rule: Total size ≤ 1GB
+   * 
+   * @param {Array} files - Array of file metadata
+   * @throws {Error} If validation fails
+   */
+  validateBatch(files) {
+    if (!Array.isArray(files) || files.length === 0) {
+      throw new Error('Files array is required and must not be empty');
+    }
+
+    // Check max files per batch
+    if (files.length > this.limits.maxFilesPerBatch) {
+      throw new Error(
+        `Maximum ${this.limits.maxFilesPerBatch} files per batch. ` +
+        `You provided ${files.length} files.`
+      );
+    }
+
+    // Validate each file
+    files.forEach((file, index) => {
+      try {
+        this.validateFile(file);
+      } catch (error) {
+        throw new Error(`File #${index + 1}: ${error.message}`);
+      }
+    });
+
+    // 🔥 CRITICAL: Check total batch size
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+    if (totalSize > this.limits.maxBatchSize) {
+      const totalGB = (totalSize / 1024 / 1024 / 1024).toFixed(2);
+      const limitGB = (this.limits.maxBatchSize / 1024 / 1024 / 1024).toFixed(0);
+      
+      throw new Error(
+        `Batch total size (${totalGB}GB) exceeds limit of ${limitGB}GB`
+      );
+    }
+
+    console.log('✅ [FileUpload] Batch validated:', {
+      files: files.length,
+      totalSize: `${(totalSize / 1024 / 1024 / 1024).toFixed(2)}GB`,
+      limit: `${(this.limits.maxBatchSize / 1024 / 1024 / 1024).toFixed(0)}GB`,
+    });
+
+    return true;
+  }
+
+  /**
+   * 🔥 GENERATE PRESIGNED UPLOAD URLS
+   * 
+   * Frontend uploads directly to these URLs
+   * 
+   * @param {object} params
+   * @param {string} params.userId - User ID (for folder structure)
+   * @param {Array} params.files - Array of {name, size, mime}
+   * @returns {Promise<Array>} Array of upload URLs + metadata
+   */
+  async generateUploadUrls({ userId, files }) {
+    if (!this.enabled) {
+      throw new Error('File upload is not configured');
+    }
+
+    // Validate batch
+    this.validateBatch(files);
+
+    console.log(`📤 [FileUpload] Generating ${files.length} upload URLs for user ${userId}`);
+
+    // Generate presigned URL for each file
+    const uploadPromises = files.map(async (file) => {
+      const mediaType = this.classifyFileType(file.mime);
+      
+      // Generate folder path
+      const folder = `chat-app/${userId}/${mediaType}s`;
+      
+      // Generate unique key
+      const key = r2Service.generateFileKey(folder, file.name);
+      
+      // Generate presigned upload URL
+      const { uploadUrl, publicUrl } = await r2Service.generatePresignedUploadUrl({
+        key,
+        contentType: file.mime,
+        expiresIn: 3600, // 1 hour to complete upload
+      });
+
+      return {
+        // For FE to upload
+        uploadUrl,
+        
+        // For FE to send to sendMessage
+        metadata: {
+          url: publicUrl,
+          name: file.name,
+          size: file.size,
+          mime: file.mime,
+          mediaType,
+          key, // FE should store this for cancel/delete
+        },
+      };
+    });
+
+    const results = await Promise.all(uploadPromises);
+
+    console.log(`✅ [FileUpload] Generated ${results.length} presigned URLs`);
+
+    return results;
+  }
+
+  /**
+   * 🔥 DELETE FILE FROM R2
+   * 
+   * Called when:
+   * - User cancels upload
+   * - Admin deletes message
+   * 
+   * @param {string} keyOrUrl - R2 key or public URL
+   * @returns {Promise<object>}
+   */
+  async deleteFile(keyOrUrl) {
+    if (!this.enabled) {
+      throw new Error('File upload is not configured');
+    }
+
+    // Extract key from URL if needed
+    let key = keyOrUrl;
+    if (keyOrUrl.startsWith('http')) {
+      key = r2Service.extractKeyFromUrl(keyOrUrl);
+      if (!key) {
+        throw new Error('Invalid file URL - cannot extract key');
+      }
+    }
+
+    console.log('🗑️  [FileUpload] Deleting file:', key);
+
+    const result = await r2Service.deleteFile(key);
+
+    console.log('✅ [FileUpload] File deleted:', key);
+
+    return result;
+  }
+
+  /**
+   * 🔥 DELETE MULTIPLE FILES (BATCH)
+   * 
+   * More efficient than one-by-one
+   * 
+   * @param {Array<string>} keysOrUrls - Array of keys or URLs
+   * @returns {Promise<object>}
+   */
+  async deleteFiles(keysOrUrls) {
+    if (!this.enabled) {
+      throw new Error('File upload is not configured');
+    }
+
+    console.log(`🗑️  [FileUpload] Batch deleting ${keysOrUrls.length} files`);
+
+    // Extract keys from URLs
+    const keys = keysOrUrls.map(keyOrUrl => {
+      if (keyOrUrl.startsWith('http')) {
+        return r2Service.extractKeyFromUrl(keyOrUrl);
+      }
+      return keyOrUrl;
+    }).filter(Boolean);
+
+    const result = await r2Service.deleteFiles(keys);
+
+    console.log('✅ [FileUpload] Batch delete completed:', {
+      total: keys.length,
+      deleted: result.deleted.length,
+      failed: result.failed.length,
+    });
+
+    return result;
+  }
+
+  /**
+   * 🔥 CANCEL UPLOAD
+   * 
+   * If user cancels upload after getting presigned URL
+   * but before completing upload
+   * 
+   * @param {string} key - File key
+   */
+  async cancelUpload(key) {
+    // If file was partially uploaded, delete it
+    try {
+      await this.deleteFile(key);
+      console.log('✅ [FileUpload] Cancelled upload cleaned up:', key);
+    } catch (error) {
+      // File might not exist yet - ignore error
+      console.log('ℹ️  [FileUpload] Cancel upload - file not found (OK):', key);
+    }
+  }
+
+  /**
+   * Extract attachments URLs from message for deletion
+   * 
+   * @param {object} message - Message document
+   * @returns {Array<string>} Array of file URLs
+   */
+  extractAttachmentUrls(message) {
+    if (!message.attachments || message.attachments.length === 0) {
+      return [];
+    }
+
+    return message.attachments.map(att => att.url);
+  }
+
+  /**
+   * Get file info for FE display
+   * 
+   * @param {string} url - Public URL
+   * @returns {object} File metadata
+   */
+  getFileInfo(url) {
+    const key = r2Service.extractKeyFromUrl(url);
+    
+    return {
+      url,
+      key,
+      publicUrl: url,
+    };
+  }
+
+  /**
+   * Get upload limits (for FE validation)
+   */
+  getLimits() {
+    return {
+      maxFileSize: this.limits.maxFileSize,
+      maxFileSizeGB: this.limits.maxFileSize / 1024 / 1024 / 1024,
+      maxBatchSize: this.limits.maxBatchSize,
+      maxBatchSizeGB: this.limits.maxBatchSize / 1024 / 1024 / 1024,
+      maxFilesPerBatch: this.limits.maxFilesPerBatch,
+      supportedTypes: Object.keys(this.mimeTypeMap),
+    };
   }
 }
 

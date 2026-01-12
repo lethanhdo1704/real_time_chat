@@ -21,14 +21,17 @@ const messageSchema = new Schema(
       default: null,
     },
 
+    // ✅ FIX: Cho phép empty (file-only message)
     content: {
       type: String,
-      required: true,
+      default: "",
       maxlength: 5000,
     },
+
+    // ✅ FIX: Thêm video, audio
     type: {
       type: String,
-      enum: ["text", "image", "file"],
+      enum: ["text", "image", "video", "audio", "file"],
       default: "text",
     },
 
@@ -37,18 +40,34 @@ const messageSchema = new Schema(
       ref: "Message",
       default: null,
     },
+
+    // ✅ FIX: Chuẩn hóa attachments
     attachments: [
       {
-        url: String,
-        name: String,
-        size: Number,
-        type: String,
+        url: {
+          type: String,
+          required: true,
+        },
+        name: {
+          type: String,
+          required: true,
+        },
+        size: {
+          type: Number,
+          required: true,
+        },
+        mime: {
+          type: String,
+          required: true, // video/mp4, image/jpeg, application/pdf, ...
+        },
+        mediaType: {
+          type: String,
+          enum: ["image", "video", "audio", "file"],
+          required: true,
+        },
       },
     ],
 
-    // ============================================
-    // 🆕 REACTIONS (FINAL VERSION)
-    // ============================================
     reactions: [
       {
         user: {
@@ -67,10 +86,6 @@ const messageSchema = new Schema(
       },
     ],
 
-    // ============================================
-    // 3 KIỂU DELETE (THEO THỨ TỰ ƯU TIÊN)
-    // ============================================
-    
     deletedAt: {
       type: Date,
       default: null,
@@ -80,7 +95,7 @@ const messageSchema = new Schema(
       ref: "User",
       default: null,
     },
-    
+
     isRecalled: {
       type: Boolean,
       default: false,
@@ -89,11 +104,13 @@ const messageSchema = new Schema(
       type: Date,
       default: null,
     },
-    
-    hiddenFor: [{
-      type: Schema.Types.ObjectId,
-      ref: "User",
-    }],
+
+    hiddenFor: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
 
     editedAt: {
       type: Date,

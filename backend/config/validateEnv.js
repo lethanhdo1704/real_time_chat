@@ -1,225 +1,224 @@
 // backend/config/validateEnv.js
 
-const requiredEnvVars = [
-  'MONGO_URI',
-  'JWT_SECRET',
-  'EMAIL_USER',
-  'EMAIL_PASS',
-  'PORT'
-];
-
-const optionalEnvVars = [
-  'NODE_ENV',
-  'CORS_ORIGIN',
-  'CLOUDINARY_CLOUD_NAME',
-  'CLOUDINARY_API_KEY',
-  'CLOUDINARY_API_SECRET',
-  'REDIS_URL',
-  'LOG_LEVEL'
-];
-
 /**
- * Validate that all required environment variables are set
+ * 🔥 ENVIRONMENT VARIABLE VALIDATION
+ * 
+ * Validates and provides centralized env config
+ * Prevents runtime errors from missing/invalid env vars
+ * 
+ * @production
  */
-export const validateEnv = () => {
-  console.log('🔍 Validating environment variables...');
 
-  const missing = [];
-  const warnings = [];
-
-  // Check required variables
-  requiredEnvVars.forEach(envVar => {
-    if (!process.env[envVar]) {
-      missing.push(envVar);
-    }
-  });
-
-  // If any required variables are missing, throw error
-  if (missing.length > 0) {
-    console.error('❌ Missing required environment variables:');
-    missing.forEach(envVar => {
-      console.error(`   - ${envVar}`);
-    });
-    throw new Error(
-      `Missing required environment variables: ${missing.join(', ')}\n` +
-      'Please check your .env file'
-    );
-  }
-
-  // Check optional variables and warn if missing
-  optionalEnvVars.forEach(envVar => {
-    if (!process.env[envVar]) {
-      warnings.push(envVar);
-    }
-  });
-
-  if (warnings.length > 0) {
-    console.warn('⚠️  Optional environment variables not set:');
-    warnings.forEach(envVar => {
-      console.warn(`   - ${envVar}`);
-    });
-  }
-
-  // Validate specific formats
-  validateJWTSecret();
-  validateMongoURI();
-  validateEmail();
-  validatePort();
-
-  console.log('✅ Environment validation passed');
-};
-
-/**
- * Validate JWT_SECRET format and strength
- */
-function validateJWTSecret() {
-  const secret = process.env.JWT_SECRET;
-
-  if (secret.length < 32) {
-    console.warn(
-      '⚠️  JWT_SECRET is less than 32 characters. ' +
-      'Consider using a stronger secret for production.'
-    );
-  }
-
-  // Check if it's a weak secret
-  const weakSecrets = ['secret', 'password', '123456', 'your-secret-key'];
-  if (weakSecrets.includes(secret.toLowerCase())) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(
-        '❌ JWT_SECRET is too weak for production! ' +
-        'Please use a strong, random secret.'
-      );
-    } else {
-      console.warn('⚠️  JWT_SECRET is weak. This is only acceptable in development.');
-    }
-  }
-}
-
-/**
- * Validate MONGO_URI format
- */
-function validateMongoURI() {
-  const uri = process.env.MONGO_URI;
-
-  if (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://')) {
-    throw new Error(
-      '❌ MONGO_URI must start with mongodb:// or mongodb+srv://'
-    );
-  }
-}
-
-/**
- * Validate email configuration
- */
-function validateEmail() {
-  const emailUser = process.env.EMAIL_USER;
-  const emailPass = process.env.EMAIL_PASS;
-
-  // Basic email format validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(emailUser)) {
-    throw new Error('❌ EMAIL_USER must be a valid email address');
-  }
-
-  if (emailPass.length < 8) {
-    console.warn('⚠️  EMAIL_PASS seems too short. Make sure it\'s correct.');
-  }
-}
-
-/**
- * Validate PORT
- */
-function validatePort() {
-  const port = parseInt(process.env.PORT);
-
-  if (isNaN(port)) {
-    throw new Error('❌ PORT must be a valid number');
-  }
-
-  if (port < 1 || port > 65535) {
-    throw new Error('❌ PORT must be between 1 and 65535');
-  }
-
-  // Warn about privileged ports
-  if (port < 1024 && process.platform !== 'win32') {
-    console.warn(
-      `⚠️  PORT ${port} is a privileged port. ` +
-      'You may need elevated permissions to use it.'
-    );
-  }
-}
-
-/**
- * Get environment configuration with defaults
- */
 export const getEnvConfig = () => {
-  return {
-    // Required
-    mongoUri: process.env.MONGO_URI,
-    jwtSecret: process.env.JWT_SECRET,
-    emailUser: process.env.EMAIL_USER,
-    emailPass: process.env.EMAIL_PASS,
-    port: parseInt(process.env.PORT) || 5000,
+  // ============================================
+  // REQUIRED ENVIRONMENT VARIABLES
+  // ============================================
+  const required = {
+    MONGO_URI: process.env.MONGO_URI,
+    JWT_SECRET: process.env.JWT_SECRET,
+    PORT: process.env.PORT || 5000,
+  };
 
-    // Optional with defaults
+  // Check required vars
+  const missing = Object.entries(required)
+    .filter(([key, value]) => !value)
+    .map(([key]) => key);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `❌ Missing required environment variables:\n   - ${missing.join('\n   - ')}`
+    );
+  }
+
+  // ============================================
+  // OPTIONAL ENVIRONMENT VARIABLES
+  // ============================================
+  const optional = {
+    CORS_ORIGIN: process.env.CORS_ORIGIN,
+    EMAIL_USER: process.env.EMAIL_USER,
+    EMAIL_PASS: process.env.EMAIL_PASS,
+    RECAPTCHA_SECRET: process.env.RECAPTCHA_SECRET,
+    PUBLIC_API_URL: process.env.PUBLIC_API_URL,
+    
+    // Cloudinary (deprecated)
+    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+    
+    // R2 Storage
+    R2_ENABLED: process.env.R2_ENABLED,
+    R2_ENDPOINT: process.env.R2_ENDPOINT,
+    R2_BUCKET: process.env.R2_BUCKET,
+    R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
+    R2_PUBLIC_URL: process.env.R2_PUBLIC_URL,
+    
+    // Redis
+    REDIS_URL: process.env.REDIS_URL,
+    
+    // Other
+    LOG_LEVEL: process.env.LOG_LEVEL,
+  };
+
+  // Log missing optional vars (warning only)
+  const missingOptional = Object.entries(optional)
+    .filter(([key, value]) => !value)
+    .map(([key]) => key);
+
+  if (missingOptional.length > 0) {
+    console.log('⚠️  Optional environment variables not set:');
+    missingOptional.forEach(key => console.log(`   - ${key}`));
+  }
+
+  // ============================================
+  // RETURN VALIDATED CONFIG
+  // ============================================
+  return {
+    // Core
     nodeEnv: process.env.NODE_ENV || 'development',
+    port: parseInt(process.env.PORT) || 5000,
+    
+    // Database
+    mongoUri: process.env.MONGO_URI,
+    
+    // Security
+    jwtSecret: process.env.JWT_SECRET,
+    cookieSecure: process.env.COOKIE_SECURE === 'true',
+    trustProxy: process.env.TRUST_PROXY === 'true',
+    
+    // CORS
     corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
     
-    // Cloud storage (optional)
+    // Email
+    email: {
+      enabled: !!(process.env.EMAIL_USER && process.env.EMAIL_PASS),
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+    
+    // reCAPTCHA
+    recaptcha: {
+      enabled: !!process.env.RECAPTCHA_SECRET,
+      secret: process.env.RECAPTCHA_SECRET,
+    },
+    
+    // Public API
+    publicApiUrl: process.env.PUBLIC_API_URL || `http://localhost:${process.env.PORT || 5000}`,
+    
+    // ============================================
+    // 🔥 CLOUDFLARE R2 STORAGE
+    // ============================================
+    r2: {
+      enabled: process.env.R2_ENABLED === 'true',
+      endpoint: process.env.R2_ENDPOINT,
+      bucket: process.env.R2_BUCKET,
+      accessKeyId: process.env.R2_ACCESS_KEY_ID,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+      publicUrl: process.env.R2_PUBLIC_URL,
+    },
+    
+    // ============================================
+    // CLOUDINARY (DEPRECATED)
+    // ============================================
     cloudinary: {
-      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-      apiKey: process.env.CLOUDINARY_API_KEY,
-      apiSecret: process.env.CLOUDINARY_API_SECRET,
-      enabled: Boolean(
+      enabled: !!(
         process.env.CLOUDINARY_CLOUD_NAME &&
         process.env.CLOUDINARY_API_KEY &&
         process.env.CLOUDINARY_API_SECRET
-      )
+      ),
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      apiKey: process.env.CLOUDINARY_API_KEY,
+      apiSecret: process.env.CLOUDINARY_API_SECRET,
     },
-
-    // Redis (optional)
+    
+    // Redis
     redis: {
+      enabled: !!process.env.REDIS_URL,
       url: process.env.REDIS_URL,
-      enabled: Boolean(process.env.REDIS_URL)
     },
-
+    
     // Logging
     logLevel: process.env.LOG_LEVEL || 'info',
-
-    // Feature flags
-    features: {
-      fileUpload: Boolean(process.env.CLOUDINARY_CLOUD_NAME),
-      rateLimit: process.env.NODE_ENV === 'production',
-      caching: Boolean(process.env.REDIS_URL)
-    }
   };
 };
 
 /**
- * Display environment configuration (without sensitive data)
+ * 🔥 VALIDATE ENVIRONMENT (called at startup)
  */
-export const displayEnvConfig = () => {
-  const config = getEnvConfig();
-
-  console.log('\n📋 Environment Configuration:');
-  console.log(`   NODE_ENV: ${config.nodeEnv}`);
-  console.log(`   PORT: ${config.port}`);
-  console.log(`   CORS_ORIGIN: ${config.corsOrigin}`);
-  console.log(`   DATABASE: ${config.mongoUri.includes('localhost') ? 'Local' : 'Cloud'}`);
-  console.log(`   EMAIL: ${config.emailUser}`);
-  console.log(`   CLOUDINARY: ${config.cloudinary.enabled ? 'Enabled' : 'Disabled'}`);
-  console.log(`   REDIS: ${config.redis.enabled ? 'Enabled' : 'Disabled'}`);
-  console.log(`   LOG_LEVEL: ${config.logLevel}`);
-  console.log('\n🎯 Features:');
-  console.log(`   File Upload: ${config.features.fileUpload ? '✅' : '❌'}`);
-  console.log(`   Rate Limiting: ${config.features.rateLimit ? '✅' : '❌'}`);
-  console.log(`   Caching: ${config.features.caching ? '✅' : '❌'}`);
-  console.log('');
+export const validateEnv = () => {
+  try {
+    getEnvConfig();
+    return true;
+  } catch (error) {
+    console.error('❌ Environment validation failed:', error.message);
+    process.exit(1);
+  }
 };
 
+/**
+ * 🔥 VALIDATE AND LOG CONFIGURATION
+ * 
+ * Call this at startup to validate env and log config
+ */
+export const validateAndLogConfig = () => {
+  console.log('🔍 Validating environment variables...');
+  
+  try {
+    const config = getEnvConfig();
+    
+    console.log('✅ Environment validation passed');
+    console.log('📋 Environment Configuration:');
+    console.log(`   NODE_ENV: ${config.nodeEnv}`);
+    console.log(`   PORT: ${config.port}`);
+    console.log(`   CORS_ORIGIN: ${config.corsOrigin}`);
+    console.log(`   DATABASE: ${config.mongoUri ? 'Local' : 'Not configured'}`);
+    console.log(`   EMAIL: ${config.email.user || 'Not configured'}`);
+    
+    console.log('💾 Storage:');
+    
+    // R2 Config
+    if (config.r2.enabled) {
+      console.log('   R2: ✅ Enabled');
+      console.log(`      Bucket: ${config.r2.bucket}`);
+      console.log(`      Endpoint: ${config.r2.endpoint}`);
+      console.log(`      Public URL: ${config.r2.publicUrl || '⚠️  Not configured'}`);
+    } else {
+      console.log('   R2: ❌ Disabled');
+    }
+    
+    // Cloudinary Config (deprecated)
+    if (config.cloudinary.enabled) {
+      console.log('   Cloudinary: ✅ Enabled (deprecated)');
+    } else {
+      console.log('   Cloudinary: ❌ Disabled');
+    }
+    
+    console.log(`   REDIS: ${config.redis.enabled ? 'Enabled' : 'Disabled'}`);
+    console.log(`   LOG_LEVEL: ${config.logLevel}`);
+    
+    console.log('🎯 Features:');
+    console.log(`   File Upload: ${config.r2.enabled || config.cloudinary.enabled ? '✅' : '❌'}`);
+    console.log(`   Rate Limiting: ${config.redis.enabled ? '✅' : '❌'}`);
+    console.log(`   Caching: ${config.redis.enabled ? '✅' : '❌'}`);
+    
+    return config;
+  } catch (error) {
+    console.error('❌ Environment validation failed:', error.message);
+    process.exit(1);
+  }
+};
+
+// ============================================
+// 🔥 BACKWARD COMPATIBILITY ALIAS
+// ============================================
+export const displayEnvConfig = validateAndLogConfig;
+
+// ============================================
+// DEFAULT EXPORT
+// ============================================
 export default {
-  validateEnv,
   getEnvConfig,
-  displayEnvConfig
+  validateEnv,
+  validateAndLogConfig,
+  displayEnvConfig, // Alias
 };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import useChatStore from "../../store/chat/chatStore";
+import useChatStore from "../../../store/chat/chatStore";
 
 /**
  * useReply Hook

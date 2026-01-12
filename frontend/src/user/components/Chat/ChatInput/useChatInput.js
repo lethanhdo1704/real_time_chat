@@ -1,16 +1,18 @@
+// frontend/src/user/components/Chat/ChatInput/useChatInput.js
+
 import { useState, useRef, useCallback, useEffect, useImperativeHandle } from "react";
 import { useTranslation } from "react-i18next";
-import useChatStore from "../../store/chat/chatStore";
+import useChatStore from "../../../store/chat/chatStore";
 
 /**
- * useChatInput Hook
- * Handles main input logic, text state, sending messages, and keyboard shortcuts
+ * useChatInput Hook - WITH ATTACHMENTS SUPPORT
+ * 
+ * Handles main input logic, text state, sending messages with attachments
  */
-const useChatInput = ({ onSendMessage, onImageSelect, disabled, sending, ref }) => {
+const useChatInput = ({ onSendMessage, disabled, sending, ref }) => {
   const { t } = useTranslation("chat");
   const [text, setText] = useState("");
   const textareaRef = useRef(null);
-  const fileInputRef = useRef(null);
 
   // Get reply state
   const conversationId = useChatStore((state) => state.activeConversationId);
@@ -67,23 +69,6 @@ const useChatInput = ({ onSendMessage, onImageSelect, disabled, sending, ref }) 
   }, [disabled, sending]);
 
   // ============================================
-  // IMAGE UPLOAD
-  // ============================================
-  const handleImageClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleImageChange = useCallback((e) => {
-    const files = e.target.files;
-    if (files && files.length > 0 && onImageSelect) {
-      onImageSelect(Array.from(files));
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }, [onImageSelect]);
-
-  // ============================================
   // TEXT CHANGE WITH AUTO-RESIZE
   // ============================================
   const handleTextChange = useCallback((e) => {
@@ -99,28 +84,32 @@ const useChatInput = ({ onSendMessage, onImageSelect, disabled, sending, ref }) 
   }, []);
 
   // ============================================
-  // 🔥 SEND MESSAGE WITH REPLY
+  // 🔥 SEND MESSAGE WITH REPLY + ATTACHMENTS
   // ============================================
-  const sendMessage = useCallback(() => {
-    if (!text.trim() || disabled || sending) return;
+  const sendMessage = useCallback(async (messageText, replyToId = null, attachments = []) => {
+    // Allow empty text if has attachments
+    if (!messageText.trim() && attachments.length === 0) return;
+    if (disabled || sending) return;
 
     const textarea = textareaRef.current;
 
-    // 🔥 Pass replyTo messageId if exists
-    const replyToId = replyingTo?.messageId || null;
-    
-    console.log("📤 [useChatInput] Sending message with reply:", {
+    console.log("📤 [useChatInput] Sending message:", {
       conversationId,
-      replyToId,
-      hasReplyData: !!replyingTo
+      replyToId: replyToId || replyingTo?.messageId,
+      hasAttachments: attachments.length > 0,
+      attachmentsCount: attachments.length,
     });
 
-    onSendMessage(text, replyToId);
+    // Use provided replyToId or get from state
+    const finalReplyToId = replyToId || replyingTo?.messageId || null;
+
+    // Call parent's onSendMessage with attachments
+    await onSendMessage(messageText, finalReplyToId, attachments);
     
     setText("");
 
-    // 🔥 Clear reply state after sending
-    if (replyToId && conversationId) {
+    // Clear reply state after sending
+    if (finalReplyToId && conversationId) {
       clearReplyingTo(conversationId);
     }
 
@@ -138,25 +127,21 @@ const useChatInput = ({ onSendMessage, onImageSelect, disabled, sending, ref }) 
   const handleKeyPress = useCallback((e) => {
     // ESC to cancel reply (handled in useReply hook)
     if (e.key === "Escape" && replyingTo) {
-      // Will be handled by useReply hook
       return;
     }
 
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      sendMessage(text);
     }
-  }, [sendMessage, replyingTo]);
+  }, [sendMessage, text, replyingTo]);
 
   return {
     text,
     setText,
     textareaRef,
-    fileInputRef,
     handleTextChange,
     handleKeyPress,
-    handleImageClick,
-    handleImageChange,
     sendMessage,
   };
 };

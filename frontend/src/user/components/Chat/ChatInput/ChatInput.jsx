@@ -1,47 +1,58 @@
-import { forwardRef } from "react";
+// frontend/src/user/components/Chat/ChatInput/ChatInput.jsx
+
+import { forwardRef, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import EmojiPicker from "./EmojiPicker";
+import EmojiPicker from "../EmojiPicker";
 import useChatInput from "./useChatInput";
 import useReply from "./useReply";
-import useTyping from "./useTyping";
-import useEmojiInput from "./useEmojiInput";
+import useTyping from "./UseTyping";
+import useEmojiInput from "./UseEmojiInput";
+import { useFileUpload } from "../../../hooks/chat/useFileUpload";
+import { AuthContext } from "../../../context/AuthContext";
+import FilePreview from "../FileUpload/FilePreview";
+import UploadProgress from "../FileUpload/UploadProgress";
+import FileUploadButton from "../FileUpload/FileUploadButton"; // 🔥 NEW IMPORT
 
-/**
- * ChatInput Component - With Reply Feature
- * 
- * ✅ Reply preview UI
- * ✅ Clear reply button
- * ✅ Focus input after setting reply
- * ✅ Pass replyTo to sendMessage
- * ✅ FIXED: Use activeConversationId (string) from store
- * ✅ Refactored: Separated logic into custom hooks
- */
 const ChatInput = forwardRef(({ 
   onSendMessage, 
   onTypingChange,
-  onImageSelect,
   disabled = false,
   sending = false,
   placeholder,
 }, ref) => {
   const { t } = useTranslation("chat");
+  const { token } = useContext(AuthContext);
 
-  // ============================================
-  // CUSTOM HOOKS
-  // ============================================
+  console.log('🔍 [ChatInput] Render:', {
+    hasToken: !!token,
+    disabled,
+    sending,
+  });
+
+  // File upload hook
+  const {
+    uploading,
+    uploadProgress,
+    uploadSpeed,
+    uploadError,
+    selectedFiles,
+    selectFiles,
+    uploadFiles,
+    cancelUpload,
+    clearFiles,
+    removeFile,
+  } = useFileUpload();
+
+  // Existing hooks
   const {
     text,
     setText,
     textareaRef,
-    fileInputRef,
     handleTextChange,
     handleKeyPress,
-    handleImageClick,
-    handleImageChange,
-    sendMessage,
+    sendMessage: sendTextMessage,
   } = useChatInput({
     onSendMessage,
-    onImageSelect,
     disabled,
     sending,
     ref,
@@ -49,7 +60,6 @@ const ChatInput = forwardRef(({
 
   const {
     replyingTo,
-    conversationId,
     handleClearReply,
     truncateText,
   } = useReply({
@@ -74,17 +84,88 @@ const ChatInput = forwardRef(({
   });
 
   // ============================================
+  // 🔥 FILE UPLOAD HANDLERS
+  // ============================================
+  
+  /**
+   * Handle files selected from FileUploadButton
+   */
+  const handleFilesSelect = async (files) => {
+    console.log('📁 [ChatInput] Files selected from button:', {
+      count: files.length,
+      files: files.map(f => ({ name: f.name, size: f.size })),
+    });
+
+    if (!token) {
+      console.error('❌ [ChatInput] No token!');
+      return;
+    }
+
+    try {
+      console.log('📁 [ChatInput] Calling selectFiles...');
+      const success = await selectFiles(files, token);
+      console.log('✅ [ChatInput] selectFiles result:', success);
+      
+      if (!success) {
+        console.error('❌ [ChatInput] selectFiles returned false');
+      }
+    } catch (error) {
+      console.error('❌ [ChatInput] selectFiles error:', error);
+    }
+  };
+
+  /**
+   * Handle send message with files
+   */
+  const handleSend = async () => {
+    console.log('📤 [ChatInput] Send clicked:', {
+      text: text.trim().length,
+      files: selectedFiles.length,
+    });
+
+    if (uploading) {
+      console.warn('⚠️ Upload in progress');
+      return;
+    }
+
+    const hasContent = text.trim().length > 0;
+    const hasFiles = selectedFiles.length > 0;
+
+    if (!hasContent && !hasFiles) {
+      console.warn('⚠️ No content to send');
+      return;
+    }
+
+    try {
+      let attachments = [];
+
+      if (hasFiles) {
+        console.log('📤 Uploading files...');
+        attachments = await uploadFiles(selectedFiles, token);
+        console.log('✅ Files uploaded:', attachments);
+      }
+
+      console.log('📤 Sending message...');
+      await sendTextMessage(text, replyingTo?.messageId || null, attachments);
+      console.log('✅ Message sent');
+
+      clearFiles();
+      
+    } catch (error) {
+      console.error('❌ Send error:', error);
+    }
+  };
+
+  // ============================================
   // RENDER
   // ============================================
   return (
     <div className="bg-white border-t border-gray-200 shrink-0">
-      {/* Centered Content Wrapper */}
       <div className="mx-auto max-w-3xl px-4 py-3 sm:py-4">
         
-        {/* 🔥 REPLY PREVIEW */}
+        {/* REPLY PREVIEW */}
         {replyingTo && (
           <div className="mb-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2.5 animate-in slide-in-from-bottom-2 duration-200">
-            {/* Reply Icon */}
             <svg
               className="h-4 w-4 shrink-0 text-gray-500"
               fill="none"
@@ -99,7 +180,6 @@ const ChatInput = forwardRef(({
               />
             </svg>
 
-            {/* Reply Info */}
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-gray-700">
                 {t("input.replyingTo") || "Replying to"} {replyingTo.sender?.nickname || "Unknown"}
@@ -109,7 +189,6 @@ const ChatInput = forwardRef(({
               </p>
             </div>
 
-            {/* Close Button */}
             <button
               type="button"
               onClick={handleClearReply}
@@ -133,15 +212,33 @@ const ChatInput = forwardRef(({
           </div>
         )}
 
-        {/* Hidden File Input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleImageChange}
-          className="hidden"
-        />
+        {/* UPLOAD PROGRESS */}
+        {uploading && (
+          <UploadProgress
+            progress={uploadProgress}
+            speed={uploadSpeed}
+            filesCount={selectedFiles.length}
+            onCancel={cancelUpload}
+          />
+        )}
+
+        {/* FILE PREVIEW */}
+        {selectedFiles.length > 0 && !uploading && (
+          <div className="mb-2">
+            <FilePreview
+              files={selectedFiles}
+              onRemove={removeFile}
+              onClear={clearFiles}
+            />
+          </div>
+        )}
+
+        {/* UPLOAD ERROR */}
+        {uploadError && (
+          <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm text-red-700">
+            {uploadError}
+          </div>
+        )}
 
         {/* Emoji Picker */}
         <div className="relative">
@@ -159,44 +256,17 @@ const ChatInput = forwardRef(({
               rounded-3xl border-2 bg-white
               px-3 py-2
               transition-all duration-200
-              ${disabled || sending
+              ${disabled || sending || uploading
                 ? "border-gray-200 opacity-60 cursor-not-allowed"
                 : "border-gray-300 hover:border-gray-400 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20"
               }
             `}
           >
-            {/* LEFT SLOT - Upload Button */}
-            <button
-              type="button"
-              onClick={handleImageClick}
-              disabled={disabled || sending}
-              className={`
-                flex h-9 w-9 shrink-0 
-                items-center justify-center 
-                rounded-full
-                transition-all duration-200
-                ${
-                  disabled || sending
-                    ? "text-gray-300 cursor-not-allowed"
-                    : "text-gray-600 hover:text-blue-600 hover:bg-blue-50 active:scale-95"
-                }
-              `}
-              title={t("input.uploadImage") || "Upload image"}
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                strokeWidth={2.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-            </button>
+            {/* 🔥 LEFT SLOT - FileUploadButton Component */}
+            <FileUploadButton
+              onFilesSelect={handleFilesSelect}
+              disabled={disabled || sending || uploading}
+            />
 
             {/* CENTER - Textarea */}
             <textarea
@@ -205,12 +275,12 @@ const ChatInput = forwardRef(({
               value={text}
               onChange={handleTextChange}
               onKeyDown={handleKeyPress}
-              disabled={disabled || sending}
+              disabled={disabled || sending || uploading}
               placeholder={
                 placeholder ||
                 (disabled 
                   ? t("input.disabled") || "Select a conversation to start chatting"
-                  : sending
+                  : sending || uploading
                   ? t("input.sending") || "Sending..."
                   : replyingTo
                   ? t("input.replyPlaceholder") || "Type your reply..."
@@ -222,7 +292,7 @@ const ChatInput = forwardRef(({
                 text-[15px] leading-5.5
                 outline-none placeholder:text-gray-400
                 chat-input-textarea
-                ${disabled || sending ? "cursor-not-allowed" : ""}
+                ${disabled || sending || uploading ? "cursor-not-allowed" : ""}
               `}
               style={{
                 maxHeight: "180px",
@@ -238,14 +308,14 @@ const ChatInput = forwardRef(({
                 ref={emojiButtonRef}
                 type="button"
                 onClick={toggleEmojiPicker}
-                disabled={disabled || sending}
+                disabled={disabled || sending || uploading}
                 className={`
                   flex h-9 w-9 
                   items-center justify-center 
                   rounded-full
                   transition-all duration-200
                   ${
-                    disabled || sending
+                    disabled || sending || uploading
                       ? "text-gray-300 cursor-not-allowed"
                       : showEmojiPicker
                       ? "text-blue-600 bg-blue-50"
@@ -272,22 +342,22 @@ const ChatInput = forwardRef(({
               {/* Send Button */}
               <button
                 type="button"
-                onClick={sendMessage}
-                disabled={!text.trim() || disabled || sending}
+                onClick={handleSend}
+                disabled={(!text.trim() && selectedFiles.length === 0) || disabled || sending || uploading}
                 className={`
                   flex h-9 w-9 
                   items-center justify-center 
                   rounded-full
                   transition-all duration-200
                   ${
-                    !text.trim() || disabled || sending
+                    (!text.trim() && selectedFiles.length === 0) || disabled || sending || uploading
                       ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                       : "bg-blue-600 text-white hover:bg-blue-800 active:scale-95"
                   }
                 `}
-                title={sending ? (t("input.sending") || "Sending...") : (t("input.send") || "Send")}
+                title={sending || uploading ? (t("input.sending") || "Sending...") : (t("input.send") || "Send")}
               >
-                {sending ? (
+                {sending || uploading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
                   <svg

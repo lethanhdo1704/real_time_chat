@@ -135,16 +135,20 @@ export const sanitizeRichText = (req, res, next) => {
 };
 
 // =========================
-// FILE METADATA SANITIZER
+// 🔥 FILE METADATA SANITIZER - FIXED
 // =========================
 export const sanitizeFileMetadata = (req, res, next) => {
   if (!Array.isArray(req.body?.attachments)) return next();
 
+  // 🔥 FIX: Preserve ALL required fields for Message schema
   req.body.attachments = req.body.attachments.map((att) => ({
     url: sanitizeHtml(att.url || '', { allowedTags: [] }),
     name: sanitizeHtml(att.name || '', { allowedTags: [] }),
     size: Number(att.size) || 0,
-    type: sanitizeHtml(att.type || '', { allowedTags: [] })
+    mime: sanitizeHtml(att.mime || '', { allowedTags: [] }), // 🔥 ADDED
+    mediaType: sanitizeHtml(att.mediaType || '', { allowedTags: [] }), // 🔥 ADDED
+    // Deprecated field (keep for backward compatibility)
+    type: sanitizeHtml(att.type || att.mediaType || '', { allowedTags: [] })
   }));
 
   next();

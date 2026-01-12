@@ -6,7 +6,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import useChatWindowLogic from "../../../hooks/chat/useChatWindowLogic.js";
 import ChatWindowHeader from "./ChatWindowHeader.jsx";
 import ChatWindowBody from "./ChatWindowBody.jsx";
-import ChatInput from "../ChatInput.jsx";
+import ChatInput from "../ChatInput/ChatInput.jsx";
 import ChatEmptyState from "../ChatEmptyState.jsx";
 import useChatStore from "../../../store/chat/chatStore.js";
 import useFriendStore from "../../../store/friendStore.js";
