@@ -39,7 +39,7 @@ export default function DocumentAttachment({ attachment, isMe }) {
   };
 
   return (
-    <div className="rounded-xl overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 max-w-sm shadow-lg hover:shadow-xl transition-all duration-300">
+    <div className="rounded-xl overflow-hidden bg-linear-to-br from-blue-500 to-blue-600 max-w-sm shadow-lg hover:shadow-xl transition-all duration-300">
       <div className="p-4">
         {/* Header */}
         <div className="flex items-center gap-3">

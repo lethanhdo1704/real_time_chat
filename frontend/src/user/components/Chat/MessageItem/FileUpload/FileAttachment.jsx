@@ -98,7 +98,7 @@ export default function FileAttachment({ attachment, isMe, t }) {
       onClick={handleDownload}
       className={`
         flex items-center gap-3 p-4 rounded-xl transition-all max-w-sm w-full
-        bg-gradient-to-br ${config.gradient} shadow-lg hover:shadow-xl hover:scale-105
+        bg-linear-to-br ${config.gradient} shadow-lg hover:shadow-xl hover:scale-105
         group
       `}
     >

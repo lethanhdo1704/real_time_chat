@@ -36,7 +36,7 @@ export default function VideoAttachment({ attachment, isMe }) {
   };
 
   return (
-    <div className="rounded-xl overflow-hidden bg-gradient-to-br from-violet-500 to-violet-600 max-w-sm shadow-lg hover:shadow-2xl transition-all duration-300">
+    <div className="rounded-xl overflow-hidden bg-linear-to-br from-violet-500 to-violet-600 max-w-sm shadow-lg hover:shadow-2xl transition-all duration-300">
       {!showPlayer ? (
         // Thumbnail with gradient play button
         <div
@@ -52,16 +52,16 @@ export default function VideoAttachment({ attachment, isMe }) {
               onError={() => setPosterError(true)}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-violet-400 via-violet-500 to-violet-600 flex items-center justify-center">
+            <div className="w-full h-full bg-linear-to-br from-violet-400 via-violet-500 to-violet-600 flex items-center justify-center">
               <VideoIcon className="w-16 h-16 text-white/50" />
             </div>
           )}
 
           {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent group-hover:from-black/40 transition-all duration-300">
+          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent group-hover:from-black/40 transition-all duration-300">
             {/* Play button */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-white to-white/90 group-hover:scale-110 transition-all duration-300 flex items-center justify-center shadow-2xl">
+              <div className="relative w-16 h-16 rounded-full bg-linear-to-br from-white to-white/90 group-hover:scale-110 transition-all duration-300 flex items-center justify-center shadow-2xl">
                 <Play className="w-8 h-8 text-violet-600 ml-1" fill="currentColor" />
               </div>
             </div>
@@ -100,7 +100,7 @@ export default function VideoAttachment({ attachment, isMe }) {
           </button>
 
           {/* File info bar */}
-          <div className="bg-gradient-to-r from-violet-500 to-violet-600 p-3">
+          <div className="bg-linear-to-r from-violet-500 to-violet-600 p-3">
             <div className="flex items-center gap-2 text-white">
               <VideoIcon className="w-4 h-4" />
               <p className="text-sm font-medium truncate flex-1" title={name}>

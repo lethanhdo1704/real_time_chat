@@ -12,11 +12,14 @@ import MessageBubble from "./MessageBubble";
 import MessageActions from "./MessageActions";
 import MessageStatus from "./MessageStatus";
 import MessageReactions from "./MessageReactions";
+import AvatarImage from "../../common/AvatarImage";
 import useChatStore from "../../../store/chat/chatStore";
 
 /**
- * MessageItem Component - COMPLETE WITH REACTIONS
- * Fixed: Reactions now render outside bubble to prevent layout issues
+ * MessageItem Component - WITH AVATAR DISPLAY
+ * ✅ Shows sender avatar next to their messages
+ * ✅ Avatar only appears on the last message in a group
+ * ✅ Complete with reactions and all features
  */
 export default function MessageItem({
   message,
@@ -247,7 +250,7 @@ export default function MessageItem({
   };
 
   // ============================================
-  // 🆕 REACTION HANDLERS
+  // REACTION HANDLERS
   // ============================================
   const handleReactionClick = (emoji) => {
     console.log("🎭 [MessageItem] Reaction clicked:", emoji);
@@ -368,7 +371,7 @@ export default function MessageItem({
   }
 
   // ============================================
-  // NORMAL MESSAGE RENDER
+  // 🆕 NORMAL MESSAGE RENDER WITH AVATAR
   // ============================================
   return (
     <div
@@ -380,88 +383,114 @@ export default function MessageItem({
       }`}
     >
       <div
-        className={`flex w-full flex-col ${
-          isMe ? "items-end" : "items-start"
-        } max-w-[85%] sm:max-w-[75%]`}
+        className={`flex w-full ${
+          isMe ? "flex-row-reverse" : "flex-row"
+        } items-end gap-2 max-w-[85%] sm:max-w-[75%]`}
       >
-        {/* Sender Info */}
-        {senderInfo && <MessageSenderInfo {...senderInfo} />}
-
-        {/* Message Bubble with Actions - Wrapped together */}
-        <div className="flex flex-col">
-          <div
-            className={`flex items-end gap-1.5 ${
-              isMe ? "flex-row-reverse" : "flex-row"
-            }`}
-          >
-            <MessageBubble
-              messageText={messageText}
-              isBig={isBig}
-              isMe={isMe}
-              isPending={isPending}
-              isFailed={isFailed}
-              isLastInGroup={isLastInGroup}
-              editedAt={message.editedAt}
-              replyTo={message.replyTo}
-              onReplyClick={handleReplyClick}
-              t={t}
-              // Edit props
-              isEditing={isEditing}
-              onSaveEdit={handleSaveEdit}
-              onCancelEdit={handleCancelEdit}
-              editLoading={editLoading}
-              message={message}
-              conversationId={conversationId}
-              onReactionClick={handleReactionClick}
+        {/* 🆕 AVATAR - Only for other users on last message in group */}
+        {!isMe && isLastInGroup && message.sender && (
+          <div className="shrink-0 mb-1">
+            <AvatarImage
+              avatar={message.sender.avatar}
+              nickname={message.sender.nickname || message.sender.fullName}
+              avatarUpdatedAt={message.sender.avatarUpdatedAt}
+              size="sm"
+              className="cursor-pointer hover:opacity-80 transition-opacity"
             />
+          </div>
+        )}
 
-            {/* Hide actions when editing */}
-            {!isEditing && (
-              <MessageActions
+        {/* 🆕 SPACER - Keep alignment when no avatar */}
+        {!isMe && !isLastInGroup && (
+          <div className="shrink-0 w-10" />
+        )}
+
+        {/* MESSAGE CONTENT */}
+        <div
+          className={`flex flex-col ${
+            isMe ? "items-end" : "items-start"
+          } flex-1 min-w-0`}
+        >
+          {/* Sender Info */}
+          {senderInfo && <MessageSenderInfo {...senderInfo} />}
+
+          {/* Message Bubble with Actions */}
+          <div className="flex flex-col w-full">
+            <div
+              className={`flex items-end gap-1.5 ${
+                isMe ? "flex-row-reverse" : "flex-row"
+              }`}
+            >
+              <MessageBubble
+                messageText={messageText}
+                isBig={isBig}
+                isMe={isMe}
+                isPending={isPending}
+                isFailed={isFailed}
+                isLastInGroup={isLastInGroup}
+                editedAt={message.editedAt}
+                replyTo={message.replyTo}
+                onReplyClick={handleReplyClick}
+                t={t}
+                // Edit props
+                isEditing={isEditing}
+                onSaveEdit={handleSaveEdit}
+                onCancelEdit={handleCancelEdit}
+                editLoading={editLoading}
                 message={message}
                 conversationId={conversationId}
-                isMe={isMe}
-                isFailed={isFailed}
-                onReply={handleReply}
-                onCopy={handleCopy}
-                onEdit={handleEditClick}
-                onForward={handleForward}
-                isOneToOneChat={isPrivateChat}
+                onReactionClick={handleReactionClick}
+                sender={message.sender} // 🆕 Pass sender for potential use
               />
+
+              {/* Hide actions when editing */}
+              {!isEditing && (
+                <MessageActions
+                  message={message}
+                  conversationId={conversationId}
+                  isMe={isMe}
+                  isFailed={isFailed}
+                  onReply={handleReply}
+                  onCopy={handleCopy}
+                  onEdit={handleEditClick}
+                  onForward={handleForward}
+                  isOneToOneChat={isPrivateChat}
+                />
+              )}
+            </div>
+
+            {/* REACTIONS DISPLAY (Outside bubble but aligned) */}
+            {!isEditing && hasReactions && (
+              <div className={`${isMe ? "self-end" : "self-start"}`}>
+                <MessageReactions
+                  reactions={reactions}
+                  currentUserId={user?.uid}
+                  onReactionClick={handleReactionClick}
+                  isMe={isMe}
+                />
+              </div>
             )}
           </div>
 
-          {/* 🆕 REACTIONS DISPLAY (Outside bubble but aligned) */}
-          {!isEditing && hasReactions && (
-            <div className={`${isMe ? "self-end" : "self-start"}`}>
-              <MessageReactions
-                reactions={reactions}
-                currentUserId={user?.uid}
-                onReactionClick={handleReactionClick}
-                isMe={isMe}
-              />
-            </div>
+          {/* Error Message */}
+          {editError && (
+            <div className="mt-2 text-xs text-red-500 px-1">{editError}</div>
+          )}
+
+          {/* Status + Read Receipts */}
+          {!isEditing && (
+            <MessageStatus
+              time={formatTime(message.createdAt)}
+              readStatus={readStatus}
+              readUsers={readUsers}
+              showReadReceipts={showReadReceipts}
+              isFailed={isFailed}
+              isMe={isMe}
+              onRetry={handleRetry}
+              t={t}
+            />
           )}
         </div>
-
-        {/* Error Message */}
-        {editError && (
-          <div className="mt-2 text-xs text-red-500 px-1">{editError}</div>
-        )}
-
-        {/* Status + Read Receipts */}
-        {!isEditing && (
-          <MessageStatus
-            time={formatTime(message.createdAt)}
-            readStatus={readStatus}
-            readUsers={readUsers}
-            showReadReceipts={showReadReceipts}
-            isFailed={isFailed}
-            isMe={isMe}
-            onRetry={handleRetry}
-            t={t}
-          />
-        )}
       </div>
     </div>
   );

@@ -44,6 +44,28 @@ const conversationSchema = new Schema({
     index: true
   },
 
+  // 🔹 Counters for Conversation Info
+  totalMessages: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  sharedMedia: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  sharedFiles: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  sharedLinks: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+
   isDeleted: {
     type: Boolean,
     default: false

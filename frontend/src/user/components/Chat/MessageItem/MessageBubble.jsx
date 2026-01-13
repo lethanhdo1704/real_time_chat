@@ -8,11 +8,12 @@ import { AuthContext } from "../../../context/AuthContext";
 import { useTranslation } from "react-i18next";
 
 /**
- * MessageBubble Component - WITH FIXED LINK VISIBILITY
+ * MessageBubble Component - CLEAN VERSION
  * 
- * ✅ Links are now clearly visible with proper contrast
+ * ✅ Links are clearly visible with proper contrast
  * ✅ Special styling for links in blue/gradient bubbles
  * ✅ Underline on hover for better UX
+ * ✅ Avatar is now handled by MessageItem component
  */
 export default function MessageBubble({
   messageText,
@@ -33,6 +34,8 @@ export default function MessageBubble({
   message,
   conversationId,
   onReactionClick,
+  // Sender info (optional - may be used for future features)
+  sender,
 }) {
   const { user } = useContext(AuthContext);
   const { t } = useTranslation("chat");
@@ -102,13 +105,12 @@ export default function MessageBubble({
     return "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg";
   };
 
-  // 🆕 Get text color class for better link visibility
   const getTextColorClass = () => {
     if (isEditing) return "text-gray-900";
     if (!isMe) return "text-gray-800";
     if (isPending) return "text-white opacity-60";
     if (isFailed) return "text-red-800";
-    return "text-white"; // For blue gradient background
+    return "text-white";
   };
 
   const truncateReply = (text, maxLength = 100) => {
@@ -119,9 +121,7 @@ export default function MessageBubble({
 
   return (
     <div className="inline-flex flex-col gap-2 max-w-full">
-      {/* 🎨 BEAUTIFUL GRADIENT STYLE: File attachments */}
-      
-      {/* Case 1: File-only message (NO BUBBLE - just beautiful gradients) */}
+      {/* File attachments without text */}
       {hasAttachments && !hasText && !isEditing && (
         <div className="w-full">
           <AttachmentsGrid 
@@ -131,7 +131,7 @@ export default function MessageBubble({
         </div>
       )}
 
-      {/* Case 2: Text message (WITH BUBBLE) */}
+      {/* Text message with bubble */}
       {(hasText || isEditing) && (
         <div 
           className={`
@@ -270,12 +270,12 @@ export default function MessageBubble({
         </div>
       )}
 
-      {/* 🆕 INLINE STYLES FOR LINK VISIBILITY */}
+      {/* INLINE STYLES FOR LINK VISIBILITY */}
       <style jsx>{`
         /* Link styles for messages from ME (blue background) */
         .message-bubble-container.bg-gradient-to-br a,
         .message-content-links.text-white a {
-          color: #E0F2FE !important; /* Light blue for contrast */
+          color: #E0F2FE !important;
           text-decoration: underline;
           text-decoration-color: rgba(224, 242, 254, 0.5);
           text-underline-offset: 2px;
@@ -293,7 +293,7 @@ export default function MessageBubble({
         /* Link styles for messages from OTHERS (white background) */
         .message-bubble-container.bg-white a,
         .message-content-links.text-gray-800 a {
-          color: #2563EB !important; /* Blue-600 */
+          color: #2563EB !important;
           text-decoration: underline;
           text-decoration-color: rgba(37, 99, 235, 0.3);
           text-underline-offset: 2px;
@@ -302,7 +302,7 @@ export default function MessageBubble({
 
         .message-bubble-container.bg-white a:hover,
         .message-content-links.text-gray-800 a:hover {
-          color: #1D4ED8 !important; /* Blue-700 */
+          color: #1D4ED8 !important;
           text-decoration-color: rgba(29, 78, 216, 0.6);
         }
 
@@ -315,13 +315,13 @@ export default function MessageBubble({
 
         /* Link styles for FAILED messages */
         .message-bubble-container.bg-red-100 a {
-          color: #991B1B !important; /* Red-800 */
+          color: #991B1B !important;
           text-decoration: underline;
           text-decoration-color: rgba(153, 27, 27, 0.3);
         }
 
         .message-bubble-container.bg-red-100 a:hover {
-          color: #7F1D1D !important; /* Red-900 */
+          color: #7F1D1D !important;
           text-decoration-color: rgba(127, 29, 29, 0.5);
         }
       `}</style>

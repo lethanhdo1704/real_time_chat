@@ -98,7 +98,7 @@ export default function AudioAttachment({ attachment, isMe }) {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="rounded-xl overflow-hidden bg-gradient-to-br from-orange-500 to-orange-600 max-w-sm shadow-lg hover:shadow-xl transition-all duration-300">
+    <div className="rounded-xl overflow-hidden bg-linear-to-br from-orange-500 to-orange-600 max-w-sm shadow-lg hover:shadow-xl transition-all duration-300">
       <div className="p-4">
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">

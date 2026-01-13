@@ -31,7 +31,7 @@ const messageSchema = new Schema(
     // ✅ FIX: Thêm video, audio
     type: {
       type: String,
-      enum: ["text", "image", "video", "audio", "file"],
+      enum: ["text", "image", "video", "audio", "file","link"],
       default: "text",
     },
 
@@ -62,7 +62,7 @@ const messageSchema = new Schema(
         },
         mediaType: {
           type: String,
-          enum: ["image", "video", "audio", "file"],
+          enum: ["image", "video", "audio", "file","link"],
           required: true,
         },
       },
