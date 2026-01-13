@@ -19,8 +19,8 @@ export default defineConfig({
 
     // ✅ HTTPS cho FE (WebRTC cần)
     https: {
-      key: fs.readFileSync("./cert/192.168.1.2-key.pem"),
-      cert: fs.readFileSync("./cert/192.168.1.2.pem"),
+      key: fs.readFileSync("./cert/192.168.110.226-key.pem"),
+      cert: fs.readFileSync("./cert/192.168.110.226.pem"),
     },
 
     // ✅ Proxy backend (KHÔNG lộ http/ws ra browser)

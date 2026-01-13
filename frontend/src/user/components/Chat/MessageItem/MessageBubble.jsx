@@ -8,11 +8,11 @@ import { AuthContext } from "../../../context/AuthContext";
 import { useTranslation } from "react-i18next";
 
 /**
- * MessageBubble Component - WITH BEAUTIFUL GRADIENT ATTACHMENTS
+ * MessageBubble Component - WITH FIXED LINK VISIBILITY
  * 
- * ✅ Attachments with beautiful gradients (Messenger/Telegram style)
- * ✅ Smooth animations and hover effects
- * ✅ i18n support throughout
+ * ✅ Links are now clearly visible with proper contrast
+ * ✅ Special styling for links in blue/gradient bubbles
+ * ✅ Underline on hover for better UX
  */
 export default function MessageBubble({
   messageText,
@@ -102,6 +102,15 @@ export default function MessageBubble({
     return "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg";
   };
 
+  // 🆕 Get text color class for better link visibility
+  const getTextColorClass = () => {
+    if (isEditing) return "text-gray-900";
+    if (!isMe) return "text-gray-800";
+    if (isPending) return "text-white opacity-60";
+    if (isFailed) return "text-red-800";
+    return "text-white"; // For blue gradient background
+  };
+
   const truncateReply = (text, maxLength = 100) => {
     if (!text) return "";
     if (text.length <= maxLength) return text;
@@ -130,6 +139,7 @@ export default function MessageBubble({
             transition-all duration-300 ${getBubbleColor()} 
             overflow-hidden
             ${replyTo ? 'px-2.5 py-2 sm:px-3 sm:py-2' : hasAttachments ? 'p-0' : 'px-3 py-2 sm:px-4 sm:py-2.5'}
+            message-bubble-container
           `}
         >
           {/* File INSIDE bubble (when has text) */}
@@ -237,7 +247,13 @@ export default function MessageBubble({
               /* NORMAL MODE - TEXT ONLY */
               <>
                 {hasText && (
-                  <div className={isBig ? "text-4xl leading-none" : "text-[14px] sm:text-[15px] leading-[1.4] whitespace-pre-wrap wrap-break-word"}>
+                  <div 
+                    className={`
+                      ${isBig ? "text-4xl leading-none" : "text-[14px] sm:text-[15px] leading-[1.4] whitespace-pre-wrap wrap-break-word"}
+                      ${getTextColorClass()}
+                      message-content-links
+                    `}
+                  >
                     {renderMessage(messageText)}
                   </div>
                 )}
@@ -253,6 +269,62 @@ export default function MessageBubble({
           </div>
         </div>
       )}
+
+      {/* 🆕 INLINE STYLES FOR LINK VISIBILITY */}
+      <style jsx>{`
+        /* Link styles for messages from ME (blue background) */
+        .message-bubble-container.bg-gradient-to-br a,
+        .message-content-links.text-white a {
+          color: #E0F2FE !important; /* Light blue for contrast */
+          text-decoration: underline;
+          text-decoration-color: rgba(224, 242, 254, 0.5);
+          text-underline-offset: 2px;
+          font-weight: 500;
+          transition: all 0.2s ease;
+        }
+
+        .message-bubble-container.bg-gradient-to-br a:hover,
+        .message-content-links.text-white a:hover {
+          color: #FFFFFF !important;
+          text-decoration-color: rgba(255, 255, 255, 0.8);
+          text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Link styles for messages from OTHERS (white background) */
+        .message-bubble-container.bg-white a,
+        .message-content-links.text-gray-800 a {
+          color: #2563EB !important; /* Blue-600 */
+          text-decoration: underline;
+          text-decoration-color: rgba(37, 99, 235, 0.3);
+          text-underline-offset: 2px;
+          transition: all 0.2s ease;
+        }
+
+        .message-bubble-container.bg-white a:hover,
+        .message-content-links.text-gray-800 a:hover {
+          color: #1D4ED8 !important; /* Blue-700 */
+          text-decoration-color: rgba(29, 78, 216, 0.6);
+        }
+
+        /* Link styles for PENDING messages */
+        .message-bubble-container.opacity-60 a {
+          color: rgba(255, 255, 255, 0.9) !important;
+          text-decoration: underline;
+          text-decoration-color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Link styles for FAILED messages */
+        .message-bubble-container.bg-red-100 a {
+          color: #991B1B !important; /* Red-800 */
+          text-decoration: underline;
+          text-decoration-color: rgba(153, 27, 27, 0.3);
+        }
+
+        .message-bubble-container.bg-red-100 a:hover {
+          color: #7F1D1D !important; /* Red-900 */
+          text-decoration-color: rgba(127, 29, 29, 0.5);
+        }
+      `}</style>
     </div>
   );
 }

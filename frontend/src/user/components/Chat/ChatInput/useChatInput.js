@@ -8,8 +8,15 @@ import useChatStore from "../../../store/chat/chatStore";
  * useChatInput Hook - WITH ATTACHMENTS SUPPORT
  * 
  * Handles main input logic, text state, sending messages with attachments
+ * 
+ * @param {Object} props
+ * @param {Function} props.onSendMessage - Callback when message is sent
+ * @param {boolean} props.disabled - Whether input is disabled
+ * @param {boolean} props.sending - Whether message is being sent
+ * @param {Function} props.onSend - Optional unified send handler (for files + text)
+ * @param {React.Ref} props.ref - Forwarded ref for imperative methods
  */
-const useChatInput = ({ onSendMessage, disabled, sending, ref }) => {
+const useChatInput = ({ onSendMessage, disabled, sending, onSend, ref }) => {
   const { t } = useTranslation("chat");
   const [text, setText] = useState("");
   const textareaRef = useRef(null);
@@ -122,7 +129,7 @@ const useChatInput = ({ onSendMessage, disabled, sending, ref }) => {
   }, [text, disabled, sending, replyingTo, conversationId, onSendMessage, clearReplyingTo]);
 
   // ============================================
-  // KEYBOARD SHORTCUTS
+  // 🔥 KEYBOARD SHORTCUTS - SUPPORT UNIFIED HANDLER
   // ============================================
   const handleKeyPress = useCallback((e) => {
     // ESC to cancel reply (handled in useReply hook)
@@ -130,11 +137,30 @@ const useChatInput = ({ onSendMessage, disabled, sending, ref }) => {
       return;
     }
 
+    // Enter without Shift = Send
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage(text);
+      
+      if (disabled || sending) {
+        console.log('[useChatInput] Cannot send: disabled or sending');
+        return;
+      }
+
+      const trimmedText = text.trim();
+
+      console.log('[useChatInput] Enter pressed, sending...');
+      
+      // 🔥 Use unified handler if provided (includes file support)
+      if (onSend) {
+        onSend();
+      } else {
+        // Legacy: send text only if there's text
+        if (trimmedText) {
+          sendMessage(trimmedText);
+        }
+      }
     }
-  }, [sendMessage, text, replyingTo]);
+  }, [text, disabled, sending, replyingTo, sendMessage, onSend]);
 
   return {
     text,

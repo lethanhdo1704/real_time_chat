@@ -121,7 +121,8 @@
     "download": "Download",
     "loadError": "Unable to load image",
     "audioNotSupported": "Your browser does not support audio playback",
-    "videoNotSupported": "Your browser does not support video playback"
+    "videoNotSupported": "Your browser does not support video playback",
+    "open": "Open file"
   },
    "filePreview": {
     "filesSelected": "{{count}} file selected",

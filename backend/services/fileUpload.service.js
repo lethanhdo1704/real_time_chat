@@ -4,18 +4,15 @@ import { getEnvConfig } from '../config/validateEnv.js';
 import crypto from 'crypto';
 
 /**
- * 🔥 FILE UPLOAD SERVICE - R2 VERSION
+ * 🔥 FILE UPLOAD SERVICE - R2 VERSION - ALL FILE TYPES SUPPORTED
  * 
  * Responsibilities:
- * - Validate files (size, mime, batch total)
+ * - Validate files (size, batch total)
  * - Classify files (image/video/audio/file)
  * - Generate presigned URLs via R2
  * - Delete files from R2
  * 
- * ❌ NOT responsible for:
- * - Creating Message documents
- * - Socket events
- * - Business logic
+ * ✅ SUPPORTS ALL FILE TYPES - No MIME type restrictions
  * 
  * @production
  */
@@ -28,10 +25,10 @@ class FileUploadService {
     if (!this.enabled) {
       console.warn('⚠️  R2 not configured. File upload disabled.');
     } else {
-      console.log('✅ FileUpload service initialized with R2');
+      console.log('✅ FileUpload service initialized with R2 (ALL file types enabled)');
     }
 
-    // File type classification
+    // File type classification map (for organizing storage)
     this.mimeTypeMap = {
       // Images
       'image/jpeg': 'image',
@@ -45,6 +42,7 @@ class FileUploadService {
       'image/x-icon': 'image',
       'image/heic': 'image',
       'image/heif': 'image',
+      'image/avif': 'image',
       
       // Videos
       'video/mp4': 'video',
@@ -80,17 +78,17 @@ class FileUploadService {
       'application/vnd.ms-powerpoint': 'file',
       
       // Documents - Microsoft Office (OpenXML)
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'file', // .docx
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'file', // .xlsx
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'file', // .pptx
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.template': 'file', // .dotx
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.template': 'file', // .xltx
-      'application/vnd.openxmlformats-officedocument.presentationml.template': 'file', // .potx
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'file',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'file',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'file',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.template': 'file',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.template': 'file',
+      'application/vnd.openxmlformats-officedocument.presentationml.template': 'file',
       
       // Documents - OpenOffice/LibreOffice
-      'application/vnd.oasis.opendocument.text': 'file', // .odt
-      'application/vnd.oasis.opendocument.spreadsheet': 'file', // .ods
-      'application/vnd.oasis.opendocument.presentation': 'file', // .odp
+      'application/vnd.oasis.opendocument.text': 'file',
+      'application/vnd.oasis.opendocument.spreadsheet': 'file',
+      'application/vnd.oasis.opendocument.presentation': 'file',
       
       // Documents - Text
       'text/plain': 'file',
@@ -120,19 +118,18 @@ class FileUploadService {
       'text/css': 'file',
       'application/x-python': 'file',
       'text/x-python': 'file',
-      'application/java-archive': 'file', // .jar
+      'application/java-archive': 'file',
       
       // Other
-      'application/octet-stream': 'file', // Generic binary
+      'application/octet-stream': 'file',
     };
 
-    // 🔥 FALLBACK: Allow ANY file type not in the map
-    // This makes the service support ALL file types
+    // 🔥 CRITICAL: Allow ALL file types, even if not in the map
     this.allowUnknownTypes = true;
 
     // Size limits
     this.limits = {
-      maxFileSize: 1 * 1024 * 1024 * 1024, // 1GB per file (same as batch)
+      maxFileSize: 1 * 1024 * 1024 * 1024, // 1GB per file
       maxBatchSize: 1 * 1024 * 1024 * 1024, // 1GB per batch
       maxFilesPerBatch: 20, // Max 20 files in one batch
     };
@@ -146,69 +143,73 @@ class FileUploadService {
   }
 
   /**
-   * 🔥 CLASSIFY FILE TYPE - WITH FALLBACK
+   * 🔥 CLASSIFY FILE TYPE - WITH SMART FALLBACK
+   * 
+   * Uses MIME type to organize files into folders:
+   * - images/ for images
+   * - videos/ for videos
+   * - audios/ for audio
+   * - files/ for everything else
    * 
    * @param {string} mimeType - MIME type from FE
    * @returns {string} 'image' | 'video' | 'audio' | 'file'
    */
   classifyFileType(mimeType) {
-    const normalized = mimeType.toLowerCase();
+    if (!mimeType) {
+      return 'file'; // Default for empty/null MIME type
+    }
+
+    const normalized = mimeType.toLowerCase().trim();
     
-    // Check exact match
+    // Check exact match first
     if (this.mimeTypeMap[normalized]) {
       return this.mimeTypeMap[normalized];
     }
     
-    // 🔥 FALLBACK: Classify by MIME type prefix
-    if (this.allowUnknownTypes) {
-      if (normalized.startsWith('image/')) return 'image';
-      if (normalized.startsWith('video/')) return 'video';
-      if (normalized.startsWith('audio/')) return 'audio';
-    }
+    // 🔥 SMART FALLBACK: Classify by MIME type prefix
+    if (normalized.startsWith('image/')) return 'image';
+    if (normalized.startsWith('video/')) return 'video';
+    if (normalized.startsWith('audio/')) return 'audio';
     
-    // Default to 'file'
+    // Everything else is a 'file'
     return 'file';
   }
 
   /**
-   * 🔥 VALIDATE SINGLE FILE - WITH FLEXIBLE MIME CHECK
+   * 🔥 VALIDATE SINGLE FILE - SIZE ONLY, ALL TYPES ACCEPTED
    * 
    * @param {object} file
    * @param {string} file.name - Original filename
    * @param {number} file.size - File size in bytes
-   * @param {string} file.mime - MIME type
+   * @param {string} file.mime - MIME type (optional, defaults to octet-stream)
    * @throws {Error} If validation fails
    */
   validateFile(file) {
     // Check required fields
-    if (!file.name || !file.size || !file.mime) {
-      throw new Error('Invalid file metadata: name, size, and mime are required');
+    if (!file.name) {
+      throw new Error('File name is required');
     }
 
-    // Check file size
-    if (file.size <= 0) {
-      throw new Error('File size must be greater than 0');
+    if (file.size === undefined || file.size === null) {
+      throw new Error('File size is required');
     }
 
+    // Allow empty files (edge case, but might be valid)
+    if (file.size < 0) {
+      throw new Error('File size cannot be negative');
+    }
+
+    // 🔥 ONLY VALIDATE SIZE - NOT MIME TYPE
     if (file.size > this.limits.maxFileSize) {
+      const maxSizeGB = (this.limits.maxFileSize / 1024 / 1024 / 1024).toFixed(1);
+      const fileSizeGB = (file.size / 1024 / 1024 / 1024).toFixed(2);
       throw new Error(
-        `File "${file.name}" exceeds maximum size of ${this.limits.maxFileSize / 1024 / 1024 / 1024}GB`
+        `File "${file.name}" (${fileSizeGB}GB) exceeds maximum size of ${maxSizeGB}GB`
       );
     }
 
-    // 🔥 FLEXIBLE MIME TYPE CHECK
-    // If allowUnknownTypes is true, we accept any MIME type
-    if (!this.allowUnknownTypes) {
-      const normalized = file.mime.toLowerCase();
-      const isKnownType = this.mimeTypeMap[normalized] || 
-                          normalized.startsWith('image/') ||
-                          normalized.startsWith('video/') ||
-                          normalized.startsWith('audio/');
-      
-      if (!isKnownType) {
-        throw new Error(`File type "${file.mime}" is not supported`);
-      }
-    }
+    // 🔥 NO MIME TYPE VALIDATION
+    // Accept all file types - MIME type is used only for classification
 
     return true;
   }
@@ -244,11 +245,11 @@ class FileUploadService {
     });
 
     // 🔥 CRITICAL: Check total batch size
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
 
     if (totalSize > this.limits.maxBatchSize) {
       const totalGB = (totalSize / 1024 / 1024 / 1024).toFixed(2);
-      const limitGB = (this.limits.maxBatchSize / 1024 / 1024 / 1024).toFixed(0);
+      const limitGB = (this.limits.maxBatchSize / 1024 / 1024 / 1024).toFixed(1);
       
       throw new Error(
         `Batch total size (${totalGB}GB) exceeds limit of ${limitGB}GB`
@@ -257,8 +258,9 @@ class FileUploadService {
 
     console.log('✅ [FileUpload] Batch validated:', {
       files: files.length,
-      totalSize: `${(totalSize / 1024 / 1024 / 1024).toFixed(2)}GB`,
-      limit: `${(this.limits.maxBatchSize / 1024 / 1024 / 1024).toFixed(0)}GB`,
+      totalSize: `${(totalSize / 1024 / 1024).toFixed(2)}MB`,
+      limit: `${(this.limits.maxBatchSize / 1024 / 1024 / 1024).toFixed(1)}GB`,
+      types: files.map(f => f.mime || 'unknown'),
     });
 
     return true;
@@ -286,7 +288,11 @@ class FileUploadService {
 
     // Generate presigned URL for each file
     const uploadPromises = files.map(async (file) => {
-      const mediaType = this.classifyFileType(file.mime);
+      // Normalize MIME type
+      const normalizedMime = file.mime || 'application/octet-stream';
+      
+      // Classify file type (for folder organization)
+      const mediaType = this.classifyFileType(normalizedMime);
       
       // Generate folder path
       const folder = `chat-app/${userId}/${mediaType}s`;
@@ -297,7 +303,7 @@ class FileUploadService {
       // Generate presigned upload URL
       const { uploadUrl, publicUrl } = await r2Service.generatePresignedUploadUrl({
         key,
-        contentType: file.mime,
+        contentType: normalizedMime,
         expiresIn: 3600, // 1 hour to complete upload
       });
 
@@ -310,7 +316,7 @@ class FileUploadService {
           url: publicUrl,
           name: file.name,
           size: file.size,
-          mime: file.mime,
+          mime: normalizedMime,
           mediaType,
           key, // FE should store this for cancel/delete
         },
@@ -319,20 +325,15 @@ class FileUploadService {
 
     const results = await Promise.all(uploadPromises);
 
-    console.log(`✅ [FileUpload] Generated ${results.length} presigned URLs`);
+    console.log(`✅ [FileUpload] Generated ${results.length} presigned URLs`, {
+      types: results.map(r => r.metadata.mediaType),
+    });
 
     return results;
   }
 
   /**
    * 🔥 DELETE FILE FROM R2
-   * 
-   * Called when:
-   * - User cancels upload
-   * - Admin deletes message
-   * 
-   * @param {string} keyOrUrl - R2 key or public URL
-   * @returns {Promise<object>}
    */
   async deleteFile(keyOrUrl) {
     if (!this.enabled) {
@@ -359,11 +360,6 @@ class FileUploadService {
 
   /**
    * 🔥 DELETE MULTIPLE FILES (BATCH)
-   * 
-   * More efficient than one-by-one
-   * 
-   * @param {Array<string>} keysOrUrls - Array of keys or URLs
-   * @returns {Promise<object>}
    */
   async deleteFiles(keysOrUrls) {
     if (!this.enabled) {
@@ -393,28 +389,18 @@ class FileUploadService {
 
   /**
    * 🔥 CANCEL UPLOAD
-   * 
-   * If user cancels upload after getting presigned URL
-   * but before completing upload
-   * 
-   * @param {string} key - File key
    */
   async cancelUpload(key) {
-    // If file was partially uploaded, delete it
     try {
       await this.deleteFile(key);
       console.log('✅ [FileUpload] Cancelled upload cleaned up:', key);
     } catch (error) {
-      // File might not exist yet - ignore error
       console.log('ℹ️  [FileUpload] Cancel upload - file not found (OK):', key);
     }
   }
 
   /**
    * Extract attachments URLs from message for deletion
-   * 
-   * @param {object} message - Message document
-   * @returns {Array<string>} Array of file URLs
    */
   extractAttachmentUrls(message) {
     if (!message.attachments || message.attachments.length === 0) {
@@ -426,9 +412,6 @@ class FileUploadService {
 
   /**
    * Get file info for FE display
-   * 
-   * @param {string} url - Public URL
-   * @returns {object} File metadata
    */
   getFileInfo(url) {
     const key = r2Service.extractKeyFromUrl(url);
@@ -441,7 +424,9 @@ class FileUploadService {
   }
 
   /**
-   * Get upload limits (for FE validation)
+   * 🔥 Get upload limits (for FE validation)
+   * 
+   * Returns info about what file types are allowed
    */
   getLimits() {
     return {
@@ -450,8 +435,13 @@ class FileUploadService {
       maxBatchSize: this.limits.maxBatchSize,
       maxBatchSizeGB: this.limits.maxBatchSize / 1024 / 1024 / 1024,
       maxFilesPerBatch: this.limits.maxFilesPerBatch,
-      supportedTypes: this.allowUnknownTypes ? ['*'] : Object.keys(this.mimeTypeMap),
+      
+      // 🔥 Indicate that ALL file types are supported
+      supportedTypes: ['*'], // Asterisk means "all types"
       allowUnknownTypes: this.allowUnknownTypes,
+      
+      // Info message for frontend
+      message: 'All file types are supported. Only size limits apply.',
     };
   }
 }

@@ -7,7 +7,7 @@ import useChatInput from "./useChatInput";
 import useReply from "./useReply";
 import useTyping from "./UseTyping";
 import useEmojiInput from "./UseEmojiInput";
-import { useFileUpload } from "../../../hooks/chat/useFileUpload"; // ✅ Giữ nguyên hook gốc
+import { useFileUpload } from "../../../hooks/chat/useFileUpload";
 import { AuthContext } from "../../../context/AuthContext";
 import FilePreview from "../FileUpload/FilePreview";
 import UploadProgress from "../FileUpload/UploadProgress";
@@ -29,12 +29,12 @@ const ChatInput = forwardRef(({
     sending,
   });
 
-  // File upload hook - GIỮ NGUYÊN
+  // File upload hook
   const {
     uploading,
     uploadProgress,
     uploadSpeed,
-    uploadError: rawUploadError, // ✅ Đổi tên để xử lý
+    uploadError: rawUploadError,
     selectedFiles,
     selectFiles,
     uploadFiles,
@@ -43,9 +43,7 @@ const ChatInput = forwardRef(({
     removeFile,
   } = useFileUpload();
 
-  // ============================================
-  // 🔥 TRANSLATE ERROR MESSAGE - THÊM VÀO ĐÂY
-  // ============================================
+  // Translate error message
   const uploadError = useMemo(() => {
     if (!rawUploadError) return null;
     
@@ -53,7 +51,6 @@ const ChatInput = forwardRef(({
       ? rawUploadError 
       : rawUploadError.message || rawUploadError.toString();
     
-    // Map error patterns to translation keys
     const errorPatterns = [
       { pattern: /exceeds maximum size of (\d+)GB/i, key: 'uploadService.fileExceedsMaxSize', extract: true },
       { pattern: /Maximum (\d+) files per batch/i, key: 'uploadService.maxFilesPerBatch', extract: true },
@@ -72,7 +69,6 @@ const ChatInput = forwardRef(({
       { pattern: /File #(\d+):/i, key: 'uploadService.fileError', extract: true },
     ];
     
-    // Try to match error patterns
     for (const { pattern, key, extract } of errorPatterns) {
       const match = errorMsg.match(pattern);
       if (match) {
@@ -83,78 +79,12 @@ const ChatInput = forwardRef(({
       }
     }
     
-    // Fallback: return original error message
     return errorMsg;
   }, [rawUploadError, t]);
 
-  // Existing hooks
-  const {
-    text,
-    setText,
-    textareaRef,
-    handleTextChange,
-    handleKeyPress,
-    sendMessage: sendTextMessage,
-  } = useChatInput({
-    onSendMessage,
-    disabled,
-    sending,
-    ref,
-  });
-
-  const {
-    replyingTo,
-    handleClearReply,
-    truncateText,
-  } = useReply({
-    textareaRef,
-  });
-
-  useTyping({
-    text,
-    onTypingChange,
-    textareaRef,
-  });
-
-  const {
-    showEmojiPicker,
-    emojiButtonRef,
-    handleEmojiClick,
-    toggleEmojiPicker,
-    setShowEmojiPicker,
-  } = useEmojiInput({
-    setText,
-    textareaRef,
-  });
-
   // ============================================
-  // 🔥 FILE UPLOAD HANDLERS
+  // 🔥 UNIFIED SEND HANDLER (for both button and Enter key)
   // ============================================
-  
-  const handleFilesSelect = async (files) => {
-    console.log('📁 [ChatInput] Files selected from button:', {
-      count: files.length,
-      files: files.map(f => ({ name: f.name, size: f.size })),
-    });
-
-    if (!token) {
-      console.error('❌ [ChatInput] No token!');
-      return;
-    }
-
-    try {
-      console.log('📁 [ChatInput] Calling selectFiles...');
-      const success = await selectFiles(files, token);
-      console.log('✅ [ChatInput] selectFiles result:', success);
-      
-      if (!success) {
-        console.error('❌ [ChatInput] selectFiles returned false');
-      }
-    } catch (error) {
-      console.error('❌ [ChatInput] selectFiles error:', error);
-    }
-  };
-
   const handleSend = async () => {
     console.log('📤 [ChatInput] Send clicked:', {
       text: text.trim().length,
@@ -191,6 +121,107 @@ const ChatInput = forwardRef(({
       
     } catch (error) {
       console.error('❌ Send error:', error);
+    }
+  };
+
+  // ============================================
+  // 🔥 PASS handleSend TO useChatInput
+  // ============================================
+  const {
+    text,
+    setText,
+    textareaRef,
+    handleTextChange,
+    handleKeyPress,
+    sendMessage: sendTextMessage,
+  } = useChatInput({
+    onSendMessage,
+    disabled,
+    sending,
+    ref,
+    onSend: handleSend, // 🔥 Pass unified handler
+  });
+
+  const {
+    replyingTo,
+    handleClearReply,
+    truncateText,
+  } = useReply({
+    textareaRef,
+  });
+
+  useTyping({
+    text,
+    onTypingChange,
+    textareaRef,
+  });
+
+  const {
+    showEmojiPicker,
+    emojiButtonRef,
+    handleEmojiClick,
+    toggleEmojiPicker,
+    setShowEmojiPicker,
+  } = useEmojiInput({
+    setText,
+    textareaRef,
+  });
+
+  // ============================================
+  // FILE UPLOAD HANDLERS
+  // ============================================
+  
+  const handleFilesSelect = async (files) => {
+    console.log('📁 [ChatInput] Files selected:', {
+      count: files.length,
+      files: files.map(f => ({ name: f.name, size: f.size })),
+    });
+
+    if (!token) {
+      console.error('❌ [ChatInput] No token!');
+      return;
+    }
+
+    try {
+      console.log('📁 [ChatInput] Calling selectFiles...');
+      const success = await selectFiles(files, token);
+      console.log('✅ [ChatInput] selectFiles result:', success);
+      
+      if (!success) {
+        console.error('❌ [ChatInput] selectFiles returned false');
+      }
+    } catch (error) {
+      console.error('❌ [ChatInput] selectFiles error:', error);
+    }
+  };
+
+  // Paste file handler (Ctrl+V)
+  const handlePaste = async (e) => {
+    if (disabled || sending || uploading) return;
+
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const files = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      if (item.kind === 'file') {
+        const file = item.getAsFile();
+        if (file) {
+          files.push(file);
+          console.log('📋 [ChatInput] File pasted:', {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+          });
+        }
+      }
+    }
+
+    if (files.length > 0) {
+      e.preventDefault();
+      await handleFilesSelect(files);
     }
   };
 
@@ -271,7 +302,7 @@ const ChatInput = forwardRef(({
           </div>
         )}
 
-        {/* UPLOAD ERROR - ✅ Sử dụng uploadError đã được dịch */}
+        {/* UPLOAD ERROR */}
         {uploadError && (
           <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm text-red-700">
             {uploadError}
@@ -300,7 +331,7 @@ const ChatInput = forwardRef(({
               }
             `}
           >
-            {/* LEFT SLOT - FileUploadButton Component */}
+            {/* LEFT SLOT - FileUploadButton */}
             <FileUploadButton
               onFilesSelect={handleFilesSelect}
               disabled={disabled || sending || uploading}
@@ -313,6 +344,7 @@ const ChatInput = forwardRef(({
               value={text}
               onChange={handleTextChange}
               onKeyDown={handleKeyPress}
+              onPaste={handlePaste}
               disabled={disabled || sending || uploading}
               placeholder={
                 placeholder ||

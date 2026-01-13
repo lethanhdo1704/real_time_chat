@@ -117,7 +117,8 @@
     "download": "Tải xuống",
     "loadError": "Không thể tải ảnh",
     "audioNotSupported": "Trình duyệt không hỗ trợ phát audio",
-    "videoNotSupported": "Trình duyệt không hỗ trợ phát video"
+    "videoNotSupported": "Trình duyệt không hỗ trợ phát video",
+    "open" : "Mở tài liệu"
   },
    "filePreview": {
     "filesSelected": "{{count}} file đã chọn",
