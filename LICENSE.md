@@ -1,158 +1,143 @@
-# Custom Non-Commercial License
-
-**Copyright (c) 2026 Le Thanh Do**
-
+Copyright (c) 2026 Le Thanh Do
 All rights reserved.
 
----
+Terms and Conditions
 
-## Terms and Conditions
+This software and associated documentation files (the "Software") are protected by copyright law and international treaties.
 
-This software and associated documentation files (the "Software") are protected by copyright law and international treaties. Unauthorized reproduction or distribution of this Software, or any portion of it, may result in severe civil and criminal penalties, and will be prosecuted to the maximum extent possible under the law.
+Permission is granted to use, copy, and modify the Software for non-commercial, educational purposes only, subject to the following conditions.
 
-### 1. Grant of Rights
+1. Grant of Rights
 
-Subject to the terms and conditions of this License, the copyright holder hereby grants you a limited, non-exclusive, non-transferable, non-sublicensable, revocable license to:
+The copyright holder hereby grants you a limited, non-exclusive, non-transferable, non-sublicensable, revocable license to:
 
-- **a) Personal Use**: Use the Software for personal, non-commercial purposes only.
-- **b) Educational Use**: Use the Software for educational and learning purposes.
-- **c) Study**: View, read, and study the source code for educational purposes.
-- **d) Fork**: Fork the repository for personal learning and development.
+a) Personal Use
+Use the Software for personal, non-commercial purposes.
 
-### 2. Restrictions
+b) Educational Use
+Use the Software for learning, teaching, coursework, self-study, or academic research.
+
+c) Study and Modification
+View, read, and modify the source code solely for educational and learning purposes.
+
+d) Forking
+Fork the repository on GitHub for personal learning, experimentation, and private development.
+
+2. Restrictions
 
 You are expressly prohibited from:
 
-- **a) Commercial Use**: You may NOT use the Software or any portion thereof for any commercial purpose, including but not limited to:
-  - Selling, licensing, or distributing the Software
-  - Using the Software as part of a commercial product or service
-  - Offering the Software as a service (SaaS)
-  - Using the Software to generate revenue in any form
+a) Commercial Use
 
-- **b) Modification and Distribution**: You may NOT:
-  - Modify, adapt, translate, or create derivative works based on the Software
-  - Distribute, sublicense, lease, rent, loan, or sell copies of the Software
-  - Publish or redistribute the Software in any form
-  - Merge the Software with other software
+You may NOT use the Software or any portion thereof for any commercial purpose, including but not limited to:
 
-- **c) Intellectual Property**: You may NOT:
-  - Remove, alter, or obscure any copyright notices, trademarks, or other proprietary rights notices
-  - Claim ownership of the Software or any portion thereof
-  - Use the name, logo, or trademarks of the copyright holder without explicit written permission
+• Selling, licensing, or monetizing the Software
+• Using the Software in a commercial product or service
+• Offering the Software as a service (SaaS)
+• Using the Software to generate revenue directly or indirectly
+• Using the Software within a company, startup, or for client work
 
-- **d) Reverse Engineering**: You may NOT:
-  - Reverse engineer, decompile, or disassemble the Software (except to the extent permitted by applicable law)
-  - Attempt to derive the source code of any encrypted or obfuscated portions
+b) Distribution and Publication
 
-### 3. Ownership
+You may NOT:
 
-The Software is licensed, not sold. The copyright holder retains all right, title, and interest in and to the Software, including all intellectual property rights. This License does not grant you any rights to patents, copyrights, trade secrets, trademarks, or any other rights in respect to the Software.
+• Distribute, publish, or redistribute the Software or modified versions
+• Share compiled binaries or source code publicly
+• Submit modified versions to public repositories
+• Include the Software in other projects intended for distribution
 
-### 4. No Warranty
+Modification is allowed only for private, educational use and must not be published or shared.
+
+c) Intellectual Property
+
+You may NOT:
+
+• Remove or alter any copyright, license, or attribution notices
+• Claim ownership of the Software or derivative works
+• Use the name, logo, or trademarks of the copyright holder without explicit written permission
+
+d) Reverse Engineering
+
+You may NOT:
+
+• Reverse engineer, decompile, or disassemble any compiled or obfuscated portions of the Software, except where explicitly permitted by applicable law
+
+3. Ownership
+
+The Software is licensed, not sold.
+The copyright holder retains all right, title, and interest in and to the Software, including all intellectual property rights.
+
+No ownership rights are transferred under this License.
+
+4. No Warranty
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO:
 
-- WARRANTIES OF MERCHANTABILITY
-- FITNESS FOR A PARTICULAR PURPOSE
-- NON-INFRINGEMENT
-- TITLE
-- ACCURACY OR COMPLETENESS
-- QUIET ENJOYMENT
+• MERCHANTABILITY
+• FITNESS FOR A PARTICULAR PURPOSE
+• NON-INFRINGEMENT
+• ACCURACY OR COMPLETENESS
 
-The entire risk as to the quality and performance of the Software is with you. Should the Software prove defective, you assume the cost of all necessary servicing, repair, or correction.
+You assume all risks associated with the use of the Software.
 
-### 5. Limitation of Liability
+5. Limitation of Liability
 
-IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY DAMAGES WHATSOEVER, INCLUDING BUT NOT LIMITED TO:
+IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY DAMAGES, INCLUDING BUT NOT LIMITED TO:
 
-- Direct, indirect, incidental, special, exemplary, or consequential damages
-- Loss of profits, revenue, data, or use
-- Business interruption
-- Cost of substitute goods or services
+• Loss of profits, revenue, or data
+• Business interruption
+• Indirect, incidental, special, or consequential damages
 
-This limitation applies even if the copyright holder has been advised of the possibility of such damages.
+Even if advised of the possibility of such damages.
 
-### 6. Indemnification
+6. Termination
 
-You agree to indemnify, defend, and hold harmless the copyright holder from and against any and all claims, damages, obligations, losses, liabilities, costs, or debt, and expenses arising from:
+This License is effective until terminated.
 
-- Your use of the Software
-- Your violation of any term of this License
-- Your violation of any third-party right, including intellectual property rights
+Your rights under this License will terminate automatically if you violate any term. Upon termination, you must:
 
-### 7. Termination
+• Cease all use of the Software
+• Destroy all copies in your possession or control
 
-This License is effective until terminated. Your rights under this License will terminate automatically without notice if you fail to comply with any term of this License. Upon termination:
+Sections relating to ownership, warranty disclaimer, and limitation of liability shall survive termination.
 
-- You must cease all use of the Software
-- You must destroy all copies of the Software in your possession or control
-- The provisions regarding ownership, warranty disclaimer, limitation of liability, and indemnification shall survive termination
+7. Commercial Licensing
 
-### 8. Commercial Licensing
+If you wish to use the Software for any commercial purpose, you must obtain a separate commercial license.
 
-If you wish to use the Software for commercial purposes, you must obtain a separate commercial license from the copyright holder. To inquire about commercial licensing:
+Contact:
 
-- **GitHub**: [@lethanhdo1704](https://github.com/lethanhdo1704)
-- **Email**: Contact through GitHub profile
-- **Project**: [https://github.com/lethanhdo1704/real_time_chat](https://github.com/lethanhdo1704/real_time_chat)
+• GitHub: @lethanhdo1704
+• Project: https://github.com/lethanhdo1704/real_time_chat
 
-Commercial licenses may include:
-- Right to use in commercial products
-- Right to modify and create derivative works
-- Right to distribute as part of commercial offerings
-- Technical support and maintenance
-- Custom terms negotiated with the copyright holder
+Commercial licenses may grant rights to:
 
-### 9. Governing Law
+• Commercial use
+• Modification and redistribution
+• Integration into commercial products
+• Custom terms and support
 
-This License shall be governed by and construed in accordance with the laws of Vietnam, without regard to its conflict of law provisions. Any legal action or proceeding relating to this License shall be brought exclusively in the courts of Vietnam.
+8. Governing Law
 
-### 10. Entire Agreement
-
-This License constitutes the entire agreement between you and the copyright holder concerning the Software and supersedes all prior or contemporaneous oral or written communications, proposals, and representations with respect to the Software.
-
-### 11. Severability
-
-If any provision of this License is held to be unenforceable or invalid, such provision shall be changed and interpreted to accomplish the objectives of such provision to the greatest extent possible under applicable law, and the remaining provisions shall continue in full force and effect.
-
-### 12. No Waiver
-
-The failure of the copyright holder to enforce any right or provision of this License shall not be deemed a waiver of such right or provision.
-
-### 13. Assignment
-
-You may not assign or transfer this License or any rights granted hereunder, by operation of law or otherwise, without the copyright holder's prior written consent. Any attempt to do so shall be void.
+This License shall be governed by and construed in accordance with the laws of Vietnam.
 
 ---
 
-## Summary of Key Points
+Summary of Key Points (Non-Legal)
 
-| Permission | Status |
-|------------|--------|
-| ✅ Personal use | **Allowed** |
-| ✅ Educational use | **Allowed** |
-| ✅ Study source code | **Allowed** |
-| ✅ Fork for learning | **Allowed** |
-| ❌ Commercial use | **NOT Allowed** |
-| ❌ Modification | **NOT Allowed** |
-| ❌ Distribution | **NOT Allowed** |
-| ❌ Sublicensing | **NOT Allowed** |
-| ❌ Selling | **NOT Allowed** |
-
----
-
-## Contact Information
-
-**Copyright Holder**: Le Thanh Do
-
-**GitHub**: [@lethanhdo1704](https://github.com/lethanhdo1704)
-
-**Project Repository**: [https://github.com/lethanhdo1704/real_time_chat](https://github.com/lethanhdo1704/real_time_chat)
-
-For commercial licensing inquiries, custom development, or any questions regarding this License, please contact the copyright holder through GitHub.
+| Permission                  | Status        |
+|-----------------------------|---------------|
+| ✅ Personal use             | Allowed       |
+| ✅ Educational use          | Allowed       |
+| ✅ Modify for learning      | Allowed       |
+| ✅ Fork privately           | Allowed       |
+| ❌ Commercial use           | Not allowed   |
+| ❌ Publish modified code    | Not allowed   |
+| ❌ Distribution             | Not allowed   |
+| ❌ Selling / SaaS           | Not allowed   |
 
 ---
 
-**By using the Software, you acknowledge that you have read this License, understand it, and agree to be bound by its terms and conditions.**
+By using the Software, you agree to the terms of this License.
 
-**Last Updated**: January 2026
+Last Updated: January 2026
