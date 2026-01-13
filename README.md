@@ -1,197 +1,174 @@
 # 💬 Real-time Chat Application
 
-A modern, full-stack real-time chat application built with React, Node.js, Socket.IO, and MongoDB. Features include one-on-one messaging, friend management, typing indicators, message status tracking, and more.
+A comprehensive, feature-rich real-time chat application with WebRTC video/audio calling, built with modern web technologies. This application provides instant messaging, file sharing, friend management, and peer-to-peer calling capabilities.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Node](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen.svg)
-![React](https://img.shields.io/badge/react-18.3.1-blue.svg)
+## ✨ Key Features
 
----
+### 🎯 Core Chat Features
+- **Real-time Messaging**: Instant message delivery using Socket.IO
+- **Private & Group Conversations**: One-on-one and group chat support
+- **Message Management**: 
+  - Edit and recall messages
+  - Delete for me or for everyone (admin)
+  - Hide messages functionality
+  - Message reactions with emoji
+- **File Sharing**: Upload and share images, videos, audio files, and documents
+- **Message Status**: Delivered, read receipts, and typing indicators
+- **Unread Message Tracking**: Smart notification system
+- **Reply to Messages**: Quote and reply to specific messages
+- **Message History**: Persistent storage with pagination
 
-## ✨ Features
+### 📞 Video/Audio Calling
+- **WebRTC Integration**: Peer-to-peer video and audio calls
+- **Call Management**: Incoming/outgoing call modals
+- **Call Controls**: Mute, video toggle, end call
+- **ICE Candidate Handling**: Reliable connection establishment
 
-### 🔐 Authentication & Security
-- User registration with email verification (OTP)
-- Secure login with JWT tokens
-- Password reset via email OTP
-- Google reCAPTCHA integration
-- Rate limiting for API endpoints
-- Input sanitization and validation
+### 👥 Social Features
+- **Friend System**: Send, accept, decline friend requests
+- **Friend List Management**: Organized friend contacts
+- **Group Management**: Create and manage group conversations
+- **Online Status**: Real-time presence indicators
+- **User Profiles**: Customizable avatars and profile information
 
-### 💬 Real-time Messaging
-- One-on-one private conversations
-- Real-time message delivery with Socket.IO
-- Message status tracking (sent, delivered, read)
-- Typing indicators
-- Emoji support with custom picker
-- Message timestamps
-- Unread message counts
-- Auto-scroll to latest messages
+### 🔐 Security & Authentication
+- **JWT Authentication**: Secure token-based auth
+- **OTP Verification**: Two-factor authentication for registration and password reset
+- **Email Integration**: OTP delivery via email
+- **Password Recovery**: Secure forgot password flow
+- **Rate Limiting**: Protection against abuse
+- **Input Sanitization**: XSS and injection prevention
+- **reCAPTCHA Integration**: Bot protection
 
-### 👥 Friend Management
-- Send/accept/reject friend requests
-- Real-time friend request notifications
-- Friend list management
-- Search users by email
-- Unseen request count badges
-- Friend status indicators (online/offline)
+### 🌍 Additional Features
+- **Internationalization (i18n)**: Multi-language support (English & Vietnamese)
+- **Responsive Design**: Seamless experience across all devices
+- **Avatar Management**: Upload, crop, and customize profile pictures
+- **Cloudflare R2 Storage**: Efficient file and media storage
+- **Dark/Light Mode Ready**: Theme support infrastructure
+- **Legal Pages**: Terms of Service, Privacy Policy, Cookies Policy
 
-### 🎨 User Interface
-- Modern, responsive design
-- Light/Dark mode support (via Tailwind)
-- Smooth animations and transitions
-- Empty state illustrations
-- Copy-to-clipboard functionality
-- Internationalization (i18n) - English & Vietnamese
-- Toast notifications
-
-### 🚀 Performance & Optimization
-- Conversation state management with Zustand
-- Message caching and pagination
-- Optimistic UI updates
-- Lazy loading conversations
-- Socket connection management
-- Request rate limiting
-
----
-
-## 🛠️ Tech Stack
+## 🚀 Technology Stack
 
 ### Frontend
-- **Framework**: React 18.3.1
-- **Build Tool**: Vite 6.0.3
-- **State Management**: Zustand 5.0.2
-- **Routing**: React Router DOM 7.1.1
-- **Styling**: Tailwind CSS 3.4.17
-- **Real-time**: Socket.IO Client 4.8.1
-- **HTTP Client**: Axios 1.7.9
-- **Internationalization**: i18next 23.16.8
-- **UI Components**: Lucide React (icons), Emoji Picker React
+- **React 18** - Modern UI library with hooks
+- **Vite** - Next-generation frontend tooling
+- **Zustand** - Lightweight state management
+- **Socket.IO Client** - Real-time bidirectional communication
+- **WebRTC** - Peer-to-peer video/audio calling
+- **Axios** - HTTP client for API requests
+- **i18next** - Internationalization framework
+- **Tailwind CSS** - Utility-first CSS framework
+- **React Router** - Client-side routing
+- **Emoji Picker** - Rich emoji support
 
 ### Backend
-- **Runtime**: Node.js (>=16.0.0)
-- **Framework**: Express.js 4.21.2
-- **Database**: MongoDB with Mongoose 8.9.3
-- **Real-time**: Socket.IO 4.8.1
-- **Authentication**: JSON Web Tokens (jsonwebtoken 9.0.2)
-- **Password Hashing**: bcryptjs 2.4.3
-- **Email**: Nodemailer 6.9.16
-- **File Upload**: Multer 1.4.5-lts.1
-- **Validation**: express-validator 7.2.0
-- **Security**: 
-  - express-rate-limit 7.5.0
-  - express-mongo-sanitize 2.2.0
-  - helmet 8.0.0
-  - cors 2.8.5
+- **Node.js** - JavaScript runtime
+- **Express.js** - Fast, minimalist web framework
+- **Socket.IO** - WebSocket implementation
+- **MongoDB** - NoSQL database
+- **Mongoose** - MongoDB ODM
+- **JWT** - JSON Web Tokens for authentication
+- **bcrypt** - Password hashing
+- **Multer** - File upload middleware
+- **Nodemailer** - Email sending
+- **Cloudflare R2** - Object storage
+- **Express Rate Limit** - API rate limiting
+- **Express Validator** - Input validation and sanitization
 
----
+## 📋 Prerequisites
 
-## 📁 Project Structure
+Ensure you have the following installed:
+- **Node.js** v16 or higher
+- **npm** or **yarn**
+- **MongoDB** v4.4 or higher (local or MongoDB Atlas)
+- **Cloudflare R2 Account** (for file storage)
+- **SMTP Email Service** (for OTP emails)
+- **reCAPTCHA Keys** (Google reCAPTCHA)
 
-```
-.
-├── backend/
-│   ├── config/              # Database & environment config
-│   ├── controllers/         # Request handlers
-│   ├── middleware/          # Auth, validation, error handling
-│   ├── models/             # Mongoose schemas
-│   ├── routes/             # API routes
-│   ├── services/           # Business logic
-│   ├── socket/             # Socket.IO handlers
-│   └── utils/              # Helper functions
-│
-└── frontend/
-    ├── public/             # Static assets
-    └── src/
-        ├── components/     # React components
-        ├── context/        # React context providers
-        ├── hooks/          # Custom React hooks
-        ├── i18n/           # Translations
-        ├── pages/          # Page components
-        ├── services/       # API & Socket services
-        ├── store/          # Zustand stores
-        ├── styles/         # Global styles
-        └── utils/          # Helper functions
-```
+## 🛠️ Installation
 
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js >= 16.0.0
-- MongoDB (local or Atlas)
-- npm or yarn
-- Google reCAPTCHA keys (for production)
-
-### Installation
-
-1. **Clone the repository**
+### 1. Clone the Repository
 ```bash
-git clone <repository-url>
-cd chat-application
+git clone https://github.com/lethanhdo1704/real_time_chat.git
+cd real_time_chat
 ```
 
-2. **Backend Setup**
+### 2. Backend Setup
+
 ```bash
 cd backend
 npm install
 ```
 
-Create `.env` file in `backend/` directory:
+Create a `.env` file in the `backend` directory:
+
 ```env
-# Server
+# Server Configuration
 PORT=5000
 NODE_ENV=development
+CLIENT_URL=http://localhost:5173
 
 # Database
-MONGODB_URI=mongodb://localhost:27017/chat-app
+MONGODB_URI=mongodb://localhost:27017/realtime_chat
+# Or use MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/realtime_chat
 
-# JWT
-JWT_SECRET=your-super-secret-jwt-key-here
-JWT_EXPIRES_IN=7d
+# JWT Authentication
+JWT_SECRET=your_super_secure_jwt_secret_key_here_minimum_32_characters
+JWT_EXPIRE=7d
 
-# Email (Gmail example)
+# Email Configuration (for OTP)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
 EMAIL_USER=your-email@gmail.com
-EMAIL_PASS=your-app-specific-password
+EMAIL_PASSWORD=your-app-specific-password
+EMAIL_FROM=noreply@yourchatapp.com
 
-# Frontend URL
-FRONTEND_URL=http://localhost:5173
+# Cloudflare R2 Storage
+R2_ACCOUNT_ID=your_r2_account_id
+R2_ACCESS_KEY_ID=your_r2_access_key
+R2_SECRET_ACCESS_KEY=your_r2_secret_key
+R2_BUCKET_NAME=your_bucket_name
+R2_PUBLIC_URL=https://your-r2-public-url.com
 
 # Google reCAPTCHA
-RECAPTCHA_SECRET_KEY=your-recaptcha-secret-key
+RECAPTCHA_SECRET_KEY=your_recaptcha_secret_key
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
 ```
 
-3. **Frontend Setup**
+### 3. Frontend Setup
+
 ```bash
-cd frontend
+cd ../frontend
 npm install
 ```
 
-Create `.env` file in `frontend/` directory:
+Create a `.env` file in the `frontend` directory:
+
 ```env
 VITE_API_URL=http://localhost:5000
-VITE_RECAPTCHA_SITE_KEY=your-recaptcha-site-key
+VITE_SOCKET_URL=http://localhost:5000
+VITE_RECAPTCHA_SITE_KEY=your_recaptcha_site_key
 ```
 
-### Running the Application
+## 🎯 Running the Application
 
-1. **Start MongoDB** (if running locally)
-```bash
-mongod
-```
-
-2. **Start Backend**
+### Start Backend Server
 ```bash
 cd backend
 npm start
-# or for development with auto-reload
+
+# For development with auto-reload
 npm run dev
 ```
 
-Backend will run on `http://localhost:5000`
+Backend server will run on `http://localhost:5000`
 
-3. **Start Frontend**
+### Start Frontend Application
 ```bash
 cd frontend
 npm run dev
@@ -199,295 +176,606 @@ npm run dev
 
 Frontend will run on `http://localhost:5173`
 
----
+## 📁 Project Structure
 
-## 📡 API Endpoints
+```
+real_time_chat/
+│
+├── backend/
+│   ├── config/                      # Configuration files
+│   │   ├── db.js                   # MongoDB connection
+│   │   └── validateEnv.js          # Environment validation
+│   │
+│   ├── controllers/                 # Request handlers
+│   │   ├── avatar.controller.js    # Avatar upload/management
+│   │   ├── call.controller.js      # Video/audio call logic
+│   │   ├── conversation.controller.js
+│   │   ├── friend.controller.js    # Friend requests/management
+│   │   ├── message.controller.js   # Message operations
+│   │   ├── upload.controller.js    # File upload handling
+│   │   └── user.controller.js      # User management
+│   │
+│   ├── middleware/                  # Custom middleware
+│   │   ├── auth.js                 # JWT authentication
+│   │   ├── conversation.middleware.js
+│   │   ├── errorHandler.js         # Global error handling
+│   │   ├── rateLimit.js            # Rate limiting
+│   │   ├── sanitize.js             # Input sanitization
+│   │   └── uploadAvatar.js         # Avatar upload middleware
+│   │
+│   ├── models/                      # Database schemas
+│   │   ├── Call.js                 # Call records
+│   │   ├── Conversation.js         # Conversation model
+│   │   ├── ConversationMember.js   # Conversation participants
+│   │   ├── Friend.js               # Friend relationships
+│   │   ├── Message.js              # Message model
+│   │   ├── OTP.js                  # OTP verification
+│   │   └── User.js                 # User model
+│   │
+│   ├── routes/                      # API routes
+│   │   ├── auth.routes.js          # Authentication routes
+│   │   ├── call.routes.js          # Call management routes
+│   │   ├── conversation.routes.js  # Conversation routes
+│   │   ├── friend.routes.js        # Friend management routes
+│   │   ├── message.routes.js       # Message routes
+│   │   ├── reaction.routes.js      # Reaction routes
+│   │   ├── upload.routes.js        # File upload routes
+│   │   ├── users.routes.js         # User routes
+│   │   └── otp/                    # OTP routes
+│   │       ├── forgot.routes.js    # Password reset OTP
+│   │       └── register.routes.js  # Registration OTP
+│   │
+│   ├── services/                    # Business logic
+│   │   ├── avatar.service.js       # Avatar processing
+│   │   ├── call.service.js         # Call management
+│   │   ├── fileUpload.service.js   # File handling
+│   │   ├── friend.service.js       # Friend operations
+│   │   ├── friendEmitter.service.js # Friend socket events
+│   │   ├── socketEmitter.service.js # Socket event emitter
+│   │   ├── conversation/           # Conversation services
+│   │   │   ├── conversation.create.js
+│   │   │   ├── conversation.member.js
+│   │   │   ├── conversation.query.js
+│   │   │   ├── conversation.read.js
+│   │   │   └── conversation.service.js
+│   │   ├── message/                # Message services
+│   │   │   ├── conversation.helper.js
+│   │   │   ├── message.creator.js
+│   │   │   ├── message.service.js
+│   │   │   ├── unread.manager.js
+│   │   │   ├── validators.js
+│   │   │   └── usecases/           # Message use cases
+│   │   │       ├── adminDeleteMessage.js
+│   │   │       ├── deleteForMe.js
+│   │   │       ├── editMessage.js
+│   │   │       ├── getLastMessages.js
+│   │   │       ├── getMessages.js
+│   │   │       ├── hideMessage.js
+│   │   │       ├── markAsRead.js
+│   │   │       ├── recallMessage.js
+│   │   │       ├── sendMessage.js
+│   │   │       └── toggleReaction.js
+│   │   └── storage/
+│   │       └── r2.service.js       # Cloudflare R2 integration
+│   │
+│   ├── socket/                      # WebSocket handlers
+│   │   ├── call.socket.js          # Call signaling
+│   │   ├── chat.socket.js          # Chat events
+│   │   ├── friend.socket.js        # Friend events
+│   │   └── index.js                # Socket.IO setup
+│   │
+│   ├── utils/                       # Utility functions
+│   │   ├── recaptcha.js            # reCAPTCHA verification
+│   │   ├── validate.js             # Validation helpers
+│   │   └── email/                  # Email templates
+│   │       ├── emailForgotPassword.js
+│   │       └── emailRegister.js
+│   │
+│   ├── .env                         # Environment variables
+│   ├── package.json
+│   └── server.js                    # Entry point
+│
+├── frontend/
+│   ├── public/                      # Static assets
+│   │   ├── Banner_chat.svg
+│   │   └── Logo_chat.svg
+│   │
+│   ├── src/
+│   │   ├── user/
+│   │   │   ├── components/          # React components
+│   │   │   │   ├── Call/           # Video/audio call UI
+│   │   │   │   │   ├── CallControls.jsx
+│   │   │   │   │   ├── CallManager.jsx
+│   │   │   │   │   ├── CallScreen.jsx
+│   │   │   │   │   ├── IncomingCallModal.jsx
+│   │   │   │   │   └── OutgoingCallModal.jsx
+│   │   │   │   │
+│   │   │   │   ├── Chat/           # Chat interface
+│   │   │   │   │   ├── ChatEmptyState.jsx
+│   │   │   │   │   ├── ChatHeader.jsx
+│   │   │   │   │   ├── ConversationItem.jsx
+│   │   │   │   │   ├── EmojiPicker.jsx
+│   │   │   │   │   ├── MessageList.jsx
+│   │   │   │   │   ├── ChatInput/  # Message input
+│   │   │   │   │   ├── ChatWindow/ # Main chat window
+│   │   │   │   │   ├── FileUpload/ # File handling
+│   │   │   │   │   └── MessageItem/ # Message display
+│   │   │   │   │       ├── MessageBubble.jsx
+│   │   │   │   │       ├── MessageReactions.jsx
+│   │   │   │   │       ├── MessageStatus.jsx
+│   │   │   │   │       ├── FileUpload/ # Media attachments
+│   │   │   │   │       └── MessageActions/ # Edit/delete/recall
+│   │   │   │   │
+│   │   │   │   ├── common/         # Shared components
+│   │   │   │   │   ├── AvatarImage.jsx
+│   │   │   │   │   ├── CountdownTimer.jsx
+│   │   │   │   │   ├── EmailWithOTP.jsx
+│   │   │   │   │   ├── ErrorMessage.jsx
+│   │   │   │   │   ├── OTPInput.jsx
+│   │   │   │   │   ├── PasswordInput.jsx
+│   │   │   │   │   ├── ProtectedRoute.jsx
+│   │   │   │   │   └── SubmitButton.jsx
+│   │   │   │   │
+│   │   │   │   ├── ForgotPassword/ # Password reset
+│   │   │   │   ├── FriendFeature/  # Friend management
+│   │   │   │   │   ├── AddFriend.jsx
+│   │   │   │   │   ├── FriendList.jsx
+│   │   │   │   │   ├── FriendRequests.jsx
+│   │   │   │   │   └── GroupList.jsx
+│   │   │   │   │
+│   │   │   │   ├── Home/           # Main layout
+│   │   │   │   ├── Login/          # Login form
+│   │   │   │   ├── Register/       # Registration form
+│   │   │   │   └── Settings/       # User settings
+│   │   │   │       ├── AvatarCropModal.jsx
+│   │   │   │       ├── AvatarSection.jsx
+│   │   │   │       └── ProfileInfoSection.jsx
+│   │   │   │
+│   │   │   ├── context/            # React context
+│   │   │   │   ├── AuthContext.jsx
+│   │   │   │   └── SocketContext.jsx
+│   │   │   │
+│   │   │   ├── hooks/              # Custom React hooks
+│   │   │   │   ├── auth/           # Authentication hooks
+│   │   │   │   ├── call/           # Call hooks
+│   │   │   │   ├── chat/           # Chat hooks
+│   │   │   │   ├── friends/        # Friend hooks
+│   │   │   │   ├── settings/       # Settings hooks
+│   │   │   │   └── socket/         # Socket hooks
+│   │   │   │
+│   │   │   ├── i18n/               # Internationalization
+│   │   │   │   └── locales/
+│   │   │   │       ├── en/         # English translations
+│   │   │   │       └── vi/         # Vietnamese translations
+│   │   │   │
+│   │   │   ├── pages/              # Page components
+│   │   │   │   ├── ForgotPassword.jsx
+│   │   │   │   ├── Home.jsx
+│   │   │   │   ├── Login.jsx
+│   │   │   │   ├── NotFound.jsx
+│   │   │   │   ├── Register.jsx
+│   │   │   │   ├── Settings.jsx
+│   │   │   │   └── LegalPolicies/
+│   │   │   │       ├── CookiesPolicy.jsx
+│   │   │   │       ├── PrivacyPolicy.jsx
+│   │   │   │       └── TermsOfService.jsx
+│   │   │   │
+│   │   │   ├── services/           # API services
+│   │   │   │   ├── api.js          # Axios configuration
+│   │   │   │   ├── chatApi.js      # Chat API calls
+│   │   │   │   ├── friendService.js
+│   │   │   │   ├── messageService.js
+│   │   │   │   ├── socketService.js
+│   │   │   │   ├── uploadService.js
+│   │   │   │   ├── userService.js
+│   │   │   │   └── socket/
+│   │   │   │       └── call.socket.js
+│   │   │   │
+│   │   │   ├── store/              # State management (Zustand)
+│   │   │   │   ├── friendStore.js
+│   │   │   │   ├── call/
+│   │   │   │   │   └── callStore.js
+│   │   │   │   └── chat/
+│   │   │   │       ├── chatStore.js
+│   │   │   │       ├── conversationSlice.js
+│   │   │   │       ├── messageSlice.js
+│   │   │   │       ├── typingSlice.js
+│   │   │   │       └── userSlice.js
+│   │   │   │
+│   │   │   ├── styles/             # CSS files
+│   │   │   │   ├── animations.css
+│   │   │   │   └── index.css
+│   │   │   │
+│   │   │   ├── utils/              # Utility functions
+│   │   │   │   ├── avatarUtils.js
+│   │   │   │   ├── emoji.js
+│   │   │   │   ├── formatLastSeen.js
+│   │   │   │   ├── renderMessage.jsx
+│   │   │   │   ├── setViewportHeight.js
+│   │   │   │   └── call/
+│   │   │   │
+│   │   │   └── webrtc/             # WebRTC functionality
+│   │   │       ├── iceQueue.js
+│   │   │       ├── mediaDevices.js
+│   │   │       └── peerConnection.js
+│   │   │
+│   │   ├── App.jsx                  # Root component
+│   │   └── main.jsx                 # Entry point
+│   │
+│   ├── .env                         # Environment variables
+│   ├── index.html
+│   ├── package.json
+│   ├── postcss.config.js
+│   └── vite.config.js
+│
+├── .gitignore
+├── eslint.config.js
+└── README.md
+```
+
+## 🔧 API Endpoints
 
 ### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/verify-otp` - Verify registration OTP
-- `POST /api/auth/resend-otp` - Resend OTP
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `GET /api/auth/me` - Get current user
+```
+POST   /api/auth/register              # Register new user
+POST   /api/auth/login                 # User login
+POST   /api/auth/logout                # User logout
+GET    /api/auth/me                    # Get current user
+POST   /api/auth/refresh               # Refresh JWT token
+```
 
-### Password Recovery
-- `POST /api/otp/forgot/send-otp` - Send password reset OTP
-- `POST /api/otp/forgot/verify-otp` - Verify reset OTP
-- `POST /api/otp/forgot/reset-password` - Reset password
-
-### Friends
-- `GET /api/friends` - Get friends list
-- `POST /api/friends/request` - Send friend request
-- `POST /api/friends/accept/:uid` - Accept friend request
-- `POST /api/friends/reject/:uid` - Reject friend request
-- `DELETE /api/friends/cancel/:uid` - Cancel sent request
-- `DELETE /api/friends/remove/:uid` - Remove friend
-- `GET /api/friends/unseen-count` - Get unseen requests count
-- `POST /api/friends/mark-seen` - Mark requests as seen
-
-### Conversations
-- `GET /api/conversations` - Get user's conversations
-- `GET /api/conversations/:id` - Get conversation details
-- `POST /api/conversations/:id/read` - Mark conversation as read
-
-### Messages
-- `GET /api/messages/:conversationId` - Get messages
-- `POST /api/messages` - Send message
-- `DELETE /api/messages/:id` - Delete message
+### OTP (One-Time Password)
+```
+POST   /api/otp/register/send          # Send registration OTP
+POST   /api/otp/register/verify        # Verify registration OTP
+POST   /api/otp/forgot/send            # Send password reset OTP
+POST   /api/otp/forgot/verify          # Verify password reset OTP
+POST   /api/otp/forgot/reset           # Reset password
+```
 
 ### Users
-- `GET /api/users/search` - Search users by email
+```
+GET    /api/users                      # Get all users
+GET    /api/users/:id                  # Get user by ID
+PUT    /api/users/:id                  # Update user profile
+DELETE /api/users/:id                  # Delete user account
+GET    /api/users/search               # Search users
+```
 
----
+### Friends
+```
+GET    /api/friends                    # Get friend list
+POST   /api/friends/request            # Send friend request
+GET    /api/friends/requests           # Get pending requests
+PUT    /api/friends/accept/:id         # Accept friend request
+PUT    /api/friends/decline/:id        # Decline friend request
+DELETE /api/friends/:id                # Remove friend
+GET    /api/friends/suggestions        # Get friend suggestions
+```
+
+### Conversations
+```
+GET    /api/conversations              # Get user's conversations
+POST   /api/conversations              # Create new conversation
+GET    /api/conversations/:id          # Get conversation details
+PUT    /api/conversations/:id          # Update conversation
+DELETE /api/conversations/:id          # Delete conversation
+POST   /api/conversations/:id/members  # Add members to group
+DELETE /api/conversations/:id/members/:userId # Remove member
+PUT    /api/conversations/:id/read     # Mark conversation as read
+```
+
+### Messages
+```
+GET    /api/messages/:conversationId   # Get messages (paginated)
+POST   /api/messages                   # Send new message
+PUT    /api/messages/:id               # Edit message
+DELETE /api/messages/:id               # Delete message for me
+POST   /api/messages/:id/recall        # Recall message (delete for everyone)
+POST   /api/messages/:id/hide          # Hide message
+POST   /api/messages/:id/admin-delete  # Admin delete message
+GET    /api/messages/last              # Get last message per conversation
+POST   /api/messages/:id/read          # Mark message as read
+```
+
+### Reactions
+```
+POST   /api/reactions/:messageId       # Toggle reaction on message
+GET    /api/reactions/:messageId       # Get reactions for message
+DELETE /api/reactions/:messageId       # Remove reaction
+```
+
+### File Upload
+```
+POST   /api/upload/file                # Upload file (image/video/audio/document)
+POST   /api/upload/avatar              # Upload avatar
+DELETE /api/upload/:fileId             # Delete uploaded file
+```
+
+### Calls
+```
+POST   /api/calls/initiate             # Initiate call
+POST   /api/calls/:id/accept           # Accept incoming call
+POST   /api/calls/:id/decline          # Decline call
+POST   /api/calls/:id/end              # End call
+GET    /api/calls/history              # Get call history
+```
 
 ## 🔌 Socket.IO Events
 
-### Client → Server
-- `join_conversation` - Join conversation room
-- `leave_conversation` - Leave conversation room
-- `send_message` - Send a message
-- `typing_start` - Start typing indicator
-- `typing_stop` - Stop typing indicator
-- `message_read` - Mark message as read
-
-### Server → Client
-- `message_received` - New message received
-- `message_sent` - Message sent confirmation
-- `message_read` - Message read by recipient
-- `typing_start` - User started typing
-- `typing_stop` - User stopped typing
-- `friend_request_received` - New friend request
-- `friend_request_accepted` - Friend request accepted
-- `friend_request_rejected` - Friend request rejected
-- `friend_request_cancelled` - Friend request cancelled
-- `friend_added` - Friend successfully added
-- `friend_removed` - Friend removed
-- `user_online` - Friend came online
-- `user_offline` - Friend went offline
-
----
-
-## 🗄️ Database Schema
-
-### User
+### Connection Events
 ```javascript
-{
-  uid: String (unique),
-  nickname: String,
-  email: String (unique),
-  password: String (hashed),
-  avatar: String,
-  isVerified: Boolean,
-  createdAt: Date
-}
+// Client → Server
+socket.emit('user_online', { userId })
+socket.emit('user_offline', { userId })
+
+// Server → Client
+socket.on('user_status_changed', { userId, status })
 ```
 
-### Friend
+### Chat Events
 ```javascript
-{
-  uid1: String,
-  uid2: String,
-  status: Enum ['PENDING', 'ACCEPTED', 'REJECTED'],
-  initiator: String,
-  seenAt: Date,
-  createdAt: Date,
-  updatedAt: Date
-}
+// Client → Server
+socket.emit('join_conversation', { conversationId })
+socket.emit('leave_conversation', { conversationId })
+socket.emit('send_message', { conversationId, message })
+socket.emit('typing_start', { conversationId, userId })
+socket.emit('typing_stop', { conversationId, userId })
+socket.emit('message_read', { conversationId, messageId })
+
+// Server → Client
+socket.on('receive_message', { message })
+socket.on('message_edited', { messageId, newContent })
+socket.on('message_deleted', { messageId })
+socket.on('message_recalled', { messageId })
+socket.on('message_hidden', { messageId })
+socket.on('message_reaction', { messageId, reaction })
+socket.on('typing_indicator', { conversationId, users })
+socket.on('message_delivered', { messageId })
+socket.on('message_read_receipt', { messageId, userId })
 ```
 
-### Conversation
+### Friend Events
 ```javascript
-{
-  type: Enum ['ONE_TO_ONE', 'GROUP'],
-  participants: [String],
-  lastMessage: String,
-  lastMessageAt: Date,
-  createdAt: Date,
-  updatedAt: Date
-}
+// Client → Server
+socket.emit('friend_request_sent', { toUserId })
+
+// Server → Client
+socket.on('friend_request_received', { fromUser })
+socket.on('friend_request_accepted', { userId })
+socket.on('friend_request_declined', { userId })
+socket.on('friend_removed', { userId })
+socket.on('friend_online', { userId })
+socket.on('friend_offline', { userId })
 ```
 
-### Message
+### Call Events (WebRTC Signaling)
 ```javascript
-{
-  conversation: ObjectId,
-  sender: String,
-  content: String,
-  type: Enum ['TEXT', 'IMAGE', 'FILE'],
-  readBy: [String],
-  deletedBy: [String],
-  createdAt: Date
-}
+// Client → Server
+socket.emit('call_initiate', { to, offer, callType })
+socket.emit('call_answer', { to, answer })
+socket.emit('call_ice_candidate', { to, candidate })
+socket.emit('call_end', { callId })
+
+// Server → Client
+socket.on('incoming_call', { from, offer, callType })
+socket.on('call_answered', { answer })
+socket.on('call_ice_candidate', { candidate })
+socket.on('call_ended', { callId, reason })
+socket.on('call_declined', { callId })
+socket.on('call_busy', { callId })
 ```
 
----
+## 🎨 Features in Detail
 
-## 🔒 Security Features
+### Message Management
+- **Send Message**: Text, emojis, and file attachments
+- **Edit Message**: Modify sent messages (with edit indicator)
+- **Recall Message**: Delete message for everyone
+- **Delete for Me**: Remove message from your view only
+- **Hide Message**: Hide message without deleting
+- **Reply to Message**: Quote and reply functionality
+- **Reactions**: Add emoji reactions to messages
+- **Read Receipts**: See when messages are delivered and read
 
-- **JWT Authentication**: Secure token-based auth
-- **Password Hashing**: bcrypt with salt rounds
-- **Rate Limiting**: Prevents brute force attacks
-- **Input Sanitization**: Prevents XSS and injection
-- **MongoDB Sanitization**: Prevents NoSQL injection
-- **CORS**: Configured for specific origins
-- **Helmet**: Security headers
-- **OTP Verification**: Email verification system
-- **Socket Authentication**: JWT validation for WebSocket
+### File Handling
+- **Supported Types**: Images (JPG, PNG, GIF), Videos (MP4, WebM), Audio (MP3, WAV), Documents (PDF, DOC, TXT)
+- **Upload Progress**: Real-time upload progress tracking
+- **File Preview**: Preview before sending
+- **Cloud Storage**: Files stored in Cloudflare R2
+- **Compression**: Automatic image compression
 
----
+### Video/Audio Calling
+- **WebRTC**: Peer-to-peer connection for low latency
+- **Call Types**: Video and audio calls
+- **Call Controls**: Mute/unmute, camera on/off, end call
+- **Call Status**: Ringing, connecting, connected, ended
+- **ICE Candidates**: Reliable connection establishment
+- **Call History**: Track past calls
+
+### Friend System
+- **Search Users**: Find users by name or email
+- **Send Requests**: Send friend requests with optional message
+- **Accept/Decline**: Manage incoming requests
+- **Friend List**: Organized list of friends
+- **Online Status**: See which friends are online
+- **Block Users**: (If implemented) Block unwanted users
 
 ## 🌐 Internationalization
 
-The app supports multiple languages:
-- English (en)
-- Vietnamese (vi)
+The application supports multiple languages through i18next:
 
-Translation files located in `frontend/src/i18n/locales/`
+- **English (en)** - Default language
+- **Vietnamese (vi)** - Vietnamese translation
 
----
+Translation files are located in:
+- `frontend/src/user/i18n/locales/en/pages/`
+- `frontend/src/user/i18n/locales/vi/pages/`
 
-## 🎨 Key Features Implementation
+To add a new language:
+1. Create a new folder in `locales/` (e.g., `locales/fr/`)
+2. Copy JSON files from `en/` folder
+3. Translate the content
+4. Update `i18n/index.js` to include the new language
 
-### Real-time Updates
-- Socket.IO connection managed via Context API
-- Automatic reconnection on disconnect
-- Event-driven architecture for all real-time features
-- Optimistic UI updates for instant feedback
+## 🔒 Security Best Practices
 
-### State Management
-- **Zustand** for global state (chat, friends)
-- Persistent conversation history
-- Message caching to reduce API calls
-- Friend list caching with TTL
+- **Password Hashing**: bcrypt with salt rounds
+- **JWT Tokens**: Secure token-based authentication
+- **Input Sanitization**: XSS and SQL injection prevention
+- **Rate Limiting**: Prevent abuse and DDoS attacks
+- **CORS**: Configured for specific origins
+- **Helmet**: Security headers for Express
+- **Environment Variables**: Sensitive data in .env files
+- **OTP Verification**: Two-factor authentication
+- **reCAPTCHA**: Bot protection on forms
+- **File Validation**: Type and size validation for uploads
 
-### Performance Optimizations
-- Lazy loading of conversations
-- Message pagination
-- Debounced typing indicators
-- Memoized components
-- Request deduplication
+## 🧪 Testing
 
----
+```bash
+# Run backend tests
+cd backend
+npm test
 
-## 📝 Environment Variables
+# Run frontend tests
+cd frontend
+npm test
+
+# Run with coverage
+npm run test:coverage
+```
+
+## 📦 Building for Production
+
+### Backend
+```bash
+cd backend
+npm run build
+```
+
+### Frontend
+```bash
+cd frontend
+npm run build
+# Build output will be in frontend/dist/
+```
+
+## 🚀 Deployment
+
+### Backend Deployment (Railway/Render/Heroku)
+
+1. **Prepare for deployment**:
+   - Ensure all environment variables are set
+   - Update `package.json` scripts if needed
+
+2. **Railway deployment**:
+   ```bash
+   # Install Railway CLI
+   npm i -g @railway/cli
+   
+   # Login and deploy
+   railway login
+   railway init
+   railway up
+   ```
+
+3. **Environment variables**: Set all variables in your hosting platform dashboard
+
+### Frontend Deployment (Vercel/Netlify)
+
+1. **Build the project**:
+   ```bash
+   cd frontend
+   npm run build
+   ```
+
+2. **Vercel deployment**:
+   ```bash
+   # Install Vercel CLI
+   npm i -g vercel
+   
+   # Deploy
+   vercel --prod
+   ```
+
+3. **Netlify deployment**:
+   - Connect your GitHub repository
+   - Set build command: `npm run build`
+   - Set publish directory: `dist`
+   - Add environment variables
+
+### Database
+- Use MongoDB Atlas for production database
+- Enable IP whitelist and authentication
+- Regular backups recommended
+
+### File Storage
+- Configure Cloudflare R2 bucket
+- Set proper CORS policies
+- Enable CDN for faster delivery
+
+## 🔍 Environment Variables Reference
 
 ### Backend Required Variables
-```env
-PORT                    # Server port
+```
+PORT                    # Server port (default: 5000)
+NODE_ENV               # Environment (development/production)
+CLIENT_URL             # Frontend URL for CORS
 MONGODB_URI            # MongoDB connection string
-JWT_SECRET             # JWT signing secret
-JWT_EXPIRES_IN         # Token expiration time
-EMAIL_USER             # SMTP email username
-EMAIL_PASS             # SMTP email password
-FRONTEND_URL           # Frontend URL for CORS
+JWT_SECRET             # JWT secret key (min 32 chars)
+JWT_EXPIRE             # JWT expiration (e.g., 7d)
+EMAIL_HOST             # SMTP host
+EMAIL_PORT             # SMTP port
+EMAIL_USER             # Email username
+EMAIL_PASSWORD         # Email password
+EMAIL_FROM             # Sender email address
+R2_ACCOUNT_ID          # Cloudflare R2 account ID
+R2_ACCESS_KEY_ID       # R2 access key
+R2_SECRET_ACCESS_KEY   # R2 secret key
+R2_BUCKET_NAME         # R2 bucket name
+R2_PUBLIC_URL          # R2 public URL
 RECAPTCHA_SECRET_KEY   # Google reCAPTCHA secret
 ```
 
 ### Frontend Required Variables
-```env
+```
 VITE_API_URL              # Backend API URL
+VITE_SOCKET_URL           # Socket.IO server URL
 VITE_RECAPTCHA_SITE_KEY   # Google reCAPTCHA site key
 ```
 
----
-
-## 🐛 Known Issues & Limitations
-
-- Group chat feature is in development (UI present but not functional)
-- File/image upload not yet implemented for messages
-- No message editing capability
-- No message search functionality
-- Browser notification permissions required for friend requests
-
----
-
-## 🚧 Future Enhancements
-
-- [ ] Group chat implementation
-- [ ] File and image sharing in messages
-- [ ] Message reactions (emoji)
-- [ ] Message forwarding
-- [ ] User profile customization
-- [ ] Voice/video calling
-- [ ] Message search
-- [ ] Chat export functionality
-- [ ] Advanced friend management (blocking, favorites)
-- [ ] Read receipts toggle
-- [ ] Custom chat themes
-
----
-
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please follow these guidelines:
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+1. **Fork the repository**
+2. **Create a feature branch**:
+   ```bash
+   git checkout -b feature/AmazingFeature
+   ```
+3. **Commit your changes**:
+   ```bash
+   git commit -m 'Add some AmazingFeature'
+   ```
+4. **Push to the branch**:
+   ```bash
+   git push origin feature/AmazingFeature
+   ```
+5. **Open a Pull Request**
 
----
+### Coding Standards
+- Follow ESLint configuration
+- Write clean, documented code
+- Add comments for complex logic
+- Follow existing code structure
+- Test your changes before submitting
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-## 👨‍💻 Developer Notes
-
-### Running in Development Mode
-
-**Backend with auto-reload:**
-```bash
-cd backend
-npm run dev  # Uses nodemon
+### Commit Message Convention
 ```
-
-**Frontend with HMR:**
-```bash
-cd frontend
-npm run dev  # Vite HMR enabled
-```
-
-### Production Build
-
-**Frontend:**
-```bash
-cd frontend
-npm run build
-# Output in dist/
-```
-
-**Backend:**
-```bash
-cd backend
-npm start
-```
-
-### Code Style
-- ESLint configured for both frontend and backend
-- Run `npm run lint` to check for issues
-
----
-
-## 📞 Support
-
-For issues, questions, or suggestions:
-- Open an issue on GitHub
-- Contact: [realtimechatotp@gmail.com]
-
----
-
-## 🙏 Acknowledgments
-
-- Socket.IO team for excellent real-time capabilities
-- Tailwind CSS for utility-first styling
-- Zustand for simple state management
-- All open-source contributors
-
----
-
-**Made with ❤️ by [Lê Thành Đô]**
+feat: Add new feature
+fix: Fix bug
+docs: Update documentation
+style: Format code
+refactor: Refactor code
+test
