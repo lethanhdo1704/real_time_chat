@@ -1,0 +1,49 @@
+{
+  "title": "Thông tin cuộc trò chuyện",
+  "notFound": "Không tìm thấy cuộc trò chuyện",
+  "conversation": "Cuộc trò chuyện",
+  "admin": "Admin",
+  "member": "Thành viên",
+  "add": "Thêm",
+  "search": "Tìm kiếm",
+  "mute": "Tắt tiếng",
+  "unmute": "Bật tiếng",
+  "muted": "Đã tắt tiếng",
+  "enabled": "Đã bật",
+  "pin": "Ghim",
+  "unpin": "Bỏ ghim",
+  "loading": "Đang tải...",
+  "loadingMore": "Đang tải thêm...",
+  "loadMore": "Xem thêm",
+  "noData": "Chưa có dữ liệu",
+  "enterGroupName": "Nhập tên nhóm",
+  "membersCount": "{{count}} thành viên",
+  "membersCount_one": "{{count}} thành viên",
+  "membersCount_other": "{{count}} thành viên",
+  "membersTitle": "Thành viên ({{count}})",
+  "membersTitle_one": "Thành viên ({{count}})",
+  "membersTitle_other": "Thành viên ({{count}})",
+  "messagesCount": "{{count}} tin nhắn",
+  "messagesCount_one": "{{count}} tin nhắn",
+  "messagesCount_other": "{{count}} tin nhắn",
+  "viewAllMembers": "Xem tất cả {{count}} thành viên",
+  "viewAllMembers_one": "Xem tất cả {{count}} thành viên",
+  "viewAllMembers_other": "Xem tất cả {{count}} thành viên",
+  "tabs": {
+    "media": "Ảnh",
+    "video": "Video",
+    "audio": "Âm thanh",
+    "files": "Tệp",
+    "links": "Liên kết"
+  },
+  "settings": {
+    "notifications": "Thông báo",
+    "privacy": "Bảo mật & Quyền riêng tư",
+    "chatSettings": "Cài đặt trò chuyện",
+    "archive": "Lưu trữ cuộc trò chuyện"
+  },
+  "actions": {
+    "leaveGroup": "Rời khỏi nhóm",
+    "deleteConversation": "Xóa cuộc trò chuyện"
+  }
+}

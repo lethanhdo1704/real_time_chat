@@ -94,6 +94,20 @@ router.delete(
 );
 
 // ===========================
+// 🔥 NEW: CONVERSATION MEDIA
+// ===========================
+
+// Get conversation media (images/videos/audios/files/links)
+// GET /api/messages/:conversationId/media?mediaType=image&before=xxx&limit=20
+// 
+// ⚠️ IMPORTANT: Must be BEFORE /:conversationId route to avoid conflict
+router.get(
+  '/:conversationId/media',
+  checkMembership,
+  messageController.getConversationMedia
+);
+
+// ===========================
 // GET MESSAGES (must be last due to :conversationId param)
 // ===========================
 

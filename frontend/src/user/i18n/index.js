@@ -19,8 +19,10 @@ import viSettings from "./locales/vi/pages/Settings.json";
 import enSettings from "./locales/en/pages/Settings.json";
 import viPolicy from "./locales/vi/pages/policy.json";
 import enPolicy from "./locales/en/pages/policy.json";
-import viCall from "./locales/vi/pages/Call.json"
-import enCall from "./locales/en/pages/Call.json"
+import viCall from "./locales/vi/pages/Call.json";
+import enCall from "./locales/en/pages/Call.json";
+import viConversation from "./locales/vi/pages/Conversation.json";
+import enConversation from "./locales/en/pages/Conversation.json";
 
 const resources = {
   vi: {
@@ -34,6 +36,7 @@ const resources = {
     settings: viSettings,
     policy: viPolicy,
     call: viCall,
+    conversation: viConversation,
   },
   en: {
     login: enLogin,
@@ -46,6 +49,7 @@ const resources = {
     settings: enSettings,
     policy: enPolicy,
     call: enCall,
+    conversation: enConversation,
   },
 };
 
@@ -62,7 +66,8 @@ i18n.use(initReactI18next).init({
     "friendFeature",
     "settings",
     "policy",
-    "call"
+    "call",
+    "conversation",
   ],
   interpolation: {
     escapeValue: false,

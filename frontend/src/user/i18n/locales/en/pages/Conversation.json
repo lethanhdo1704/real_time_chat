@@ -1,0 +1,49 @@
+{
+  "title": "Conversation Information",
+  "notFound": "Conversation not found",
+  "conversation": "Conversation",
+  "admin": "Admin",
+  "member": "Member",
+  "add": "Add",
+  "search": "Search",
+  "mute": "Mute",
+  "unmute": "Unmute",
+  "muted": "Muted",
+  "enabled": "Enabled",
+  "pin": "Pin",
+  "unpin": "Unpin",
+  "loading": "Loading...",
+  "loadingMore": "Loading more...",
+  "loadMore": "Load more",
+  "noData": "No data available",
+  "enterGroupName": "Enter group name",
+  "membersCount": "{{count}} members",
+  "membersCount_one": "{{count}} member",
+  "membersCount_other": "{{count}} members",
+  "membersTitle": "Members ({{count}})",
+  "membersTitle_one": "Member ({{count}})",
+  "membersTitle_other": "Members ({{count}})",
+  "messagesCount": "{{count}} messages",
+  "messagesCount_one": "{{count}} message",
+  "messagesCount_other": "{{count}} messages",
+  "viewAllMembers": "View all {{count}} members",
+  "viewAllMembers_one": "View {{count}} member",
+  "viewAllMembers_other": "View all {{count}} members",
+  "tabs": {
+    "media": "Photos",
+    "video": "Videos",
+    "audio": "Audio",
+    "files": "Files",
+    "links": "Links"
+  },
+  "settings": {
+    "notifications": "Notifications",
+    "privacy": "Privacy & Security",
+    "chatSettings": "Chat Settings",
+    "archive": "Archive Conversation"
+  },
+  "actions": {
+    "leaveGroup": "Leave Group",
+    "deleteConversation": "Delete Conversation"
+  }
+}

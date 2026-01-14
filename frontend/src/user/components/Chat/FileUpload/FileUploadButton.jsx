@@ -100,6 +100,7 @@ export default function FileUploadButton({ onFilesSelect, disabled = false }) {
           items-center justify-center 
           rounded-full
           transition-all duration-200
+          cursor-pointer
           ${
             disabled
               ? "text-gray-300 cursor-not-allowed"

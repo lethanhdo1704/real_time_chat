@@ -176,6 +176,61 @@ export const getMessages = async (conversationId, params = {}) => {
 };
 
 /**
+ * 🔥 NEW: Get conversation media (images/videos/audios/files/links)
+ * Optimized endpoint for Conversation Info tabs
+ * 
+ * Backend response:
+ * {
+ *   items: [
+ *     {
+ *       id, messageId, url, thumbnailUrl, name, size, mime, type, createdAt
+ *     }
+ *   ],
+ *   hasMore, oldestItemId
+ * }
+ * 
+ * @param {string} conversationId - Conversation ID
+ * @param {Object} params - Query params { mediaType, before?, limit? }
+ * @returns {Promise<Object>} { items, hasMore, oldestItemId }
+ */
+export const getConversationMedia = async (conversationId, params = {}) => {
+  const { mediaType, before, limit = 20 } = params;
+  
+  if (!mediaType) {
+    throw new Error('mediaType is required');
+  }
+  
+  const queryParams = new URLSearchParams({
+    mediaType,
+    limit: limit.toString(),
+  });
+  
+  if (before) {
+    queryParams.append('before', before);
+  }
+  
+  console.log('🎬 [chatApi] GET /messages/:id/media:', {
+    conversationId,
+    mediaType,
+    before: before || 'none',
+    limit,
+  });
+  
+  const response = await api.get(
+    `/messages/${conversationId}/media?${queryParams.toString()}`
+  );
+  
+  const data = unwrapResponse(response);
+  
+  console.log('✅ [chatApi] Media received:', {
+    count: data.items?.length || 0,
+    hasMore: data.hasMore,
+  });
+  
+  return data; // { items, hasMore, oldestItemId }
+};
+
+/**
  * Send new message
  * Backend returns: { success: true, data: { message: {...}, conversation: {...} } }
  * @param {Object} messageData - Message data (conversation, content, type, etc.)
@@ -243,11 +298,12 @@ export default {
   checkConversation,
   getUserConversations,
   getConversationById,
-  getConversationInfo, // 🔥 NEW
+  getConversationInfo,
   createPrivateConversation,
   createGroupConversation,
   markConversationAsRead,
   getMessages,
+  getConversationMedia, // 🔥 NEW
   sendMessage,
   editMessage,
   deleteMessage,

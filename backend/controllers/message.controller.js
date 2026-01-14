@@ -177,6 +177,58 @@ class MessageController {
   }
 
   /**
+   * 🔥 NEW: Get conversation media (images/videos/audios/files/links)
+   * GET /api/messages/:conversationId/media?mediaType=image&before=xxx&limit=20
+   * 
+   * Optimized endpoint for Conversation Info tabs
+   * - Only fetches messages with attachments
+   * - Returns lightweight data (no full message object)
+   * - Faster queries with proper indexes
+   */
+  async getConversationMedia(req, res, next) {
+    try {
+      const { conversationId } = req.params;
+      const { mediaType, before, limit = 20 } = req.query;
+
+      // Validate mediaType
+      const validMediaTypes = ['image', 'video', 'audio', 'file', 'link'];
+      if (!mediaType || !validMediaTypes.includes(mediaType)) {
+        return res.status(400).json({
+          success: false,
+          message: `mediaType is required and must be one of: ${validMediaTypes.join(', ')}`,
+        });
+      }
+
+      console.log("🎬 [MessageController] Getting conversation media:", {
+        conversationId,
+        mediaType,
+        before: before || "none",
+        limit,
+      });
+
+      const result = await messageService.getConversationMedia(
+        conversationId,
+        req.user.id,
+        {
+          mediaType,
+          before,
+          limit: parseInt(limit),
+        }
+      );
+
+      console.log("✅ [MessageController] Retrieved:", result.items.length, "media items");
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error("❌ [MessageController] getConversationMedia error:", error.message);
+      next(error);
+    }
+  }
+
+  /**
    * Mark conversation as read
    * POST /api/messages/read
    */

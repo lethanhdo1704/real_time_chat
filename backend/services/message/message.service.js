@@ -15,6 +15,7 @@ import { deleteForMe } from "./usecases/deleteForMe.js";
 import { recallMessage } from "./usecases/recallMessage.js";
 import { adminDeleteMessage } from "./usecases/adminDeleteMessage.js";
 import { toggleReaction } from "./usecases/toggleReaction.js";
+import { getConversationMedia } from "./usecases/getConversationMedia.js";
 
 class MessageService {
   /**
@@ -29,6 +30,18 @@ class MessageService {
    */
   async getMessages(conversationId, userId, options) {
     return getMessages(conversationId, userId, options);
+  }
+
+  /**
+   * 🔥 NEW: GET CONVERSATION MEDIA
+   * Optimized for Conversation Info tabs
+   * @param {string} conversationId - Conversation ID
+   * @param {string} userId - User ID
+   * @param {Object} options - { mediaType, before, limit }
+   * @returns {Promise<Object>} { items, hasMore, oldestItemId }
+   */
+  async getConversationMedia(conversationId, userId, options) {
+    return getConversationMedia(conversationId, userId, options);
   }
 
   /**

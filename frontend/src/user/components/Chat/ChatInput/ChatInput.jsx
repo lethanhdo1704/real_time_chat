@@ -415,6 +415,7 @@ const ChatInput = forwardRef(({
                   items-center justify-center 
                   rounded-full
                   transition-all duration-200
+                  cursor-pointer
                   ${
                     disabled || sending || uploading
                       ? "text-gray-300 cursor-not-allowed"
