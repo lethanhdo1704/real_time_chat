@@ -1,72 +1,68 @@
 // utils/renderMessage.jsx
 import React from "react";
+import LinkifyIt from "linkify-it";
 
-const VALID_TLDS = [
-  'com','org','net','io','dev','vn','edu','gov','xyz','info','tech','me'
-];
+const linkify = new LinkifyIt();
 
-const softenLongUnbrokenText = (text, limit = 30) => {
-  return text.replace(/(\S{30})/g, (match) => match + "\u200B");
-};
+// Chỉ dùng cho TEXT thường
+const softenLongUnbrokenText = (text, limit = 30) =>
+  text.replace(new RegExp(`(\\S{${limit}})`, "g"), "$1\u200B");
 
-const sanitizeLink = (url) => url.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
-
-// Check if hostname is IP
-const isIp = (hostname) => /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
-
-// Check if hostname is domain with valid TLD
-const isValidDomain = (hostname) => {
-  const parts = hostname.split('.');
-  if (parts.length < 2) return false; // at least 1 dot
-  const tld = parts[parts.length - 1].toLowerCase();
-  return VALID_TLDS.includes(tld);
-};
-
-// Normalize URL, return null if not valid link
-const normalizeUrl = (text) => {
-  const clean = sanitizeLink(text);
-  let url = clean;
-  if (!/^https?:\/\//i.test(url)) {
-    url = 'https://' + url;
-  }
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname;
-    if (!(isIp(hostname) || isValidDomain(hostname))) return null;
-    return parsed.href;
-  } catch (err) {
-    return null;
-  }
-};
-
-export const renderMessage = (text) => {
+export const renderMessage = (text = "") => {
   if (!text) return null;
 
-  const safeText = softenLongUnbrokenText(text);
+  // ⚠️ QUAN TRỌNG: linkify trên text gốc
+  const matches = linkify.match(text);
 
-  const tokens = safeText.split(/(\s+)/);
+  // Không có link → soften toàn bộ
+  if (!matches) {
+    return (
+      <span className="break-all whitespace-pre-wrap">
+        {softenLongUnbrokenText(text)}
+      </span>
+    );
+  }
 
-  return tokens.map((token, i) => {
-    const href = normalizeUrl(token);
-    if (href) {
-      return (
-        <a
-          key={i}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-blue-500 break-all whitespace-pre-wrap max-w-full"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {token}
-        </a>
+  const elements = [];
+  let lastIndex = 0;
+
+  matches.forEach((match, i) => {
+    // ===== TEXT TRƯỚC LINK =====
+    if (match.index > lastIndex) {
+      const normalText = text.slice(lastIndex, match.index);
+      elements.push(
+        <span key={`text-${i}`} className="break-all whitespace-pre-wrap">
+          {softenLongUnbrokenText(normalText)}
+        </span>
       );
     }
 
-    return (
-      <span key={i} className="break-all whitespace-pre-wrap">
-        {token}
+    // ===== LINK (TUYỆT ĐỐI KHÔNG SOFTEN) =====
+    elements.push(
+      <a
+        key={`link-${i}`}
+        href={match.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline hover:text-blue-500 break-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {match.text}
+      </a>
+    );
+
+    lastIndex = match.lastIndex;
+  });
+
+  // ===== TEXT SAU LINK CUỐI =====
+  if (lastIndex < text.length) {
+    const tailText = text.slice(lastIndex);
+    elements.push(
+      <span key="text-end" className="break-all whitespace-pre-wrap">
+        {softenLongUnbrokenText(tailText)}
       </span>
     );
-  });
+  }
+
+  return elements;
 };

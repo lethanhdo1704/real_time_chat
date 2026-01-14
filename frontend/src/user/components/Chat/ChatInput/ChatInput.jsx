@@ -12,6 +12,7 @@ import { AuthContext } from "../../../context/AuthContext";
 import FilePreview from "../FileUpload/FilePreview";
 import UploadProgress from "../FileUpload/UploadProgress";
 import FileUploadButton from "../FileUpload/FileUploadButton";
+import { extractLinkAttachments } from "../../../utils/linkUtils"; // 🔥 NEW
 
 const ChatInput = forwardRef(({ 
   onSendMessage, 
@@ -83,7 +84,7 @@ const ChatInput = forwardRef(({
   }, [rawUploadError, t]);
 
   // ============================================
-  // 🔥 UNIFIED SEND HANDLER (for both button and Enter key)
+  // 🔥 UNIFIED SEND HANDLER - WITH LINK EXTRACTION
   // ============================================
   const handleSend = async () => {
     console.log('📤 [ChatInput] Send clicked:', {
@@ -96,7 +97,8 @@ const ChatInput = forwardRef(({
       return;
     }
 
-    const hasContent = text.trim().length > 0;
+    const trimmedText = text.trim();
+    const hasContent = trimmedText.length > 0;
     const hasFiles = selectedFiles.length > 0;
 
     if (!hasContent && !hasFiles) {
@@ -107,20 +109,49 @@ const ChatInput = forwardRef(({
     try {
       let attachments = [];
 
+      // 1️⃣ Upload files first
       if (hasFiles) {
-        console.log('📤 Uploading files...');
-        attachments = await uploadFiles(selectedFiles, token);
-        console.log('✅ Files uploaded:', attachments);
+        console.log('📤 [ChatInput] Uploading files...');
+        const fileAttachments = await uploadFiles(selectedFiles, token);
+        console.log('✅ [ChatInput] Files uploaded:', {
+          count: fileAttachments.length,
+          types: fileAttachments.map(f => f.mediaType),
+        });
+        attachments = [...fileAttachments];
       }
 
-      console.log('📤 Sending message...');
-      await sendTextMessage(text, replyingTo?.messageId || null, attachments);
-      console.log('✅ Message sent');
+      // 2️⃣ 🔥 Extract links from text
+      if (hasContent) {
+        const linkAttachments = extractLinkAttachments(trimmedText);
+        
+        if (linkAttachments.length > 0) {
+          console.log('🔗 [ChatInput] Links extracted:', {
+            count: linkAttachments.length,
+            urls: linkAttachments.map(l => l.url),
+          });
+          attachments = [...attachments, ...linkAttachments];
+        }
+      }
 
+      // 3️⃣ Send message with all attachments
+      console.log('📤 [ChatInput] Sending message:', {
+        hasText: hasContent,
+        textLength: trimmedText.length,
+        fileCount: hasFiles ? selectedFiles.length : 0,
+        linkCount: attachments.filter(a => a.mediaType === 'link').length,
+        totalAttachments: attachments.length,
+      });
+
+      await sendTextMessage(trimmedText, replyingTo?.messageId || null, attachments);
+      
+      console.log('✅ [ChatInput] Message sent successfully');
+
+      // 4️⃣ Clear files after successful send
       clearFiles();
       
     } catch (error) {
-      console.error('❌ Send error:', error);
+      console.error('❌ [ChatInput] Send error:', error);
+      // Don't clear files on error - let user retry
     }
   };
 
@@ -139,7 +170,7 @@ const ChatInput = forwardRef(({
     disabled,
     sending,
     ref,
-    onSend: handleSend, // 🔥 Pass unified handler
+    onSend: handleSend, // 🔥 Unified handler includes link extraction
   });
 
   const {

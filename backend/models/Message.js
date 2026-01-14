@@ -21,17 +21,15 @@ const messageSchema = new Schema(
       default: null,
     },
 
-    // ✅ FIX: Cho phép empty (file-only message)
     content: {
       type: String,
       default: "",
       maxlength: 5000,
     },
 
-    // ✅ FIX: Thêm video, audio
     type: {
       type: String,
-      enum: ["text", "image", "video", "audio", "file","link"],
+      enum: ["text", "media", "system", "link"],
       default: "text",
     },
 
@@ -58,11 +56,11 @@ const messageSchema = new Schema(
         },
         mime: {
           type: String,
-          required: true, // video/mp4, image/jpeg, application/pdf, ...
+          required: true, 
         },
         mediaType: {
           type: String,
-          enum: ["image", "video", "audio", "file","link"],
+          enum: ["image", "video", "audio", "file", "link"],
           required: true,
         },
       },
@@ -153,17 +151,17 @@ messageSchema.virtual("messageId").get(function () {
 // INSTANCE METHODS
 // ============================================
 
-messageSchema.methods.isHiddenFor = function(userId) {
-  return this.hiddenFor.some(id => id.toString() === userId.toString());
+messageSchema.methods.isHiddenFor = function (userId) {
+  return this.hiddenFor.some((id) => id.toString() === userId.toString());
 };
 
-messageSchema.methods.isVisibleFor = function(userId) {
+messageSchema.methods.isVisibleFor = function (userId) {
   if (this.deletedAt) return false;
   if (this.isHiddenFor(userId)) return false;
   return true;
 };
 
-messageSchema.methods.getState = function() {
+messageSchema.methods.getState = function () {
   return {
     isDeleted: !!this.deletedAt,
     isRecalled: this.isRecalled,
@@ -222,40 +220,39 @@ messageSchema.statics.clientIdExists = async function (clientMessageId) {
 messageSchema.statics.hideForUser = async function (messageId, userId) {
   const result = await this.findByIdAndUpdate(
     messageId,
-    { 
-      $addToSet: { hiddenFor: userId }
+    {
+      $addToSet: { hiddenFor: userId },
     },
     { new: true }
   );
-  
+
   return result;
 };
 
-messageSchema.statics.recallMessage = async function (messageId, clearHidden = true) {
-  const update = { 
+messageSchema.statics.recallMessage = async function (
+  messageId,
+  clearHidden = true
+) {
+  const update = {
     isRecalled: true,
     recalledAt: new Date(),
     content: "",
     reactions: [], // Clear reactions when recalled
   };
-  
+
   if (clearHidden) {
     update.hiddenFor = [];
   }
-  
-  const result = await this.findByIdAndUpdate(
-    messageId,
-    update,
-    { new: true }
-  );
-  
+
+  const result = await this.findByIdAndUpdate(messageId, update, { new: true });
+
   return result;
 };
 
 messageSchema.statics.adminDelete = async function (messageId, adminId) {
   const result = await this.findByIdAndUpdate(
     messageId,
-    { 
+    {
       deletedAt: new Date(),
       deletedBy: adminId,
       hiddenFor: [],
@@ -264,7 +261,7 @@ messageSchema.statics.adminDelete = async function (messageId, adminId) {
     },
     { new: true }
   );
-  
+
   return result;
 };
 
@@ -275,36 +272,40 @@ messageSchema.statics.adminDelete = async function (messageId, adminId) {
 /**
  * Toggle reaction (add or remove)
  * Returns updated message with populated reactions
- * 
+ *
  * ✅ PRODUCTION READY:
  * - No emoji validation (trust FE)
  * - No max limit per user
  * - Simple toggle logic
- * 
+ *
  * @param {string} messageId - Message ID
  * @param {string} userId - User ID (MongoDB _id)
  * @param {string} emoji - Unicode emoji from emoji-picker-react
  * @returns {Promise<Document>} Updated message document
  */
-messageSchema.statics.toggleReaction = async function (messageId, userId, emoji) {
+messageSchema.statics.toggleReaction = async function (
+  messageId,
+  userId,
+  emoji
+) {
   const message = await this.findById(messageId);
-  
+
   if (!message) {
-    throw new Error('Message not found');
+    throw new Error("Message not found");
   }
 
   // Check if message can receive reactions
   if (message.deletedAt) {
-    throw new Error('Cannot react to deleted message');
+    throw new Error("Cannot react to deleted message");
   }
 
   if (message.isRecalled) {
-    throw new Error('Cannot react to recalled message');
+    throw new Error("Cannot react to recalled message");
   }
 
   // Find existing reaction
   const existingIndex = message.reactions.findIndex(
-    r => r.user.toString() === userId.toString() && r.emoji === emoji
+    (r) => r.user.toString() === userId.toString() && r.emoji === emoji
   );
 
   if (existingIndex !== -1) {
@@ -315,16 +316,16 @@ messageSchema.statics.toggleReaction = async function (messageId, userId, emoji)
     message.reactions.push({
       user: userId,
       emoji: emoji,
-      createdAt: new Date()
+      createdAt: new Date(),
     });
   }
 
   await message.save();
-  
+
   // Populate user info before returning
   await message.populate({
-    path: 'reactions.user',
-    select: 'uid nickname avatar'
+    path: "reactions.user",
+    select: "uid nickname avatar",
   });
 
   return message;

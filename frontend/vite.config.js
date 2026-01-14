@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import fs from "fs";
 
 export default defineConfig({
   plugins: [react()],
@@ -13,35 +12,34 @@ export default defineConfig({
   },
 
   server: {
+    // ✅ BẮT BUỘC để Forward Port hoạt động
     host: true,
+
+    // ✅ Port bạn forward trong VS Code
     port: 5173,
+
+    // ✅ Nếu port bị chiếm → fail luôn (đúng cho debug)
     strictPort: true,
 
-    // ✅ HTTPS cho FE (WebRTC cần)
-    https: {
-      key: fs.readFileSync("./cert/192.168.110.226-key.pem"),
-      cert: fs.readFileSync("./cert/192.168.110.226.pem"),
-    },
+    // ❌ KHÔNG DÙNG HTTPS (Forward Port rất kỵ)
+    https: false,
 
-    // ✅ Proxy backend (KHÔNG lộ http/ws ra browser)
+    // ✅ Proxy backend (API + Socket.IO)
     proxy: {
       "/api": {
         target: "http://127.0.0.1:5000",
         changeOrigin: true,
-        secure: false,
       },
 
       "/socket.io": {
         target: "http://127.0.0.1:5000",
         ws: true,
         changeOrigin: true,
-        secure: false,
       },
-      // ✅ BẮT BUỘC – avatar images
+
       "/uploads": {
         target: "http://127.0.0.1:5000",
         changeOrigin: true,
-        secure: false,
       },
     },
   },

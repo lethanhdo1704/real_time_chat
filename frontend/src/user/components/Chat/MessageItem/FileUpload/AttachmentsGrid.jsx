@@ -5,11 +5,13 @@ import VideoAttachment from './VideoAttachment';
 import AudioAttachment from './AudioAttachment';
 import DocumentAttachment from './DocumentAttachment';
 import FileAttachment from './FileAttachment';
+import LinkPreview from './LinkPreview';
 
 /**
- * AttachmentsGrid Component
+ * AttachmentsGrid Component - FIXED VERSION
  * 
  * Renders different attachment types:
+ * - link → LinkPreview (NEW!)
  * - image → ImageAttachment (green)
  * - video → VideoAttachment (violet)
  * - audio → AudioAttachment (orange)
@@ -23,6 +25,11 @@ export default function AttachmentsGrid({ attachments, isMe, t }) {
     const { mediaType, mime, name } = attachment;
 
     const commonProps = { attachment, isMe, t };
+
+    // ✅ PRIORITY 1: Check for LINK first (before anything else)
+    if (mime === 'text/url' || mediaType === 'link') {
+      return <LinkPreview key={index} attachment={attachment} isMe={isMe} />;
+    }
 
     // Check if it's a PDF (for DocumentAttachment)
     const isPDF = mediaType === 'document' || 
@@ -69,7 +76,12 @@ export default function AttachmentsGrid({ attachments, isMe, t }) {
       return 'grid grid-cols-2 gap-2';
     }
     
-    // 3+ files: 2x2 grid
+    // 3+ files: 2x2 grid (but links should stack vertically for better UX)
+    const hasLinks = attachments.some(a => a.mime === 'text/url' || a.mediaType === 'link');
+    if (hasLinks && count <= 3) {
+      return 'flex flex-col gap-2';
+    }
+    
     return 'grid grid-cols-2 gap-2';
   };
 

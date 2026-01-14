@@ -3,79 +3,51 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-const conversationSchema = new Schema({
-  type: {
-    type: String,
-    enum: ['private', 'group'],
-    required: true,
-  },
+const conversationSchema = new Schema(
+  {
+    type: {
+      type: String,
+      enum: ["private", "group"],
+      required: true,
+    },
 
-  // Group only
-  name: {
-    type: String,
-    trim: true,
-    maxlength: 100
-  },
+    // Group only
+    name: String,
+    avatar: String,
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
 
-  avatar: String,
+    // Private chat
+    friendshipId: {
+      type: Schema.Types.ObjectId,
+      ref: "Friend",
+      unique: true,
+      sparse: true,
+    },
 
-  // Group only - private chat không có owner
-  createdBy: {
-    type: Schema.Types.ObjectId,
-    ref: 'User'
-  },
+    lastMessage: {
+      type: Schema.Types.ObjectId,
+      ref: "Message",
+    },
+    lastMessageAt: Date,
 
-  // Private chat only - unique link to friendship
-  friendshipId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Friend',
-    unique: true,
-    sparse: true
-  },
+    // 🔥 Counters for Conversation Info
+    totalMessages: { type: Number, default: 0 },
+    sharedImages: { type: Number, default: 0 },
+    sharedVideos: { type: Number, default: 0 },
+    sharedAudio: { type: Number, default: 0 },
+    sharedFiles: { type: Number, default: 0 },
+    sharedLinks: { type: Number, default: 0 },
 
-  // Performance cache - updated by service
-  lastMessage: {
-    type: Schema.Types.ObjectId,
-    ref: 'Message'
+    isDeleted: { type: Boolean, default: false },
   },
-
-  lastMessageAt: {
-    type: Date,
-    index: true
-  },
-
-  // 🔹 Counters for Conversation Info
-  totalMessages: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  sharedMedia: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  sharedFiles: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  sharedLinks: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-
-  isDeleted: {
-    type: Boolean,
-    default: false
-  }
-}, {
-  timestamps: true
-});
+  { timestamps: true }
+);
 
 // Indexes for performance
 conversationSchema.index({ type: 1 });
 conversationSchema.index({ lastMessageAt: -1 }); // sidebar sorting
 
-export default mongoose.model('Conversation', conversationSchema);
+export default mongoose.model("Conversation", conversationSchema);
