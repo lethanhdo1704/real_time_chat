@@ -1,6 +1,6 @@
 // frontend/src/user/components/Chat/ChatWindow/ChatWindow.jsx
 
-import { useRef } from "react";
+import { useRef, useState } from "react"; // 🔥 Add useState
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import useChatWindowLogic from "../../../hooks/chat/useChatWindowLogic.js";
@@ -8,12 +8,13 @@ import ChatWindowHeader from "./ChatWindowHeader.jsx";
 import ChatWindowBody from "./ChatWindowBody.jsx";
 import ChatInput from "../ChatInput/ChatInput.jsx";
 import ChatEmptyState from "../ChatEmptyState.jsx";
+import ConversationInfo from "../ConversationInfo.jsx"; // 🔥 Import ConversationInfo
 import useChatStore from "../../../store/chat/chatStore.js";
 import useFriendStore from "../../../store/friendStore.js";
 import useCallStore from "../../../store/call/callStore.js";
 import callSocketService from "../../../services/socket/call.socket.js";
 import { CALL_TYPE } from "../../../utils/call/callConstants.js";
-import { useSocket } from "../../../context/SocketContext.jsx"; // ✅ Import useSocket
+import { useSocket } from "../../../context/SocketContext.jsx";
 
 /**
  * ChatWindow Component - Main Container
@@ -22,7 +23,8 @@ import { useSocket } from "../../../context/SocketContext.jsx"; // ✅ Import us
  * ✅ Real-time presence: Get friend's isOnline/lastSeen from friendStore
  * ✅ Auto-merge presence data with displayInfo
  * ✅ Mobile responsive with back navigation
- * ✅ UPDATED: Call functionality integrated
+ * ✅ Call functionality integrated
+ * ✅ 🔥 NEW: Conversation Info modal
  * 
  * Responsibilities:
  * - Layout structure & composition
@@ -30,6 +32,7 @@ import { useSocket } from "../../../context/SocketContext.jsx"; // ✅ Import us
  * - Pass unified data to child components
  * - Handle navigation & focus management
  * - Handle call actions
+ * - Handle conversation info modal
  */
 export default function ChatWindow() {
   const { t } = useTranslation("chat");
@@ -37,10 +40,13 @@ export default function ChatWindow() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // 🔥 NEW: Conversation Info Modal State
+  const [showConversationInfo, setShowConversationInfo] = useState(false);
+
   // ============================================
   // SOCKET (for call functionality)
   // ============================================
-  const { socket } = useSocket(); // ✅ Get socket from context
+  const { socket } = useSocket();
 
   // ============================================
   // GET CONVERSATION & FRIEND DATA
@@ -167,6 +173,26 @@ export default function ChatWindow() {
   };
 
   // ============================================
+  // 🔥 NEW: CONVERSATION INFO HANDLER
+  // ============================================
+  
+  /**
+   * Handle info button click (3 dots menu)
+   */
+  const handleInfoClick = () => {
+    console.log('[ChatWindow] Opening conversation info');
+    setShowConversationInfo(true);
+  };
+
+  /**
+   * Handle close conversation info modal
+   */
+  const handleCloseInfo = () => {
+    console.log('[ChatWindow] Closing conversation info');
+    setShowConversationInfo(false);
+  };
+
+  // ============================================
   // MOBILE BACK HANDLER
   // ============================================
   const handleBackClick = () => {
@@ -210,6 +236,7 @@ export default function ChatWindow() {
           onBackClick={handleBackClick}
           onCallClick={handleVoiceCall}
           onVideoClick={handleVideoCall}
+          onInfoClick={handleInfoClick} // 🔥 Pass handler
         />
 
         <div className="flex-1 flex items-center justify-center px-4">
@@ -231,7 +258,7 @@ export default function ChatWindow() {
   // RENDER: Main Chat Window
   // ============================================
   return (
-    <div className="flex flex-col h-full w-full min-h-0 bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="flex flex-col h-full w-full min-h-0 bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 relative">
       {/* Header with Real-time Presence & Call Buttons */}
       <ChatWindowHeader
         receiverName={displayInfoWithPresence.name}
@@ -244,6 +271,7 @@ export default function ChatWindow() {
         onBackClick={handleBackClick}
         onCallClick={handleVoiceCall}
         onVideoClick={handleVideoCall}
+        onInfoClick={handleInfoClick} // 🔥 Pass handler
       />
 
       {/* Body: Messages + Typing + Empty States */}
@@ -276,6 +304,29 @@ export default function ChatWindow() {
             : t("input.placeholder")
         }
       />
+
+      {/* 🔥 Conversation Info Modal - FIXED POSITIONING */}
+      {showConversationInfo && (
+        <>
+          {/* Mobile: Full Screen Overlay */}
+          <div className="lg:hidden fixed inset-0 z-9999 bg-white">
+            <ConversationInfo onClose={handleCloseInfo} />
+          </div>
+
+          {/* Desktop: Half Screen Side Panel */}
+          <div 
+            className="hidden lg:block fixed inset-0 z-9999 bg-black/20" 
+            onClick={handleCloseInfo}
+          >
+            <div 
+              className="absolute right-0 top-0 bottom-0 w-1/2 bg-white shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ConversationInfo onClose={handleCloseInfo} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

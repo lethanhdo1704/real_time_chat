@@ -57,6 +57,36 @@ export const getConversationById = async (conversationId) => {
 };
 
 /**
+ * 🔥 NEW: Get conversation info with counters
+ * Used for Conversation Info modal
+ * 
+ * Backend response:
+ * {
+ *   id, type, name, avatar, createdAt,
+ *   statistics: {
+ *     totalMessages,
+ *     shared: { images, videos, audios, files, links }
+ *   }
+ * }
+ * 
+ * @param {string} conversationId - Conversation ID
+ * @returns {Promise<Object>} Conversation info with counters
+ */
+export const getConversationInfo = async (conversationId) => {
+  console.log('📊 [chatApi] getConversationInfo:', conversationId);
+  
+  const response = await api.get(`/conversations/${conversationId}/info`);
+  const data = unwrapResponse(response);
+  
+  console.log('✅ [chatApi] Conversation info received:', {
+    totalMessages: data.statistics?.totalMessages,
+    sharedImages: data.statistics?.shared?.images,
+  });
+  
+  return data;
+};
+
+/**
  * Create private conversation with a friend
  * @param {string} friendUid - Friend's uid
  * @returns {Promise<Object>} Created conversation
@@ -102,13 +132,13 @@ export const markConversationAsRead = async (conversationId) => {
  * ✅ KHÔNG BAO GIỜ TRÙNG
  * 
  * @param {string} conversationId - Conversation ID
- * @param {Object} params - Query params { before?, limit? }
+ * @param {Object} params - Query params { before?, limit?, mediaType? }
  * @returns {Promise<Object>} { messages, hasMore, oldestMessageId }
  */
 export const getMessages = async (conversationId, params = {}) => {
-  const { before, limit = 50 } = params;
+  const { before, limit = 50, mediaType } = params;
   
-  // ✅ Build query params - CHỈ gửi before và limit
+  // ✅ Build query params - CHỈ gửi before, limit, và mediaType (nếu có)
   const queryParams = new URLSearchParams({
     limit: limit.toString(),
   });
@@ -118,10 +148,16 @@ export const getMessages = async (conversationId, params = {}) => {
     queryParams.append("before", before);
   }
   
+  // 🔥 NEW: Thêm mediaType filter cho tab Media/Video/Audio/File/Link
+  if (mediaType) {
+    queryParams.append("mediaType", mediaType);
+  }
+  
   console.log('🌐 [chatApi] GET /messages:', {
     conversationId,
     before: before || 'none',
     limit,
+    mediaType: mediaType || 'all',
   });
   
   const response = await api.get(
@@ -207,6 +243,7 @@ export default {
   checkConversation,
   getUserConversations,
   getConversationById,
+  getConversationInfo, // 🔥 NEW
   createPrivateConversation,
   createGroupConversation,
   markConversationAsRead,

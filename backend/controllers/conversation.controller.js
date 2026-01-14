@@ -296,6 +296,83 @@ class ConversationController {
       next(error);
     }
   }
+
+  // ============================================
+  // 🔥 COUNTER METHODS - NEW
+  // ============================================
+
+  /**
+   * Get conversation info with counters
+   * GET /api/conversations/:conversationId/info
+   * ✅ For Conversation Info modal
+   */
+  async getConversationInfo(req, res, next) {
+    try {
+      const { conversationId } = req.params;
+
+      console.log('📊 [ConversationController] Getting info for:', conversationId);
+      
+      const info = await conversationService.getConversationInfo(conversationId);
+
+      console.log('✅ [ConversationController] Info retrieved:', {
+        totalMessages: info.statistics.totalMessages,
+        sharedMedia: info.statistics.shared
+      });
+
+      res.json({
+        success: true,
+        data: info,
+      });
+    } catch (error) {
+      console.error('❌ [ConversationController] getConversationInfo error:', error.message);
+      next(error);
+    }
+  }
+
+  /**
+   * Rebuild all counters (Admin only)
+   * POST /api/conversations/:conversationId/rebuild-counters
+   * ✅ Use when counters are corrupted
+   */
+  async rebuildCounters(req, res, next) {
+    try {
+      const { conversationId } = req.params;
+
+      // TODO: Check if user is admin
+      // if (!req.user.isAdmin) {
+      //   throw new Error('Unauthorized');
+      // }
+
+      console.log('🔧 [ConversationController] Rebuilding counters for:', conversationId);
+      
+      const conversation = await conversationService.rebuildCounters(conversationId);
+
+      console.log('✅ [ConversationController] Counters rebuilt:', {
+        totalMessages: conversation.totalMessages,
+        sharedImages: conversation.sharedImages,
+        sharedVideos: conversation.sharedVideos,
+      });
+
+      res.json({
+        success: true,
+        message: 'Counters rebuilt successfully',
+        data: {
+          conversationId,
+          counters: {
+            totalMessages: conversation.totalMessages,
+            sharedImages: conversation.sharedImages,
+            sharedVideos: conversation.sharedVideos,
+            sharedAudios: conversation.sharedAudios,
+            sharedFiles: conversation.sharedFiles,
+            sharedLinks: conversation.sharedLinks,
+          },
+        },
+      });
+    } catch (error) {
+      console.error('❌ [ConversationController] rebuildCounters error:', error.message);
+      next(error);
+    }
+  }
 }
 
 export default new ConversationController();

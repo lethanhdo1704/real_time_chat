@@ -50,6 +50,28 @@ router.get(
 );
 
 // ===========================
+// 🔥 CONVERSATION INFO & COUNTERS
+// ===========================
+
+// Get conversation info with counters
+// GET /api/conversations/:conversationId/info
+// ⚠️ Must be BEFORE /:conversationId/read to avoid route conflict
+router.get(
+  '/:conversationId/info',
+  checkMembership,
+  conversationController.getConversationInfo
+);
+
+// Rebuild counters (Admin only)
+// POST /api/conversations/:conversationId/rebuild-counters
+// TODO: Add admin middleware
+router.post(
+  '/:conversationId/rebuild-counters',
+  checkMembership,
+  conversationController.rebuildCounters
+);
+
+// ===========================
 // MARK AS READ
 // ===========================
 

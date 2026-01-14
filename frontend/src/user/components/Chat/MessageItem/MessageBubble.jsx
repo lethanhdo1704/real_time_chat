@@ -8,12 +8,12 @@ import { AuthContext } from "../../../context/AuthContext";
 import { useTranslation } from "react-i18next";
 
 /**
- * MessageBubble Component - CLEAN VERSION
+ * MessageBubble Component - TAILWIND ONLY
  * 
  * ✅ Links are clearly visible with proper contrast
  * ✅ Special styling for links in blue/gradient bubbles
  * ✅ Underline on hover for better UX
- * ✅ Avatar is now handled by MessageItem component
+ * ✅ Using Tailwind classes only - NO external CSS
  */
 export default function MessageBubble({
   messageText,
@@ -119,6 +119,32 @@ export default function MessageBubble({
     return text.substring(0, maxLength) + "...";
   };
 
+  // 🔥 Wrap content với div có Tailwind link styles
+  const renderContentWithLinks = (content) => {
+    // Determine link style based on message state
+    let linkClasses = "";
+    
+    if (isMe && !isEditing && !isFailed) {
+      // Blue bubble - light blue links
+      linkClasses = "[&_a]:text-blue-100 [&_a]:underline [&_a]:decoration-blue-200/50 [&_a]:underline-offset-2 [&_a]:font-medium [&_a:hover]:text-white [&_a:hover]:decoration-white/80 [&_a:hover]:shadow-[0_0_8px_rgba(255,255,255,0.3)] [&_a]:transition-all";
+    } else if (!isMe && !isEditing && !isFailed) {
+      // White bubble - blue links
+      linkClasses = "[&_a]:text-blue-600 [&_a]:underline [&_a]:decoration-blue-600/30 [&_a]:underline-offset-2 [&_a:hover]:text-blue-800 [&_a:hover]:decoration-blue-800/60 [&_a]:transition-all";
+    } else if (isPending) {
+      // Pending - light links
+      linkClasses = "[&_a]:text-white/90 [&_a]:underline [&_a]:decoration-white/40 [&_a]:underline-offset-2";
+    } else if (isFailed) {
+      // Failed - red links
+      linkClasses = "[&_a]:text-red-900 [&_a]:underline [&_a]:decoration-red-900/30 [&_a]:underline-offset-2 [&_a:hover]:text-red-950 [&_a:hover]:decoration-red-950/50 [&_a]:transition-all";
+    }
+
+    return (
+      <div className={linkClasses}>
+        {content}
+      </div>
+    );
+  };
+
   return (
     <div className="inline-flex flex-col gap-2 max-w-full">
       {/* File attachments without text */}
@@ -139,7 +165,6 @@ export default function MessageBubble({
             transition-all duration-300 ${getBubbleColor()} 
             overflow-hidden
             ${replyTo ? 'px-2.5 py-2 sm:px-3 sm:py-2' : hasAttachments ? 'p-0' : 'px-3 py-2 sm:px-4 sm:py-2.5'}
-            message-bubble-container
           `}
         >
           {/* File INSIDE bubble (when has text) */}
@@ -246,12 +271,11 @@ export default function MessageBubble({
             ) : (
               /* NORMAL MODE - TEXT ONLY */
               <>
-                {hasText && (
+                {hasText && renderContentWithLinks(
                   <div 
                     className={`
                       ${isBig ? "text-4xl leading-none" : "text-[14px] sm:text-[15px] leading-[1.4] whitespace-pre-wrap wrap-break-word"}
                       ${getTextColorClass()}
-                      message-content-links
                     `}
                   >
                     {renderMessage(messageText)}
@@ -269,62 +293,6 @@ export default function MessageBubble({
           </div>
         </div>
       )}
-
-      {/* INLINE STYLES FOR LINK VISIBILITY */}
-      <style jsx>{`
-        /* Link styles for messages from ME (blue background) */
-        .message-bubble-container.bg-gradient-to-br a,
-        .message-content-links.text-white a {
-          color: #E0F2FE !important;
-          text-decoration: underline;
-          text-decoration-color: rgba(224, 242, 254, 0.5);
-          text-underline-offset: 2px;
-          font-weight: 500;
-          transition: all 0.2s ease;
-        }
-
-        .message-bubble-container.bg-gradient-to-br a:hover,
-        .message-content-links.text-white a:hover {
-          color: #FFFFFF !important;
-          text-decoration-color: rgba(255, 255, 255, 0.8);
-          text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
-        }
-
-        /* Link styles for messages from OTHERS (white background) */
-        .message-bubble-container.bg-white a,
-        .message-content-links.text-gray-800 a {
-          color: #2563EB !important;
-          text-decoration: underline;
-          text-decoration-color: rgba(37, 99, 235, 0.3);
-          text-underline-offset: 2px;
-          transition: all 0.2s ease;
-        }
-
-        .message-bubble-container.bg-white a:hover,
-        .message-content-links.text-gray-800 a:hover {
-          color: #1D4ED8 !important;
-          text-decoration-color: rgba(29, 78, 216, 0.6);
-        }
-
-        /* Link styles for PENDING messages */
-        .message-bubble-container.opacity-60 a {
-          color: rgba(255, 255, 255, 0.9) !important;
-          text-decoration: underline;
-          text-decoration-color: rgba(255, 255, 255, 0.4);
-        }
-
-        /* Link styles for FAILED messages */
-        .message-bubble-container.bg-red-100 a {
-          color: #991B1B !important;
-          text-decoration: underline;
-          text-decoration-color: rgba(153, 27, 27, 0.3);
-        }
-
-        .message-bubble-container.bg-red-100 a:hover {
-          color: #7F1D1D !important;
-          text-decoration-color: rgba(127, 29, 29, 0.5);
-        }
-      `}</style>
     </div>
   );
 }

@@ -2,15 +2,18 @@
 import { useEffect, useCallback, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import { getSocket } from "../../services/socketService";
+import useChatStore from "../../store/chat/chatStore";
 
 /**
  * Chat socket hook - ACTIVE CONVERSATION ONLY
  * 
- * 🔥 UPDATED: Only handles events for the ACTIVE conversation
- * Global updates (edit/recall/delete for ALL conversations) are handled by useGlobalSocket
+ * 🔥 UPDATED: 
+ * - Handles events for the ACTIVE conversation
+ * - Syncs counters from backend on message_received
+ * - Global updates (edit/recall/delete) handled by useGlobalSocket
  * 
  * Handles real-time events for ACTIVE conversation:
- * - message_received: New messages
+ * - message_received: New messages + counter updates
  * - user_typing: Typing indicators
  * - message_read_receipt: Read receipts with avatars
  * 
@@ -36,6 +39,9 @@ export const useChatSocket = ({
   onReadReceipt,
 }) => {
   const { user } = useContext(AuthContext);
+  
+  // 🔥 Get updateCounters from store
+  const updateCounters = useChatStore((state) => state.updateCounters);
 
   // ============================================
   // EMIT FUNCTIONS
@@ -93,12 +99,12 @@ export const useChatSocket = ({
     console.log("💬 [useChatSocket] Setting up listeners for:", activeConversationId);
 
     // ============================================
-    // ✅ MESSAGE RECEIVED HANDLER
+    // ✅ MESSAGE RECEIVED HANDLER + COUNTER SYNC
     // ============================================
     const handleMessageReceived = (data) => {
       console.log("📨 [useChatSocket] message_received:", data);
       
-      const { conversationId, message } = data;
+      const { conversationId, message, counters } = data;
       
       if (!message) {
         console.error("❌ [useChatSocket] No message in data");
@@ -115,6 +121,12 @@ export const useChatSocket = ({
         from: message.sender?.nickname,
         isOwn: message.sender?.uid === user?.uid,
       });
+
+      // 🔥 Update counters if provided by backend
+      if (counters) {
+        console.log("📊 [useChatSocket] Updating counters from socket:", counters);
+        updateCounters(conversationId, counters);
+      }
 
       if (onMessageReceived) {
         onMessageReceived(message);
@@ -233,6 +245,25 @@ export const useChatSocket = ({
     };
 
     // ============================================
+    // 🔥 NEW: CONVERSATION UPDATE HANDLER
+    // ============================================
+    // Handles counter updates from backend
+    // This event is sent when counters are updated outside of message_received
+    const handleConversationUpdate = (data) => {
+      console.log("🔄 [useChatSocket] conversation_update:", data);
+      
+      const { conversationId, counters } = data;
+      
+      if (!counters) {
+        console.warn("⚠️ [useChatSocket] No counters in conversation_update");
+        return;
+      }
+      
+      console.log("📊 [useChatSocket] Updating counters:", counters);
+      updateCounters(conversationId, counters);
+    };
+
+    // ============================================
     // REGISTER ALL LISTENERS
     // ============================================
     console.log("📝 [useChatSocket] Registering socket listeners...");
@@ -243,6 +274,7 @@ export const useChatSocket = ({
     socket.on("message_recalled", handleMessageRecalled);
     socket.on("user_typing", handleUserTyping);
     socket.on("message_read_receipt", handleReadReceipt);
+    socket.on("conversation_update", handleConversationUpdate); // 🔥 NEW
     
     console.log("✅ [useChatSocket] All listeners registered");
 
@@ -267,6 +299,7 @@ export const useChatSocket = ({
       socket.off("message_recalled", handleMessageRecalled);
       socket.off("user_typing", handleUserTyping);
       socket.off("message_read_receipt", handleReadReceipt);
+      socket.off("conversation_update", handleConversationUpdate); // 🔥 NEW
       
       console.log("📤 [useChatSocket] Leaving conversation:", activeConversationId);
       
@@ -285,6 +318,7 @@ export const useChatSocket = ({
     onMessageRecalled,
     onTyping,
     onReadReceipt,
+    updateCounters, // 🔥 NEW dependency
   ]);
 
   // ============================================

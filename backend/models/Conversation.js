@@ -37,7 +37,7 @@ const conversationSchema = new Schema(
     totalMessages: { type: Number, default: 0 },
     sharedImages: { type: Number, default: 0 },
     sharedVideos: { type: Number, default: 0 },
-    sharedAudio: { type: Number, default: 0 },
+    sharedAudios: { type: Number, default: 0 },
     sharedFiles: { type: Number, default: 0 },
     sharedLinks: { type: Number, default: 0 },
 

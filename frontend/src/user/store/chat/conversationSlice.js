@@ -2,15 +2,14 @@
 import * as chatApi from "../../services/chatApi";
 
 /**
- * Conversation Slice - IMPROVED
- * Manages conversations list, loading, and active conversation
+ * Conversation Slice - IMPROVED WITH COUNTERS
+ * Manages conversations list, loading, active conversation, and counters
  *
- * Improvements:
+ * NEW Features:
+ * ✅ Counters support (totalMessages, sharedImages, etc.)
+ * ✅ Update counters from socket events
  * ✅ Better conversation ordering (move to top on update)
  * ✅ Handle non-existent conversations gracefully
- * ✅ Merge updates properly
- * ✅ Better logging
- * ✅ exitConversation() for mobile back navigation
  */
 export const createConversationSlice = (set, get) => ({
   // ============================================
@@ -147,7 +146,7 @@ export const createConversationSlice = (set, get) => ({
     const existing = conversations.get(conversationId);
 
     if (existing) {
-      // 🔥 Merge updates properly
+      // 🔥 Merge updates properly, including counters
       const updated = {
         ...existing,
         ...updates,
@@ -155,6 +154,10 @@ export const createConversationSlice = (set, get) => ({
         friend: updates.friend !== undefined ? updates.friend : existing.friend,
         members:
           updates.members !== undefined ? updates.members : existing.members,
+        // 🔥 NEW: Merge counters properly
+        counters: updates.counters 
+          ? { ...existing.counters, ...updates.counters }
+          : existing.counters,
       };
 
       conversations.set(conversationId, updated);
@@ -217,6 +220,44 @@ export const createConversationSlice = (set, get) => ({
   },
 
   // ============================================
+  // 🔥 NEW: UPDATE COUNTERS FROM SOCKET
+  // ============================================
+
+  /**
+   * Update conversation counters from socket event
+   * Called when message_received event includes updated counters
+   * 
+   * @param {string} conversationId - Conversation ID
+   * @param {Object} counters - New counters from backend
+   */
+  updateCounters: (conversationId, counters) => {
+    console.log("📊 [conversationSlice] updateCounters:", conversationId, counters);
+
+    const conversations = new Map(get().conversations);
+    const existing = conversations.get(conversationId);
+
+    if (existing) {
+      conversations.set(conversationId, {
+        ...existing,
+        counters: counters, // 🔥 Replace với counters mới từ backend
+      });
+
+      set({ conversations });
+
+      console.log("✅ [conversationSlice] Counters updated:", {
+        conversationId,
+        totalMessages: counters.totalMessages,
+        sharedImages: counters.sharedImages,
+      });
+    } else {
+      console.warn(
+        "⚠️ [conversationSlice] Cannot update counters - conversation not found:",
+        conversationId
+      );
+    }
+  },
+
+  // ============================================
   // ACTIONS - ACTIVE CONVERSATION
   // ============================================
 
@@ -252,6 +293,14 @@ export const createConversationSlice = (set, get) => ({
         friend: null,
         members: [],
         unreadCount: 0,
+        counters: {
+          totalMessages: 0,
+          sharedImages: 0,
+          sharedVideos: 0,
+          sharedAudios: 0,
+          sharedFiles: 0,
+          sharedLinks: 0,
+        },
         _placeholder: true,
       });
 
@@ -283,12 +332,6 @@ export const createConversationSlice = (set, get) => ({
   /**
    * Exit current conversation and clear active state
    * Used when user clicks back button on mobile
-   *
-   * This ensures:
-   * - activeConversationId becomes null
-   * - activeFriend becomes null
-   * - hasActiveConversation in Home.jsx becomes false
-   * - Mobile shows ContextPanel instead of ChatWindow
    */
   exitConversation: () => {
     const state = get();
@@ -338,10 +381,6 @@ export const createConversationSlice = (set, get) => ({
       );
     }
   },
-
-  // ============================================
-  // 🔥 NEW: INCREMENT UNREAD COUNT
-  // ============================================
 
   incrementUnreadCount: (conversationId) => {
     console.log("📈 [conversationSlice] incrementUnreadCount:", conversationId);
@@ -398,8 +437,9 @@ export const createConversationSlice = (set, get) => ({
       hasFetchedConversations: false,
     });
   },
+
   // ============================================
-  // 🔥 NEW: SET CONVERSATION DETAIL (members, roles, avatars)
+  // 🔥 NEW: SET CONVERSATION DETAIL (members, roles, avatars, counters)
   // ============================================
 
   setConversationDetail: (detail) => {
@@ -415,7 +455,7 @@ export const createConversationSlice = (set, get) => ({
 
     conversations.set(conversationId, {
       ...existing, // giữ unreadCount, lastMessage, sidebar data
-      ...detail, // 🔥 merge members, type, friend
+      ...detail, // 🔥 merge members, type, friend, counters
       _detailFetched: true,
       _placeholder: false,
     });
