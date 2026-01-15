@@ -6,6 +6,7 @@ import setupFriendSocket from "./friend.socket.js";
 import setupCallSocket from "./call.socket.js";
 import socketEmitter from "../services/socketEmitter.service.js";
 import User from "../models/User.js";
+import setupGroupSocket from './group.socket.js';
 
 export default function initSocket(server) {
   const io = new Server(server, {
@@ -19,6 +20,7 @@ export default function initSocket(server) {
     pingTimeout: 60000,
     allowEIO3: true,
   });
+  setupGroupSocket(io);
 
   io.engine.on("initial_headers", (headers, req) => {
     console.log('🔍 Socket handshake from:', req.headers.origin || 'no-origin');

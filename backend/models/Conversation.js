@@ -26,7 +26,16 @@ const conversationSchema = new Schema(
       unique: true,
       sparse: true,
     },
-
+    joinMode: {
+      type: String,
+      enum: ["approval", "link"],
+      default: "approval",
+    },
+    messagePermission: {
+      type: String,
+      enum: ["all", "admins_only"],
+      default: "all",
+    },
     lastMessage: {
       type: Schema.Types.ObjectId,
       ref: "Message",
