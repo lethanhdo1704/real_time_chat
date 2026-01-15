@@ -124,7 +124,7 @@ export default function AudioAttachment({ attachment, isMe, isCompact = false })
                 {truncateFilename(name, 25)}
               </p>
               <p className="text-[10px] text-white/80">
-                {formatTime(duration)}
+                {uploadService.formatFileSize(size)}
               </p>
             </div>
 
@@ -138,22 +138,30 @@ export default function AudioAttachment({ attachment, isMe, isCompact = false })
           </div>
 
           {/* Compact Seekbar */}
-          <div
-            className="relative h-1.5 bg-white/20 rounded-full cursor-pointer group"
-            onClick={handleSeek}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseUp}
-          >
+          <div className="space-y-1">
             <div
-              className="absolute h-full bg-white rounded-full transition-all"
-              style={{ width: `${progress}%` }}
-            />
-            <div
-              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-              style={{ left: `${progress}%`, marginLeft: '-6px' }}
-            />
+              className="relative h-1.5 bg-white/20 rounded-full cursor-pointer group"
+              onClick={handleSeek}
+              onMouseDown={handleMouseDown}
+              onMouseUp={handleMouseUp}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseUp}
+            >
+              <div
+                className="absolute h-full bg-white rounded-full transition-all"
+                style={{ width: `${progress}%` }}
+              />
+              <div
+                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ left: `${progress}%`, marginLeft: '-6px' }}
+              />
+            </div>
+            
+            {/* Time display */}
+            <div className="flex justify-between text-[10px] text-white/80">
+              <span>{formatTime(currentTime)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
           </div>
         </div>
 

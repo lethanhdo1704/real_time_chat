@@ -18,13 +18,16 @@ import FileAttachment from './MessageItem/FileUpload/FileAttachment';
 import DocumentAttachment from './MessageItem/FileUpload/DocumentAttachment';
 import LinkPreview from './MessageItem/FileUpload/LinkPreview';
 
+// 🔥 Import AvatarImage component
+import AvatarImage from '../common/AvatarImage';
+
 /**
- * ConversationInfo - OPTIMIZED với isCompact prop
+ * ConversationInfo - WITH AvatarImage component
  * 
- * ✅ Pass isCompact=true cho Audio/Video/File trong grid
- * ✅ Images vẫn fullscreen trong grid
- * ✅ Load 2 rows initially
- * ✅ Better visual hierarchy
+ * ✅ Use AvatarImage for profile & members
+ * ✅ Updated renderAttachment với isCompact=true
+ * ✅ cursor-pointer trên tất cả interactive elements
+ * ✅ Responsive design
  */
 export default function ConversationInfo({ onClose }) {
   const { t, i18n } = useTranslation('conversation');
@@ -94,6 +97,14 @@ export default function ConversationInfo({ onClose }) {
   const displayName = conversation.name || conversation.friend?.nickname || t('conversation');
   const members = conversation.members || [];
   
+  // 🔥 Get avatar info for profile
+  const profileAvatar = isGroupChat 
+    ? conversation.avatar 
+    : conversation.friend?.avatar;
+  const profileAvatarUpdatedAt = isGroupChat
+    ? conversation.avatarUpdatedAt
+    : conversation.friend?.avatarUpdatedAt;
+  
   const counters = info?.counters || conversation.counters || {
     totalMessages: 0,
     sharedImages: 0,
@@ -112,7 +123,7 @@ export default function ConversationInfo({ onClose }) {
     setIsEditingName(false);
   };
 
-  // 🔥 Render attachment - PASS isCompact=true for non-image types
+  // 🔥 Render attachment với isCompact=true
   const renderAttachment = (item, isGridMode = false) => {
     const attachment = {
       url: item.url,
@@ -133,18 +144,15 @@ export default function ConversationInfo({ onClose }) {
         return <ImageAttachment attachment={attachment} isMe={false} isGridMode={isGridMode} />;
       
       case 'video':
-        // ✅ Pass isCompact=true when in grid
         return <VideoAttachment attachment={attachment} isMe={false} isCompact={true} />;
       
       case 'audio':
-        // ✅ Pass isCompact=true when in grid
         return <AudioAttachment attachment={attachment} isMe={false} isCompact={true} />;
       
       case 'file':
         if (isPDF) {
-          return <DocumentAttachment attachment={attachment} isMe={false} />;
+          return <DocumentAttachment attachment={attachment} isMe={false} isCompact={true} />;
         }
-        // ✅ Pass isCompact=true when in grid
         return <FileAttachment attachment={attachment} isMe={false} t={t} isCompact={true} />;
       
       case 'link':
@@ -159,15 +167,15 @@ export default function ConversationInfo({ onClose }) {
   const getGridLayout = () => {
     switch (activeTab) {
       case 'media':
-        return 'grid grid-cols-3 gap-0'; // NO GAP - squares touch
+        return 'grid grid-cols-3 gap-0';
       case 'video':
-        return 'grid grid-cols-2 gap-2'; // 2 columns
+        return 'grid grid-cols-2 gap-2';
       case 'audio':
-        return 'space-y-2'; // Stack
+        return 'space-y-2';
       case 'files':
-        return 'space-y-2'; // Stack
+        return 'space-y-2';
       case 'links':
-        return 'space-y-3'; // Stack
+        return 'space-y-3';
       default:
         return 'space-y-2';
     }
@@ -186,7 +194,7 @@ export default function ConversationInfo({ onClose }) {
   const InfoItem = ({ icon: Icon, label, value, onClick, danger = false }) => (
     <button
       onClick={onClick}
-      className={`w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors ${
+      className={`w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ${
         danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'
       }`}
     >
@@ -202,16 +210,17 @@ export default function ConversationInfo({ onClose }) {
   );
 
   const MemberItem = ({ member }) => (
-    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer">
       <div className="flex items-center gap-3">
-        <div className="relative">
-          <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold">
-            {member.user?.nickname?.charAt(0) || member.uid?.charAt(0) || '?'}
-          </div>
-          {member.user?.isOnline && (
-            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
-          )}
-        </div>
+        {/* 🔥 Use AvatarImage component */}
+        <AvatarImage
+          avatar={member.user?.avatar}
+          nickname={member.user?.nickname || 'Unknown'}
+          avatarUpdatedAt={member.user?.avatarUpdatedAt}
+          size="sm"
+          showOnlineStatus={true}
+          isOnline={member.user?.isOnline || false}
+        />
         <div>
           <p className="font-medium text-gray-900">{member.user?.nickname || 'Unknown'}</p>
           <p className="text-xs text-gray-500">
@@ -219,7 +228,7 @@ export default function ConversationInfo({ onClose }) {
           </p>
         </div>
       </div>
-      <button className="text-gray-400 hover:text-gray-600">
+      <button className="text-gray-400 hover:text-gray-600 cursor-pointer">
         <ChevronRight className="w-5 h-5" />
       </button>
     </div>
@@ -233,7 +242,7 @@ export default function ConversationInfo({ onClose }) {
         <button
           onClick={loadMore}
           disabled={mediaLoading}
-          className="group relative px-6 py-2.5 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium shadow-md hover:shadow-lg hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
+          className="group relative px-6 py-2.5 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium shadow-md hover:shadow-lg hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2 cursor-pointer"
         >
           {mediaLoading ? (
             <>
@@ -262,7 +271,7 @@ export default function ConversationInfo({ onClose }) {
         <h2 className="text-lg font-semibold text-gray-900">{t('title')}</h2>
         <button 
           onClick={onClose}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
         >
           <X className="w-5 h-5 text-gray-600" />
         </button>
@@ -273,12 +282,17 @@ export default function ConversationInfo({ onClose }) {
         {/* Profile Section */}
         <InfoSection>
           <div className="flex flex-col items-center py-6 px-4">
+            {/* 🔥 Use AvatarImage for profile */}
             <div className="relative group">
-              <div className="w-24 h-24 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-                {displayName.charAt(0).toUpperCase()}
-              </div>
+              <AvatarImage
+                avatar={profileAvatar}
+                nickname={displayName}
+                avatarUpdatedAt={profileAvatarUpdatedAt}
+                size="2xl"
+                className="shadow-lg"
+              />
               {isGroupChat && (
-                <button className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                <button className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                   <Camera className="w-4 h-4" />
                 </button>
               )}
@@ -297,7 +311,7 @@ export default function ConversationInfo({ onClose }) {
                   />
                   <button
                     onClick={handleSaveGroupName}
-                    className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                    className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 cursor-pointer"
                   >
                     <Check className="w-4 h-4" />
                   </button>
@@ -311,7 +325,7 @@ export default function ConversationInfo({ onClose }) {
                         setGroupName(displayName);
                         setIsEditingName(true);
                       }}
-                      className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-gray-100 rounded transition-all"
+                      className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-gray-100 rounded transition-all cursor-pointer"
                     >
                       <Pencil className="w-4 h-4 text-gray-500" />
                     </button>
@@ -338,7 +352,7 @@ export default function ConversationInfo({ onClose }) {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={() => setIsMuted(!isMuted)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer ${
                   isMuted
                     ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     : 'bg-blue-500 text-white hover:bg-blue-600'
@@ -349,7 +363,7 @@ export default function ConversationInfo({ onClose }) {
               </button>
               <button
                 onClick={() => setIsPinned(!isPinned)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer ${
                   isPinned
                     ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -359,7 +373,7 @@ export default function ConversationInfo({ onClose }) {
                 <Pin className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`} />
               </button>
               <button 
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors cursor-pointer"
                 title={t('search')}
               >
                 <Search className="w-4 h-4" />
@@ -376,7 +390,7 @@ export default function ConversationInfo({ onClose }) {
                 <Users className="w-5 h-5 text-blue-500" />
                 {t('membersTitle', { count: members.length })}
               </h3>
-              <button className="text-blue-500 text-sm font-medium hover:text-blue-600">
+              <button className="text-blue-500 text-sm font-medium hover:text-blue-600 cursor-pointer">
                 {t('add')}
               </button>
             </div>
@@ -385,7 +399,7 @@ export default function ConversationInfo({ onClose }) {
                 <MemberItem key={member.uid} member={member} />
               ))}
               {members.length > 5 && (
-                <button className="w-full py-3 text-sm text-blue-600 font-medium hover:text-blue-700">
+                <button className="w-full py-3 text-sm text-blue-600 font-medium hover:text-blue-700 cursor-pointer">
                   {t('viewAllMembers', { count: members.length })}
                 </button>
               )}
@@ -418,7 +432,7 @@ export default function ConversationInfo({ onClose }) {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors relative whitespace-nowrap ${
+                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors relative whitespace-nowrap cursor-pointer ${
                       activeTab === tab ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -468,7 +482,7 @@ export default function ConversationInfo({ onClose }) {
                         bg-white 
                         hover:opacity-90
                         transition-opacity
-                        ${activeTab === 'media' ? 'aspect-square border border-black' : ''}
+                        ${activeTab === 'media' ? 'aspect-square border border-black cursor-pointer' : 'cursor-pointer'}
                       `}
                     >
                       {renderAttachment(item, activeTab === 'media')}

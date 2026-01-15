@@ -1,6 +1,6 @@
 // frontend/src/user/components/Chat/ChatWindow/ChatWindow.jsx
 
-import { useRef, useState } from "react"; // 🔥 Add useState
+import { useRef, useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import useChatWindowLogic from "../../../hooks/chat/useChatWindowLogic.js";
@@ -8,7 +8,7 @@ import ChatWindowHeader from "./ChatWindowHeader.jsx";
 import ChatWindowBody from "./ChatWindowBody.jsx";
 import ChatInput from "../ChatInput/ChatInput.jsx";
 import ChatEmptyState from "../ChatEmptyState.jsx";
-import ConversationInfo from "../ConversationInfo.jsx"; // 🔥 Import ConversationInfo
+import ConversationInfo from "../ConversationInfo.jsx";
 import useChatStore from "../../../store/chat/chatStore.js";
 import useFriendStore from "../../../store/friendStore.js";
 import useCallStore from "../../../store/call/callStore.js";
@@ -17,22 +17,15 @@ import { CALL_TYPE } from "../../../utils/call/callConstants.js";
 import { useSocket } from "../../../context/SocketContext.jsx";
 
 /**
- * ChatWindow Component - Main Container
+ * ChatWindow Component - WITH RESIZABLE SIDE PANEL
  * 
- * ✅ Use activeConversationId (string) instead of activeConversation (object)
- * ✅ Real-time presence: Get friend's isOnline/lastSeen from friendStore
- * ✅ Auto-merge presence data with displayInfo
- * ✅ Mobile responsive with back navigation
- * ✅ Call functionality integrated
- * ✅ 🔥 NEW: Conversation Info modal
- * 
- * Responsibilities:
- * - Layout structure & composition
- * - Merge presence data from multiple sources
- * - Pass unified data to child components
- * - Handle navigation & focus management
- * - Handle call actions
- * - Handle conversation info modal
+ * ✅ ConversationInfo as resizable side panel (not overlay)
+ * ✅ Draggable divider to resize
+ * ✅ Min/Max width constraints
+ * ✅ Smooth transitions
+ * ✅ Mobile: Full screen overlay
+ * ✅ Desktop: Resizable split view
+ * ✅ Fixed: Scroll works properly, smooth resize
  */
 export default function ChatWindow() {
   const { t } = useTranslation("chat");
@@ -40,8 +33,14 @@ export default function ChatWindow() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔥 NEW: Conversation Info Modal State
+  // 🔥 Conversation Info Panel State
   const [showConversationInfo, setShowConversationInfo] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(400); // Default 400px
+  const [isResizing, setIsResizing] = useState(false);
+
+  // Panel constraints
+  const MIN_PANEL_WIDTH = 320; // Minimum 320px
+  const MAX_PANEL_WIDTH = 600; // Maximum 600px
 
   // ============================================
   // SOCKET (for call functionality)
@@ -95,12 +94,63 @@ export default function ChatWindow() {
   } : null;
 
   // ============================================
+  // 🔥 RESIZE HANDLERS - IMPROVED
+  // ============================================
+  
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+  };
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isResizing) return;
+    
+    const containerWidth = window.innerWidth;
+    const newWidth = containerWidth - e.clientX;
+    
+    // Constrain width with smooth clamping
+    const clampedWidth = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, newWidth));
+    setPanelWidth(clampedWidth);
+  }, [isResizing]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  // 🔥 Add global mouse listeners for resize using useEffect
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      // Prevent text selection while resizing
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      document.body.style.pointerEvents = 'none'; // 🔥 Prevent scroll during resize
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      
+      // Reset cursor and text selection
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.body.style.pointerEvents = ''; // 🔥 Re-enable pointer events
+    }
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.body.style.pointerEvents = '';
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
+
+  // ============================================
   // CALL HANDLERS
   // ============================================
   
-  /**
-   * Handle voice call button click
-   */
   const handleVoiceCall = () => {
     if (!activeFriend?.uid) {
       console.error('[ChatWindow] No active friend UID');
@@ -109,19 +159,16 @@ export default function ChatWindow() {
 
     if (!socket || !socket.connected) {
       console.error('[ChatWindow] Socket not connected');
-      // TODO: Show toast "Connection error"
       return;
     }
 
     if (isBusy()) {
       console.warn('[ChatWindow] Already in a call');
-      // TODO: Show toast "Already in a call"
       return;
     }
 
     console.log('[ChatWindow] Starting voice call with:', activeFriend.uid);
 
-    // Update store state
     startOutgoingCall(
       activeFriend.uid,
       {
@@ -131,13 +178,9 @@ export default function ChatWindow() {
       CALL_TYPE.VOICE
     );
 
-    // Emit socket event
     callSocketService.startCall(activeFriend.uid, CALL_TYPE.VOICE);
   };
 
-  /**
-   * Handle video call button click
-   */
   const handleVideoCall = () => {
     if (!activeFriend?.uid) {
       console.error('[ChatWindow] No active friend UID');
@@ -146,19 +189,16 @@ export default function ChatWindow() {
 
     if (!socket || !socket.connected) {
       console.error('[ChatWindow] Socket not connected');
-      // TODO: Show toast "Connection error"
       return;
     }
 
     if (isBusy()) {
       console.warn('[ChatWindow] Already in a call');
-      // TODO: Show toast "Already in a call"
       return;
     }
 
     console.log('[ChatWindow] Starting video call with:', activeFriend.uid);
 
-    // Update store state
     startOutgoingCall(
       activeFriend.uid,
       {
@@ -168,25 +208,18 @@ export default function ChatWindow() {
       CALL_TYPE.VIDEO
     );
 
-    // Emit socket event
     callSocketService.startCall(activeFriend.uid, CALL_TYPE.VIDEO);
   };
 
   // ============================================
-  // 🔥 NEW: CONVERSATION INFO HANDLER
+  // 🔥 CONVERSATION INFO HANDLER
   // ============================================
   
-  /**
-   * Handle info button click (3 dots menu)
-   */
   const handleInfoClick = () => {
     console.log('[ChatWindow] Opening conversation info');
     setShowConversationInfo(true);
   };
 
-  /**
-   * Handle close conversation info modal
-   */
   const handleCloseInfo = () => {
     console.log('[ChatWindow] Closing conversation info');
     setShowConversationInfo(false);
@@ -199,10 +232,7 @@ export default function ChatWindow() {
     const pathParts = location.pathname.split("/");
     const currentTab = pathParts[1] || "friends";
     
-    // Clear active conversation state
     useChatStore.getState().exitConversation();
-    
-    // Navigate back to list view
     navigate(`/${currentTab}`);
   };
 
@@ -236,7 +266,7 @@ export default function ChatWindow() {
           onBackClick={handleBackClick}
           onCallClick={handleVoiceCall}
           onVideoClick={handleVideoCall}
-          onInfoClick={handleInfoClick} // 🔥 Pass handler
+          onInfoClick={handleInfoClick}
         />
 
         <div className="flex-1 flex items-center justify-center px-4">
@@ -255,78 +285,177 @@ export default function ChatWindow() {
   }
 
   // ============================================
-  // RENDER: Main Chat Window
+  // RENDER: Main Chat Window WITH RESIZABLE PANEL
   // ============================================
   return (
-    <div className="flex flex-col h-full w-full min-h-0 bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 relative">
-      {/* Header with Real-time Presence & Call Buttons */}
-      <ChatWindowHeader
-        receiverName={displayInfoWithPresence.name}
-        receiverAvatar={displayInfoWithPresence.avatar}
-        isTyping={!!typingUser}
-        typingUserName={typingUser?.nickname || typingUser?.fullName}
-        isOnline={displayInfoWithPresence.isOnline}
-        lastSeen={displayInfoWithPresence.lastSeen}
-        showBackButton={true}
-        onBackClick={handleBackClick}
-        onCallClick={handleVoiceCall}
-        onVideoClick={handleVideoCall}
-        onInfoClick={handleInfoClick} // 🔥 Pass handler
-      />
-
-      {/* Body: Messages + Typing + Empty States */}
-      <ChatWindowBody
-        messagesContainerRef={messagesContainerRef}
-        typingIndicatorRef={typingIndicatorRef}
-        hookMessagesEndRef={hookMessagesEndRef}
-        messages={messages}
-        conversationId={conversationId}
-        loading={loading}
-        hasMore={hasMore}
-        displayInfo={displayInfoWithPresence}
-        typingUser={typingUser}
-        currentUser={currentUser}
-        onRetryMessage={handleRetryMessage}
-        onFocusInput={focusInput}
-        t={t}
-      />
-
-      {/* Input */}
-      <ChatInput
-        ref={inputRef}
-        onSendMessage={handleSendMessage}
-        onTypingChange={handleTypingChange}
-        disabled={sending}
-        sending={sending}
-        placeholder={
-          displayInfoWithPresence.isNewConversation
-            ? t("input.startConversation")
-            : t("input.placeholder")
-        }
-      />
-
-      {/* 🔥 Conversation Info Modal - FIXED POSITIONING */}
+    <>
+      {/* Mobile: Full Screen Overlay */}
       {showConversationInfo && (
-        <>
-          {/* Mobile: Full Screen Overlay */}
-          <div className="lg:hidden fixed inset-0 z-9999 bg-white">
-            <ConversationInfo onClose={handleCloseInfo} />
-          </div>
+        <div className="lg:hidden fixed inset-0 z-9999 bg-white">
+          <ConversationInfo onClose={handleCloseInfo} />
+        </div>
+      )}
 
-          {/* Desktop: Half Screen Side Panel */}
-          <div 
-            className="hidden lg:block fixed inset-0 z-9999 bg-black/20" 
-            onClick={handleCloseInfo}
+      {/* Desktop: Split View with Resizable Panel */}
+      <div className="hidden lg:flex h-full w-full relative overflow-hidden">
+        {/* Chat Area - Dynamic Width */}
+        <div 
+          className="flex flex-col min-h-0 bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50"
+          style={{ 
+            width: showConversationInfo ? `calc(100% - ${panelWidth}px)` : '100%',
+            transition: isResizing ? 'none' : 'width 0.2s ease-out'
+          }}
+        >
+          {/* Header with Real-time Presence & Call Buttons */}
+          <ChatWindowHeader
+            receiverName={displayInfoWithPresence.name}
+            receiverAvatar={displayInfoWithPresence.avatar}
+            isTyping={!!typingUser}
+            typingUserName={typingUser?.nickname || typingUser?.fullName}
+            isOnline={displayInfoWithPresence.isOnline}
+            lastSeen={displayInfoWithPresence.lastSeen}
+            showBackButton={true}
+            onBackClick={handleBackClick}
+            onCallClick={handleVoiceCall}
+            onVideoClick={handleVideoCall}
+            onInfoClick={handleInfoClick}
+          />
+
+          {/* Body: Messages + Typing + Empty States */}
+          <ChatWindowBody
+            messagesContainerRef={messagesContainerRef}
+            typingIndicatorRef={typingIndicatorRef}
+            hookMessagesEndRef={hookMessagesEndRef}
+            messages={messages}
+            conversationId={conversationId}
+            loading={loading}
+            hasMore={hasMore}
+            displayInfo={displayInfoWithPresence}
+            typingUser={typingUser}
+            currentUser={currentUser}
+            onRetryMessage={handleRetryMessage}
+            onFocusInput={focusInput}
+            t={t}
+          />
+
+          {/* Input */}
+          <ChatInput
+            ref={inputRef}
+            onSendMessage={handleSendMessage}
+            onTypingChange={handleTypingChange}
+            disabled={sending}
+            sending={sending}
+            placeholder={
+              displayInfoWithPresence.isNewConversation
+                ? t("input.startConversation")
+                : t("input.placeholder")
+            }
+          />
+        </div>
+
+        {/* 🔥 Resizable Divider - IMPROVED */}
+        {showConversationInfo && (
+          <div
+            onMouseDown={handleMouseDown}
+            className={`
+              relative shrink-0 w-1 bg-gray-200
+              hover:bg-blue-400 active:bg-blue-500
+              transition-colors duration-150
+              ${isResizing ? 'bg-blue-500' : ''}
+            `}
+            style={{
+              cursor: 'col-resize',
+              zIndex: 10 // Ensure divider is above content
+            }}
           >
+            {/* Visual indicator line */}
             <div 
-              className="absolute right-0 top-0 bottom-0 w-1/2 bg-white shadow-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
+              className={`
+                absolute inset-y-0 left-1/2 -translate-x-1/2 w-0.5 
+                bg-blue-500 transition-opacity duration-150
+                ${isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
+              `}
+            />
+            
+            {/* Wider invisible hit area for easier grabbing */}
+            <div className="absolute inset-y-0 -left-3 -right-3" />
+            
+            {/* Resize indicator (dots) */}
+            <div 
+              className={`
+                absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+                flex flex-col gap-1 opacity-0 hover:opacity-100 transition-opacity
+                ${isResizing ? 'opacity-100' : ''}
+              `}
             >
-              <ConversationInfo onClose={handleCloseInfo} />
+              <div className="w-1 h-1 rounded-full bg-gray-400"></div>
+              <div className="w-1 h-1 rounded-full bg-gray-400"></div>
+              <div className="w-1 h-1 rounded-full bg-gray-400"></div>
             </div>
           </div>
-        </>
+        )}
+
+        {/* Conversation Info Panel - Dynamic Width */}
+        {showConversationInfo && (
+          <div 
+            className="bg-white border-l border-gray-200 shrink-0 overflow-hidden"
+            style={{ 
+              width: `${panelWidth}px`,
+              transition: isResizing ? 'none' : 'width 0.2s ease-out'
+            }}
+          >
+            <ConversationInfo onClose={handleCloseInfo} />
+          </div>
+        )}
+      </div>
+
+      {/* Mobile: Regular Full Screen Chat (when panel closed) */}
+      {!showConversationInfo && (
+        <div className="lg:hidden flex flex-col h-full w-full min-h-0 bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50">
+          <ChatWindowHeader
+            receiverName={displayInfoWithPresence.name}
+            receiverAvatar={displayInfoWithPresence.avatar}
+            isTyping={!!typingUser}
+            typingUserName={typingUser?.nickname || typingUser?.fullName}
+            isOnline={displayInfoWithPresence.isOnline}
+            lastSeen={displayInfoWithPresence.lastSeen}
+            showBackButton={true}
+            onBackClick={handleBackClick}
+            onCallClick={handleVoiceCall}
+            onVideoClick={handleVideoCall}
+            onInfoClick={handleInfoClick}
+          />
+
+          <ChatWindowBody
+            messagesContainerRef={messagesContainerRef}
+            typingIndicatorRef={typingIndicatorRef}
+            hookMessagesEndRef={hookMessagesEndRef}
+            messages={messages}
+            conversationId={conversationId}
+            loading={loading}
+            hasMore={hasMore}
+            displayInfo={displayInfoWithPresence}
+            typingUser={typingUser}
+            currentUser={currentUser}
+            onRetryMessage={handleRetryMessage}
+            onFocusInput={focusInput}
+            t={t}
+          />
+
+          <ChatInput
+            ref={inputRef}
+            onSendMessage={handleSendMessage}
+            onTypingChange={handleTypingChange}
+            disabled={sending}
+            sending={sending}
+            placeholder={
+              displayInfoWithPresence.isNewConversation
+                ? t("input.startConversation")
+                : t("input.placeholder")
+            }
+          />
+        </div>
       )}
-    </div>
+    </>
   );
 }
