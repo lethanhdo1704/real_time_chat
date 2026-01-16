@@ -4,6 +4,7 @@ import React from 'react';
 import { Users, Crown, Shield, UserMinus } from 'lucide-react';
 import AvatarImage from '../../common/AvatarImage';
 import InfoSection from './InfoSection';
+import { useTranslation } from 'react-i18next';
 
 /**
  * MemberItem Component
@@ -24,12 +25,12 @@ function MemberItem({
   canChangeRole, 
   handleKickMember, 
   handleChangeRole,
-  t 
 }) {
   // 🔥 Backend returns uid directly, not user.uid
   const isMe = member.uid === currentUserId;
   const memberRole = member.role || 'member';
-  
+  const { t } = useTranslation('conversation');
+
   return (
     <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors group">
       <div className="flex items-center gap-3 flex-1 min-w-0">

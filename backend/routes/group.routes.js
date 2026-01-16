@@ -80,6 +80,9 @@ router.patch("/:conversationId/members/:memberUid/role", checkOwnerRole, groupCo
 // Transfer ownership (owner only)
 router.post("/:conversationId/transfer-ownership", checkOwnerRole, groupController.transferOwnership);
 
+// Transfer ownership and leave (owner only)
+router.post("/:conversationId/transfer-and-leave", checkOwnerRole, groupController.transferOwnershipAndLeave);
+
 // Update group info (owner only)
 router.patch("/:conversationId", checkOwnerRole, groupController.updateGroupInfo);
 

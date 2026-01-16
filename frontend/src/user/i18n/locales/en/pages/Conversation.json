@@ -17,6 +17,11 @@
   "loadMore": "Load more",
   "noData": "No data available",
   "enterGroupName": "Enter group name",
+  "you": "You",
+  "owner": "Group owner",
+
+  "kickMember": "Remove member",
+  "changeRole": "Change role",
 
   "membersCount": "{{count}} members",
   "membersCount_one": "{{count}} member",
@@ -50,14 +55,14 @@
   },
 
   "actions": {
-    "leaveGroup": "Leave Group",
-    "deleteConversation": "Delete Conversation"
+    "leaveGroup": "Leave group",
+    "deleteConversation": "Delete conversation"
   },
 
   "conversationInfo": {
     "groupSettings": {
-      "title": "Group Settings",
-      "onlyAdminsCanSend": "Only Admins Can Send Messages",
+      "title": "Group settings",
+      "onlyAdminsCanSend": "Only admins can send messages",
       "onlyAdminsCanSendDesc": "When enabled, only admins can send messages in this group"
     },
 
@@ -65,22 +70,22 @@
       "cancel": "Cancel",
 
       "kickMember": {
-        "title": "Kick Member",
-        "message": "Are you sure you want to kick this member from the group?",
-        "kick": "Kick",
-        "kicking": "Kicking..."
+        "title": "Remove member from group",
+        "message": "Are you sure you want to remove this member from the group?",
+        "kick": "Remove",
+        "kicking": "Removing..."
       },
 
       "leaveGroup": {
-        "title": "Leave Group",
+        "title": "Leave group",
         "message": "Are you sure you want to leave this group?",
-        "ownerWarning": "As the owner, you must transfer ownership or be the only member before leaving.",
-        "leave": "Leave",
+        "ownerWarning": "You are the group owner. Please transfer ownership or make sure you are the only member before leaving.",
+        "leave": "Leave group",
         "leaving": "Leaving..."
       },
 
       "changeRole": {
-        "title": "Change Role",
+        "title": "Change role",
         "admin": "Admin",
         "adminDesc": "Can manage group settings and members",
         "member": "Member",

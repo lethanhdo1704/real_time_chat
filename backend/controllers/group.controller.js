@@ -18,16 +18,20 @@ class GroupController {
     try {
       const { conversationId } = req.params;
 
-      console.log(`📋 [GroupController] Getting group info for ${conversationId}`);
+      console.log(
+        `📋 [GroupController] Getting group info for ${conversationId}`
+      );
 
       // Get conversation with populated createdBy
-      const conversation = await Conversation.findById(conversationId)
-        .populate('createdBy', 'uid nickname avatar');
+      const conversation = await Conversation.findById(conversationId).populate(
+        "createdBy",
+        "uid nickname avatar"
+      );
 
       if (!conversation) {
         return res.status(404).json({
           success: false,
-          message: "CONVERSATION_NOT_FOUND"
+          message: "CONVERSATION_NOT_FOUND",
         });
       }
 
@@ -36,29 +40,29 @@ class GroupController {
       const member = await ConversationMember.findOne({
         conversation: conversationId,
         user: user._id,
-        leftAt: null
+        leftAt: null,
       });
 
       if (!member) {
         return res.status(403).json({
           success: false,
-          message: "NOT_MEMBER"
+          message: "NOT_MEMBER",
         });
       }
 
       // 🔥 NEW: Get all active members
       const members = await ConversationMember.find({
         conversation: conversationId,
-        leftAt: null
+        leftAt: null,
       })
-      .populate('user', 'uid nickname avatar')
-      .select('role joinedAt')
-      .lean(); // Use lean() for better performance
+        .populate("user", "uid nickname avatar")
+        .select("role joinedAt")
+        .lean(); // Use lean() for better performance
 
       // 🔥 NEW: Format and sort members (owner -> admin -> member -> by join date)
       const roleOrder = { owner: 0, admin: 1, member: 2 };
       const formattedMembers = members
-        .filter(m => m.user) // Filter out any members with missing user data
+        .filter((m) => m.user) // Filter out any members with missing user data
         .sort((a, b) => {
           // Sort by role first
           const roleDiff = roleOrder[a.role] - roleOrder[b.role];
@@ -66,12 +70,12 @@ class GroupController {
           // Then by join date (earliest first)
           return new Date(a.joinedAt) - new Date(b.joinedAt);
         })
-        .map(m => ({
+        .map((m) => ({
           uid: m.user.uid,
           nickname: m.user.nickname,
           avatar: m.user.avatar,
           role: m.role,
-          joinedAt: m.joinedAt
+          joinedAt: m.joinedAt,
         }));
 
       // Format response - only expose uid, not MongoDB _id
@@ -80,11 +84,13 @@ class GroupController {
         type: conversation.type,
         name: conversation.name,
         avatar: conversation.avatar,
-        createdBy: conversation.createdBy ? {
-          uid: conversation.createdBy.uid,
-          nickname: conversation.createdBy.nickname,
-          avatar: conversation.createdBy.avatar
-        } : null,
+        createdBy: conversation.createdBy
+          ? {
+              uid: conversation.createdBy.uid,
+              nickname: conversation.createdBy.nickname,
+              avatar: conversation.createdBy.avatar,
+            }
+          : null,
         joinMode: conversation.joinMode,
         messagePermission: conversation.messagePermission,
         totalMessages: conversation.totalMessages,
@@ -100,16 +106,17 @@ class GroupController {
         members: formattedMembers,
         totalMembers: formattedMembers.length,
         // 🔥 NEW: Add current user's role for UI permissions
-        currentUserRole: member.role
+        currentUserRole: member.role,
       };
 
-      console.log(`✅ [GroupController] Group info retrieved with ${formattedMembers.length} members`);
+      console.log(
+        `✅ [GroupController] Group info retrieved with ${formattedMembers.length} members`
+      );
 
       res.json({
         success: true,
-        data: groupInfo
+        data: groupInfo,
       });
-
     } catch (error) {
       console.error("❌ [GroupController] getGroupInfo error:", error.message);
       next(error);
@@ -220,7 +227,10 @@ class GroupController {
         data: result,
       });
     } catch (error) {
-      console.error("❌ [GroupController] sendJoinRequest error:", error.message);
+      console.error(
+        "❌ [GroupController] sendJoinRequest error:",
+        error.message
+      );
       next(error);
     }
   }
@@ -241,7 +251,9 @@ class GroupController {
         });
       }
 
-      console.log(`✅ [GroupController] Approving join request ${notificationId}`);
+      console.log(
+        `✅ [GroupController] Approving join request ${notificationId}`
+      );
 
       const result = await groupJoin.approveJoinRequest(
         notificationId,
@@ -254,7 +266,10 @@ class GroupController {
         data: result,
       });
     } catch (error) {
-      console.error("❌ [GroupController] approveJoinRequest error:", error.message);
+      console.error(
+        "❌ [GroupController] approveJoinRequest error:",
+        error.message
+      );
       next(error);
     }
   }
@@ -275,7 +290,9 @@ class GroupController {
         });
       }
 
-      console.log(`❌ [GroupController] Rejecting join request ${notificationId}`);
+      console.log(
+        `❌ [GroupController] Rejecting join request ${notificationId}`
+      );
 
       const result = await groupJoin.rejectJoinRequest(
         notificationId,
@@ -288,7 +305,10 @@ class GroupController {
         data: result,
       });
     } catch (error) {
-      console.error("❌ [GroupController] rejectJoinRequest error:", error.message);
+      console.error(
+        "❌ [GroupController] rejectJoinRequest error:",
+        error.message
+      );
       next(error);
     }
   }
@@ -339,7 +359,10 @@ class GroupController {
         },
       });
     } catch (error) {
-      console.error("❌ [GroupController] createInviteLink error:", error.message);
+      console.error(
+        "❌ [GroupController] createInviteLink error:",
+        error.message
+      );
       next(error);
     }
   }
@@ -374,7 +397,9 @@ class GroupController {
     try {
       const { conversationId, memberUid } = req.params;
 
-      console.log(`🚫 [GroupController] Kicking ${memberUid} from ${conversationId}`);
+      console.log(
+        `🚫 [GroupController] Kicking ${memberUid} from ${conversationId}`
+      );
 
       const result = await groupManagement.kickMember(
         conversationId,
@@ -400,7 +425,9 @@ class GroupController {
     try {
       const { conversationId } = req.params;
 
-      console.log(`🚪 [GroupController] ${req.user.uid} leaving ${conversationId}`);
+      console.log(
+        `🚪 [GroupController] ${req.user.uid} leaving ${conversationId}`
+      );
 
       const result = await groupManagement.leaveGroup(
         conversationId,
@@ -447,7 +474,10 @@ class GroupController {
         data: result,
       });
     } catch (error) {
-      console.error("❌ [GroupController] changeMemberRole error:", error.message);
+      console.error(
+        "❌ [GroupController] changeMemberRole error:",
+        error.message
+      );
       next(error);
     }
   }
@@ -468,7 +498,9 @@ class GroupController {
         });
       }
 
-      console.log(`👑 [GroupController] Transferring ownership to ${newOwnerUid}`);
+      console.log(
+        `👑 [GroupController] Transferring ownership to ${newOwnerUid}`
+      );
 
       const result = await groupManagement.transferOwnership(
         conversationId,
@@ -481,7 +513,10 @@ class GroupController {
         data: result,
       });
     } catch (error) {
-      console.error("❌ [GroupController] transferOwnership error:", error.message);
+      console.error(
+        "❌ [GroupController] transferOwnership error:",
+        error.message
+      );
       next(error);
     }
   }
@@ -508,7 +543,10 @@ class GroupController {
         data: result,
       });
     } catch (error) {
-      console.error("❌ [GroupController] updateGroupInfo error:", error.message);
+      console.error(
+        "❌ [GroupController] updateGroupInfo error:",
+        error.message
+      );
       next(error);
     }
   }
@@ -521,7 +559,9 @@ class GroupController {
     try {
       const { limit = 20, skip = 0, type } = req.query;
 
-      console.log(`📬 [GroupController] Getting notifications for ${req.user.uid}`);
+      console.log(
+        `📬 [GroupController] Getting notifications for ${req.user.uid}`
+      );
 
       const notifications = await GroupNotification.getUserNotifications(
         req.user.id,
@@ -537,7 +577,10 @@ class GroupController {
         data: { notifications },
       });
     } catch (error) {
-      console.error("❌ [GroupController] getNotifications error:", error.message);
+      console.error(
+        "❌ [GroupController] getNotifications error:",
+        error.message
+      );
       next(error);
     }
   }
@@ -556,7 +599,10 @@ class GroupController {
         success: true,
       });
     } catch (error) {
-      console.error("❌ [GroupController] markNotificationAsRead error:", error.message);
+      console.error(
+        "❌ [GroupController] markNotificationAsRead error:",
+        error.message
+      );
       next(error);
     }
   }
@@ -573,7 +619,10 @@ class GroupController {
         success: true,
       });
     } catch (error) {
-      console.error("❌ [GroupController] markAllNotificationsAsRead error:", error.message);
+      console.error(
+        "❌ [GroupController] markAllNotificationsAsRead error:",
+        error.message
+      );
       next(error);
     }
   }
@@ -591,7 +640,48 @@ class GroupController {
         data: { count },
       });
     } catch (error) {
-      console.error("❌ [GroupController] getUnreadCount error:", error.message);
+      console.error(
+        "❌ [GroupController] getUnreadCount error:",
+        error.message
+      );
+      next(error);
+    }
+  }
+  /**
+   * 🔥 NEW: Transfer ownership and leave group
+   * POST /api/groups/:conversationId/transfer-and-leave
+   */
+  async transferOwnershipAndLeave(req, res, next) {
+    try {
+      const { conversationId } = req.params;
+      const { newOwnerUid } = req.body;
+
+      if (!newOwnerUid) {
+        return res.status(400).json({
+          success: false,
+          message: "newOwnerUid is required",
+        });
+      }
+
+      console.log(
+        `👑🚪 [GroupController] ${req.user.uid} transferring ownership to ${newOwnerUid} and leaving ${conversationId}`
+      );
+
+      const result = await groupManagement.transferOwnershipAndLeave(
+        conversationId,
+        req.user.uid,
+        newOwnerUid
+      );
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error(
+        "❌ [GroupController] transferOwnershipAndLeave error:",
+        error.message
+      );
       next(error);
     }
   }

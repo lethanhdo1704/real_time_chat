@@ -1,15 +1,18 @@
-// frontend/src/store/chat/conversationSlice.js
+// frontend/src/store/chat/conversationSlice.js - COMPLETE WITH removeConversation
+
 import * as chatApi from "../../services/chatApi";
 
 /**
- * Conversation Slice - IMPROVED WITH COUNTERS
+ * Conversation Slice - COMPLETE VERSION
  * Manages conversations list, loading, active conversation, and counters
  *
- * NEW Features:
+ * Features:
  * ✅ Counters support (totalMessages, sharedImages, etc.)
  * ✅ Update counters from socket events
  * ✅ Better conversation ordering (move to top on update)
  * ✅ Handle non-existent conversations gracefully
+ * ✅ Remove conversation (for leave group/delete)
+ * ✅ Exit conversation (for mobile back button)
  */
 export const createConversationSlice = (set, get) => ({
   // ============================================
@@ -154,7 +157,7 @@ export const createConversationSlice = (set, get) => ({
         friend: updates.friend !== undefined ? updates.friend : existing.friend,
         members:
           updates.members !== undefined ? updates.members : existing.members,
-        // 🔥 NEW: Merge counters properly
+        // 🔥 Merge counters properly
         counters: updates.counters 
           ? { ...existing.counters, ...updates.counters }
           : existing.counters,
@@ -219,8 +222,44 @@ export const createConversationSlice = (set, get) => ({
     }
   },
 
+  /**
+   * 🔥 Remove conversation from store
+   * Used when leaving group or deleting conversation
+   */
+  removeConversation: (conversationId) => {
+    console.log('🗑️ [conversationSlice] removeConversation:', conversationId);
+    
+    const state = get();
+    
+    // Remove from conversations Map
+    const nextConversations = new Map(state.conversations);
+    nextConversations.delete(conversationId);
+    
+    // Remove from order array
+    const nextOrder = state.conversationsOrder.filter(id => id !== conversationId);
+    
+    // Clear active if it's this conversation
+    const nextActiveId = state.activeConversationId === conversationId 
+      ? null 
+      : state.activeConversationId;
+    
+    // Clear activeFriend if it's this conversation
+    const nextActiveFriend = state.activeConversationId === conversationId
+      ? null
+      : state.activeFriend;
+    
+    set({
+      conversations: nextConversations,
+      conversationsOrder: nextOrder,
+      activeConversationId: nextActiveId,
+      activeFriend: nextActiveFriend,
+    });
+    
+    console.log('✅ [conversationSlice] Conversation removed:', conversationId);
+  },
+
   // ============================================
-  // 🔥 NEW: UPDATE COUNTERS FROM SOCKET
+  // 🔥 UPDATE COUNTERS FROM SOCKET
   // ============================================
 
   /**
@@ -239,7 +278,7 @@ export const createConversationSlice = (set, get) => ({
     if (existing) {
       conversations.set(conversationId, {
         ...existing,
-        counters: counters, // 🔥 Replace với counters mới từ backend
+        counters: counters, // 🔥 Replace with new counters from backend
       });
 
       set({ conversations });
@@ -326,7 +365,7 @@ export const createConversationSlice = (set, get) => ({
   },
 
   // ============================================
-  // 🔥 NEW: EXIT CONVERSATION (for mobile back)
+  // 🔥 EXIT CONVERSATION (for mobile back)
   // ============================================
 
   /**
@@ -422,7 +461,7 @@ export const createConversationSlice = (set, get) => ({
   },
 
   // ============================================
-  // 🔥 NEW: RESET (for logout/account switch)
+  // 🔥 RESET (for logout/account switch)
   // ============================================
 
   resetConversations: () => {
@@ -439,7 +478,7 @@ export const createConversationSlice = (set, get) => ({
   },
 
   // ============================================
-  // 🔥 NEW: SET CONVERSATION DETAIL (members, roles, avatars, counters)
+  // 🔥 SET CONVERSATION DETAIL (members, roles, avatars, counters)
   // ============================================
 
   setConversationDetail: (detail) => {
@@ -454,7 +493,7 @@ export const createConversationSlice = (set, get) => ({
     const existing = conversations.get(conversationId) || {};
 
     conversations.set(conversationId, {
-      ...existing, // giữ unreadCount, lastMessage, sidebar data
+      ...existing, // keep unreadCount, lastMessage, sidebar data
       ...detail, // 🔥 merge members, type, friend, counters
       _detailFetched: true,
       _placeholder: false,

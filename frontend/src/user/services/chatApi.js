@@ -302,6 +302,28 @@ export const searchMessages = async (conversationId, query) => {
   return unwrapResponse(response);
 };
 
+/**
+ * 🔥 NEW: Transfer group ownership and leave
+ * POST /api/groups/:conversationId/transfer-and-leave
+ * Body: { newOwnerUid: string }
+ * 
+ * @param {string} conversationId - Group conversation ID
+ * @param {string} newOwnerUid - UID of new owner
+ * @returns {Promise<Object>} { success, conversationId, leftAt, newOwner }
+ */
+export const transferGroupOwnershipAndLeave = async (conversationId, newOwnerUid) => {
+  console.log('👑🚪 [chatApi] transferOwnershipAndLeave:', { conversationId, newOwnerUid });
+  
+  const response = await api.post(`/groups/${conversationId}/transfer-and-leave`, {
+    newOwnerUid,
+  });
+  
+  const data = unwrapResponse(response);
+  
+  console.log('✅ [chatApi] Ownership transferred and left:', data);
+  
+  return data;
+};
 // ============================================
 // DEFAULT EXPORT
 // ============================================
@@ -321,4 +343,5 @@ export default {
   deleteMessage,
   markMessageAsRead,
   searchMessages,
+  transferGroupOwnershipAndLeave,
 };

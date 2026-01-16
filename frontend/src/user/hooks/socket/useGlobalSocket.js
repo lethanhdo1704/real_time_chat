@@ -1,4 +1,4 @@
-// frontend/src/hooks/socket/useGlobalSocket.js - FULL CODE WITH GROUP EVENTS
+// frontend/src/hooks/socket/useGlobalSocket.js - UPDATED FOR TRANSFER & LEAVE
 
 import { useEffect, useContext, useCallback, useRef } from "react";
 import { AuthContext } from "../../context/AuthContext";
@@ -17,6 +17,7 @@ import useChatStore from "../../store/chat/chatStore";
  * ✅ message_deleted (sidebar + messages in store)
  * ✅ message:reaction:update (reactions for all conversations)
  * ✅ 🆕 GROUP EVENTS (member_joined, member_left, member_kicked, etc.)
+ * ✅ 🔥 TRANSFER OWNERSHIP & LEAVE
  * 
  * NGUYÊN TẮC:
  * - Register ONCE per connection
@@ -40,6 +41,9 @@ export const useGlobalSocket = ({
   const updateConversation = useChatStore((state) => state.updateConversation);
   const conversations = useChatStore((state) => state.conversations);
   const addMessage = useChatStore((state) => state.addMessage);
+  const removeConversation = useChatStore((state) => state.removeConversation);
+  const setActiveConversation = useChatStore((state) => state.setActiveConversation);
+  const activeConversationId = useChatStore((state) => state.activeConversationId);
 
   // ============================================
   // HANDLER: CONVERSATION UPDATE (metadata only)
@@ -142,14 +146,12 @@ export const useGlobalSocket = ({
     
     console.log('👋 [Global] Left conversation:', conversationId, 'reason:', reason);
 
-    const { removeConversation, setActiveConversation, activeConversationId } = useChatStore.getState();
-    
     removeConversation(conversationId);
     
     if (activeConversationId === conversationId) {
       setActiveConversation(null);
     }
-  }, []);
+  }, [removeConversation, setActiveConversation, activeConversationId]);
 
   // ============================================
   // HANDLER: MESSAGE EDITED (GLOBAL)
@@ -353,7 +355,22 @@ export const useGlobalSocket = ({
       return;
     }
     
-    // Add system message
+    // 🔥 CRITICAL: Check if current user is leaving
+    if (leftMember.uid === user?.uid) {
+      console.log('⚠️ [Global] Current user left group, removing conversation');
+      
+      // Remove conversation from sidebar
+      removeConversation(conversationId);
+      
+      // Close conversation if currently active
+      if (activeConversationId === conversationId) {
+        setActiveConversation(null);
+      }
+      
+      return; // Don't add system message if we're leaving
+    }
+    
+    // Add system message for other members leaving
     if (typeof addMessage === 'function') {
       addMessage(conversationId, {
         messageId: `system-${Date.now()}`,
@@ -362,7 +379,7 @@ export const useGlobalSocket = ({
         createdAt: new Date().toISOString(),
       });
     }
-  }, [addMessage]);
+  }, [user, addMessage, removeConversation, setActiveConversation, activeConversationId]);
 
   // ============================================
   // 🆕 HANDLER: GROUP MEMBER KICKED
@@ -377,7 +394,34 @@ export const useGlobalSocket = ({
       return;
     }
     
-    // Add system message
+    // 🔥 CRITICAL: If kicked user is current user
+    if (target.uid === user?.uid) {
+      console.log('⚠️ [Global] Current user was kicked from group');
+      
+      // Add system message before removing
+      if (typeof addMessage === 'function') {
+        addMessage(conversationId, {
+          messageId: `system-${Date.now()}`,
+          type: 'system',
+          content: `Bạn đã bị ${actor.nickname} kick khỏi nhóm`,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      
+      // Remove conversation from sidebar after short delay (so user can see the message)
+      setTimeout(() => {
+        removeConversation(conversationId);
+        
+        // Close conversation if currently active
+        if (activeConversationId === conversationId) {
+          setActiveConversation(null);
+        }
+      }, 2000);
+      
+      return;
+    }
+    
+    // Add system message for other members being kicked
     if (typeof addMessage === 'function') {
       addMessage(conversationId, {
         messageId: `system-${Date.now()}`,
@@ -386,26 +430,7 @@ export const useGlobalSocket = ({
         createdAt: new Date().toISOString(),
       });
     }
-    
-    // If kicked user is current user
-    if (target.uid === user?.uid) {
-      console.log('⚠️ [Global] Current user was kicked from group');
-      
-      // Update conversation to reflect kicked status
-      const conversation = conversations.get(conversationId);
-      if (conversation) {
-        const updatedMembers = (conversation.members || []).map((m) =>
-          m.user?.uid === user.uid
-            ? { ...m, leftAt: new Date(), kickedBy: actor, kickedAt: new Date() }
-            : m
-        );
-        
-        updateConversation(conversationId, {
-          members: updatedMembers,
-        });
-      }
-    }
-  }, [user, addMessage, conversations, updateConversation]);
+  }, [user, addMessage, removeConversation, setActiveConversation, activeConversationId]);
 
   // ============================================
   // 🆕 HANDLER: GROUP PERMISSION CHANGED
@@ -441,42 +466,58 @@ export const useGlobalSocket = ({
   }, [updateConversation, addMessage]);
 
   // ============================================
-  // 🆕 HANDLER: GROUP ROLE CHANGED
+  // 🔥 HANDLER: GROUP ROLE CHANGED
   // ============================================
   const handleGroupRoleChanged = useCallback((data) => {
     console.log('👑 [Global] group:role_changed:', data);
     
-    const { conversationId, target, newRole } = data;
+    const { conversationId, actor, target, newRole } = data;
     
     if (!conversationId || !target || !newRole) {
       console.warn('⚠️ [Global] Missing data in group:role_changed');
       return;
     }
     
+    // 🔥 SPECIAL CASE: Owner transfer with leave
+    // If actor left after transferring ownership, show special message
+    const isOwnerTransferWithLeave = newRole === 'owner' && actor?.uid;
+    
     // Add system message
     if (typeof addMessage === 'function') {
-      const roleText = newRole === 'admin' ? 'quản trị viên' : 'thành viên';
+      let content;
+      
+      if (newRole === 'owner') {
+        content = isOwnerTransferWithLeave
+          ? `${target.nickname} đã được chuyển quyền làm chủ nhóm`
+          : `${target.nickname} đã được thăng cấp thành chủ nhóm`;
+      } else if (newRole === 'admin') {
+        content = `${target.nickname} đã được thăng cấp thành quản trị viên`;
+      } else {
+        content = `${target.nickname} đã bị hạ cấp thành thành viên`;
+      }
       
       addMessage(conversationId, {
         messageId: `system-${Date.now()}`,
         type: 'system',
-        content: `${target.nickname} đã được thăng cấp thành ${roleText}`,
+        content,
         createdAt: new Date().toISOString(),
       });
     }
     
-    // If current user's role changed, update conversation
+    // 🔥 CRITICAL: If current user's role changed, update conversation
     if (target.uid === user?.uid) {
       console.log('⚡ [Global] Current user role changed to:', newRole);
       
       const conversation = conversations.get(conversationId);
       if (conversation) {
+        // Update current user's role in members list
         const updatedMembers = (conversation.members || []).map((m) =>
           m.user?.uid === user.uid ? { ...m, role: newRole } : m
         );
         
         updateConversation(conversationId, {
           members: updatedMembers,
+          currentUserRole: newRole, // Also update this field if it exists
         });
       }
     }
@@ -565,13 +606,6 @@ export const useGlobalSocket = ({
     handleGroupMemberKicked,
     handleGroupPermissionChanged,
     handleGroupRoleChanged,
-    editMessageFromSocket,
-    recallMessageFromSocket,
-    deleteMessageFromSocket,
-    setReactionsFinal,
-    updateConversation,
-    conversations,
-    addMessage,
   ]);
 
   // Reset registration flag on disconnect

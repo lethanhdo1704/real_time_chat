@@ -17,7 +17,11 @@
   "loadMore": "Xem thêm",
   "noData": "Chưa có dữ liệu",
   "enterGroupName": "Nhập tên nhóm",
+  "you": "Bạn",
+  "owner": "Chủ nhóm",
 
+  "kickMember": "Xóa thành viên",
+  "changeRole": "Thay đổi vai trò",
   "membersCount": "{{count}} thành viên",
   "membersCount_one": "{{count}} thành viên",
   "membersCount_other": "{{count}} thành viên",
@@ -65,10 +69,10 @@
       "cancel": "Hủy",
 
       "kickMember": {
-        "title": "Kick thành viên",
-        "message": "Bạn có chắc chắn muốn kick thành viên này khỏi nhóm không?",
-        "kick": "Kick",
-        "kicking": "Đang kick..."
+        "title": "Xóa thành viên khỏi nhóm",
+        "message": "Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm không?",
+        "kick": "Xóa",
+        "kicking": "Đang xóa"
       },
 
       "leaveGroup": {

@@ -1,12 +1,14 @@
 // frontend/src/hooks/chat/useGroupActions.js
-import { useState, useCallback } from 'react';
-import groupService from '../../services/groupService';
-import useChatStore from '../../store/chat/chatStore';
-
+import { useState, useCallback } from "react";
+import groupService from "../../services/groupService";
+import useChatStore from "../../store/chat/chatStore";
+import {
+  transferGroupOwnershipAndLeave, // 🔥 ADD THIS
+} from "../../services/chatApi";
 /**
  * Hook to handle group actions with loading/error states
  * Provides all group management operations
- * 
+ *
  * @returns {Object} Action functions and states
  */
 export const useGroupActions = () => {
@@ -15,7 +17,9 @@ export const useGroupActions = () => {
 
   const updateConversation = useChatStore((state) => state.updateConversation);
   const removeConversation = useChatStore((state) => state.removeConversation);
-  const setActiveConversation = useChatStore((state) => state.setActiveConversation);
+  const setActiveConversation = useChatStore(
+    (state) => state.setActiveConversation
+  );
 
   // ============================================
   // CREATE GROUP
@@ -25,19 +29,19 @@ export const useGroupActions = () => {
     setError(null);
 
     try {
-      console.log('📝 [useGroupActions] Creating group:', groupData);
+      console.log("📝 [useGroupActions] Creating group:", groupData);
       const result = await groupService.createGroup(groupData);
-      
-      console.log('✅ [useGroupActions] Group created:', result);
-      
+
+      console.log("✅ [useGroupActions] Group created:", result);
+
       // Add to store
       const { addConversation } = useChatStore.getState();
       addConversation(result.conversation);
-      
+
       return result;
     } catch (err) {
-      console.error('❌ [useGroupActions] Create group failed:', err);
-      setError(err.message || 'Failed to create group');
+      console.error("❌ [useGroupActions] Create group failed:", err);
+      setError(err.message || "Failed to create group");
       throw err;
     } finally {
       setLoading(false);
@@ -52,14 +56,17 @@ export const useGroupActions = () => {
     setError(null);
 
     try {
-      console.log('📨 [useGroupActions] Inviting users:', { conversationId, userUids });
+      console.log("📨 [useGroupActions] Inviting users:", {
+        conversationId,
+        userUids,
+      });
       const result = await groupService.inviteUsers(conversationId, userUids);
-      
-      console.log('✅ [useGroupActions] Invite sent:', result);
+
+      console.log("✅ [useGroupActions] Invite sent:", result);
       return result;
     } catch (err) {
-      console.error('❌ [useGroupActions] Invite failed:', err);
-      setError(err.message || 'Failed to invite users');
+      console.error("❌ [useGroupActions] Invite failed:", err);
+      setError(err.message || "Failed to invite users");
       throw err;
     } finally {
       setLoading(false);
@@ -69,157 +76,232 @@ export const useGroupActions = () => {
   // ============================================
   // KICK MEMBER
   // ============================================
-  const kickMember = useCallback(async (conversationId, memberUid) => {
-    setLoading(true);
-    setError(null);
+  const kickMember = useCallback(
+    async (conversationId, memberUid) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      console.log('🚫 [useGroupActions] Kicking member:', { conversationId, memberUid });
-      const result = await groupService.kickMember(conversationId, memberUid);
-      
-      console.log('✅ [useGroupActions] Member kicked:', result);
-      
-      // Update members in store
-      const conversations = useChatStore.getState().conversations;
-      const conversation = conversations.get(conversationId);
-      
-      if (conversation) {
-        const updatedMembers = (conversation.members || []).filter(
-          (m) => m.user?.uid !== memberUid
-        );
-        
-        updateConversation(conversationId, { members: updatedMembers });
+      try {
+        console.log("🚫 [useGroupActions] Kicking member:", {
+          conversationId,
+          memberUid,
+        });
+        const result = await groupService.kickMember(conversationId, memberUid);
+
+        console.log("✅ [useGroupActions] Member kicked:", result);
+
+        // Update members in store
+        const conversations = useChatStore.getState().conversations;
+        const conversation = conversations.get(conversationId);
+
+        if (conversation) {
+          const updatedMembers = (conversation.members || []).filter(
+            (m) => m.user?.uid !== memberUid
+          );
+
+          updateConversation(conversationId, { members: updatedMembers });
+        }
+
+        return result;
+      } catch (err) {
+        console.error("❌ [useGroupActions] Kick failed:", err);
+        setError(err.message || "Failed to kick member");
+        throw err;
+      } finally {
+        setLoading(false);
       }
-      
-      return result;
-    } catch (err) {
-      console.error('❌ [useGroupActions] Kick failed:', err);
-      setError(err.message || 'Failed to kick member');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [updateConversation]);
+    },
+    [updateConversation]
+  );
 
   // ============================================
   // LEAVE GROUP
   // ============================================
-  const leaveGroup = useCallback(async (conversationId) => {
-    setLoading(true);
-    setError(null);
+  const leaveGroup = useCallback(
+    async (conversationId) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      console.log('🚪 [useGroupActions] Leaving group:', conversationId);
-      const result = await groupService.leaveGroup(conversationId);
-      
-      console.log('✅ [useGroupActions] Left group:', result);
-      
-      // Remove from store and clear active
-      removeConversation(conversationId);
-      
-      const activeConversationId = useChatStore.getState().activeConversationId;
-      if (activeConversationId === conversationId) {
-        setActiveConversation(null);
+      try {
+        console.log("🚪 [useGroupActions] Leaving group:", conversationId);
+        const result = await groupService.leaveGroup(conversationId);
+
+        console.log("✅ [useGroupActions] Left group:", result);
+
+        // Remove from store and clear active
+        removeConversation(conversationId);
+
+        const activeConversationId =
+          useChatStore.getState().activeConversationId;
+        if (activeConversationId === conversationId) {
+          setActiveConversation(null);
+        }
+
+        return result;
+      } catch (err) {
+        console.error("❌ [useGroupActions] Leave failed:", err);
+        setError(err.message || "Failed to leave group");
+        throw err;
+      } finally {
+        setLoading(false);
       }
-      
-      return result;
-    } catch (err) {
-      console.error('❌ [useGroupActions] Leave failed:', err);
-      setError(err.message || 'Failed to leave group');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [removeConversation, setActiveConversation]);
+    },
+    [removeConversation, setActiveConversation]
+  );
 
   // ============================================
   // CHANGE MEMBER ROLE
   // ============================================
-  const changeMemberRole = useCallback(async (conversationId, memberUid, newRole) => {
-    setLoading(true);
-    setError(null);
+  const changeMemberRole = useCallback(
+    async (conversationId, memberUid, newRole) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      console.log('👑 [useGroupActions] Changing role:', { conversationId, memberUid, newRole });
-      const result = await groupService.changeMemberRole(conversationId, memberUid, newRole);
-      
-      console.log('✅ [useGroupActions] Role changed:', result);
-      
-      // Update member role in store
-      const conversations = useChatStore.getState().conversations;
-      const conversation = conversations.get(conversationId);
-      
-      if (conversation) {
-        const updatedMembers = (conversation.members || []).map((m) =>
-          m.user?.uid === memberUid ? { ...m, role: newRole } : m
+      try {
+        console.log("👑 [useGroupActions] Changing role:", {
+          conversationId,
+          memberUid,
+          newRole,
+        });
+        const result = await groupService.changeMemberRole(
+          conversationId,
+          memberUid,
+          newRole
         );
-        
-        updateConversation(conversationId, { members: updatedMembers });
+
+        console.log("✅ [useGroupActions] Role changed:", result);
+
+        // Update member role in store
+        const conversations = useChatStore.getState().conversations;
+        const conversation = conversations.get(conversationId);
+
+        if (conversation) {
+          const updatedMembers = (conversation.members || []).map((m) =>
+            m.user?.uid === memberUid ? { ...m, role: newRole } : m
+          );
+
+          updateConversation(conversationId, { members: updatedMembers });
+        }
+
+        return result;
+      } catch (err) {
+        console.error("❌ [useGroupActions] Change role failed:", err);
+        setError(err.message || "Failed to change role");
+        throw err;
+      } finally {
+        setLoading(false);
       }
-      
-      return result;
-    } catch (err) {
-      console.error('❌ [useGroupActions] Change role failed:', err);
-      setError(err.message || 'Failed to change role');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [updateConversation]);
+    },
+    [updateConversation]
+  );
 
   // ============================================
   // TRANSFER OWNERSHIP
   // ============================================
-  const transferOwnership = useCallback(async (conversationId, newOwnerUid) => {
-    setLoading(true);
-    setError(null);
+  const transferOwnership = useCallback(
+    async (conversationId, newOwnerUid) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      console.log('👑 [useGroupActions] Transferring ownership:', { conversationId, newOwnerUid });
-      const result = await groupService.transferOwnership(conversationId, newOwnerUid);
-      
-      console.log('✅ [useGroupActions] Ownership transferred:', result);
-      
-      // Refresh group info to get updated roles
-      const groupInfo = await groupService.getGroupInfo(conversationId);
-      updateConversation(conversationId, { members: groupInfo.members });
-      
-      return result;
-    } catch (err) {
-      console.error('❌ [useGroupActions] Transfer failed:', err);
-      setError(err.message || 'Failed to transfer ownership');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [updateConversation]);
+      try {
+        console.log("👑 [useGroupActions] Transferring ownership:", {
+          conversationId,
+          newOwnerUid,
+        });
+        const result = await groupService.transferOwnership(
+          conversationId,
+          newOwnerUid
+        );
+
+        console.log("✅ [useGroupActions] Ownership transferred:", result);
+
+        // Refresh group info to get updated roles
+        const groupInfo = await groupService.getGroupInfo(conversationId);
+        updateConversation(conversationId, { members: groupInfo.members });
+
+        return result;
+      } catch (err) {
+        console.error("❌ [useGroupActions] Transfer failed:", err);
+        setError(err.message || "Failed to transfer ownership");
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [updateConversation]
+  );
 
   // ============================================
   // UPDATE GROUP SETTINGS
   // ============================================
-  const updateGroupSettings = useCallback(async (conversationId, updates) => {
-    setLoading(true);
-    setError(null);
+  const updateGroupSettings = useCallback(
+    async (conversationId, updates) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      console.log('⚙️ [useGroupActions] Updating settings:', { conversationId, updates });
-      const result = await groupService.updateGroupInfo(conversationId, updates);
-      
-      console.log('✅ [useGroupActions] Settings updated:', result);
-      
-      // Update conversation in store
-      updateConversation(conversationId, updates);
-      
-      return result;
-    } catch (err) {
-      console.error('❌ [useGroupActions] Update failed:', err);
-      setError(err.message || 'Failed to update settings');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [updateConversation]);
+      try {
+        console.log("⚙️ [useGroupActions] Updating settings:", {
+          conversationId,
+          updates,
+        });
+        const result = await groupService.updateGroupInfo(
+          conversationId,
+          updates
+        );
 
+        console.log("✅ [useGroupActions] Settings updated:", result);
+
+        // Update conversation in store
+        updateConversation(conversationId, updates);
+
+        return result;
+      } catch (err) {
+        console.error("❌ [useGroupActions] Update failed:", err);
+        setError(err.message || "Failed to update settings");
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [updateConversation]
+  );
+
+  /**
+   * 🔥 NEW: Transfer ownership and leave group (Owner only)
+   */
+  const transferOwnershipAndLeave = useCallback(
+    async (conversationId, newOwnerUid) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        console.log("🔄 Transferring ownership to:", newOwnerUid);
+        await transferGroupOwnershipAndLeave(conversationId, newOwnerUid);
+
+        // Remove from store
+        removeConversation(conversationId);
+
+        // Clear active conversation if it's this one
+        const activeConversationId =
+          useChatStore.getState().activeConversationId;
+        if (activeConversationId === conversationId) {
+          setActiveConversation(null);
+        }
+
+        console.log("✅ Ownership transferred and left group");
+        return true;
+      } catch (err) {
+        const errorMsg =
+          err.response?.data?.message || "Failed to transfer ownership";
+        setError(errorMsg);
+        console.error("❌ Transfer ownership failed:", err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [removeConversation, setActiveConversation]
+  );
   // ============================================
   // RETURN
   // ============================================
@@ -231,6 +313,7 @@ export const useGroupActions = () => {
     kickMember,
     leaveGroup,
     changeMemberRole,
+    transferOwnershipAndLeave, 
     transferOwnership,
     updateGroupSettings,
   };
