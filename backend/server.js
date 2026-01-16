@@ -46,7 +46,7 @@ import messageRoutes from "./routes/message.routes.js";
 import reactionRoutes from "./routes/reaction.routes.js";
 import callRoutes from "./routes/call.routes.js";
 import uploadRoutes from "./routes/upload.routes.js"; // 🔥 NEW
-import groupRoutes from './routes/group.routes.js';
+import groupRoutes from "./routes/group.routes.js"; // 🔥 MUST HAVE THIS
 
 // ==========================
 // SOCKET
@@ -140,7 +140,7 @@ app.use("/api/messages", auth, messageRoutes);
 app.use("/api/reactions", auth, reactionRoutes);
 app.use("/api/calls", auth, callRoutes);
 app.use("/api/upload", uploadRoutes); // 🔥 NEW - Upload routes (auth inside route)
-app.use('/api/groups', groupRoutes);
+app.use("/api/groups", groupRoutes);
 
 console.log("✅ All routes registered");
 

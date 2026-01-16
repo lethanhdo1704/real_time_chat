@@ -1,4 +1,4 @@
-// frontend/src/hooks/socket/useGlobalSocket.js - WITH REACTIONS
+// frontend/src/hooks/socket/useGlobalSocket.js - FULL CODE WITH GROUP EVENTS
 
 import { useEffect, useContext, useCallback, useRef } from "react";
 import { AuthContext } from "../../context/AuthContext";
@@ -6,7 +6,7 @@ import { SocketContext } from "../../context/SocketContext";
 import useChatStore from "../../store/chat/chatStore";
 
 /**
- * 🔥 GLOBAL SOCKET LISTENER - WITH REACTIONS
+ * 🔥 GLOBAL SOCKET LISTENER - WITH REACTIONS & GROUP EVENTS
  * 
  * TRÁCH NHIỆM:
  * ✅ Conversation metadata (lastMessage, unread, reorder)
@@ -15,7 +15,8 @@ import useChatStore from "../../store/chat/chatStore";
  * ✅ message_recalled (sidebar + messages in store)
  * ✅ message_edited (sidebar + messages in store)
  * ✅ message_deleted (sidebar + messages in store)
- * ✅ 🆕 message:reaction:update (reactions for all conversations)
+ * ✅ message:reaction:update (reactions for all conversations)
+ * ✅ 🆕 GROUP EVENTS (member_joined, member_left, member_kicked, etc.)
  * 
  * NGUYÊN TẮC:
  * - Register ONCE per connection
@@ -38,6 +39,7 @@ export const useGlobalSocket = ({
   const setReactionsFinal = useChatStore((state) => state.setReactionsFinal);
   const updateConversation = useChatStore((state) => state.updateConversation);
   const conversations = useChatStore((state) => state.conversations);
+  const addMessage = useChatStore((state) => state.addMessage);
 
   // ============================================
   // HANDLER: CONVERSATION UPDATE (metadata only)
@@ -278,13 +280,8 @@ export const useGlobalSocket = ({
   }, [deleteMessageFromSocket]);
 
   // ============================================
-  // 🆕 HANDLER: REACTION UPDATE (GLOBAL)
+  // HANDLER: REACTION UPDATE (GLOBAL)
   // ============================================
-  /**
-   * Handle reaction updates from backend
-   * Backend sends FINAL STATE after toggle operation
-   * This overwrites any optimistic updates
-   */
   const handleReactionUpdateGlobal = useCallback((data) => {
     console.log('🎭 [Global] message:reaction:update:', data);
     
@@ -307,13 +304,183 @@ export const useGlobalSocket = ({
     }
     
     try {
-      // 🔥 Overwrite optimistic state with server truth
       setReactionsFinal(conversationId, messageId, reactions);
       console.log('✅ [Global] Reactions updated in store');
     } catch (error) {
       console.error('❌ [Global] Error updating reactions:', error);
     }
   }, [setReactionsFinal]);
+
+  // ============================================
+  // 🆕 HANDLER: GROUP MEMBER JOINED
+  // ============================================
+  const handleGroupMemberJoined = useCallback((data) => {
+    console.log('👥 [Global] group:member_joined:', data);
+    
+    const { conversationId, user: newMember, viaLink } = data;
+    
+    if (!conversationId || !newMember) {
+      console.warn('⚠️ [Global] Missing data in group:member_joined');
+      return;
+    }
+    
+    // Add system message
+    if (typeof addMessage === 'function') {
+      addMessage(conversationId, {
+        messageId: `system-${Date.now()}`,
+        type: 'system',
+        content: viaLink
+          ? `${newMember.nickname} đã tham gia qua link mời`
+          : `${newMember.nickname} đã tham gia nhóm`,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    
+    // Reload conversation to get updated members list
+    // This will be handled by ConversationInfo component
+  }, [addMessage]);
+
+  // ============================================
+  // 🆕 HANDLER: GROUP MEMBER LEFT
+  // ============================================
+  const handleGroupMemberLeft = useCallback((data) => {
+    console.log('👋 [Global] group:member_left:', data);
+    
+    const { conversationId, user: leftMember } = data;
+    
+    if (!conversationId || !leftMember) {
+      console.warn('⚠️ [Global] Missing data in group:member_left');
+      return;
+    }
+    
+    // Add system message
+    if (typeof addMessage === 'function') {
+      addMessage(conversationId, {
+        messageId: `system-${Date.now()}`,
+        type: 'system',
+        content: `${leftMember.nickname} đã rời nhóm`,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }, [addMessage]);
+
+  // ============================================
+  // 🆕 HANDLER: GROUP MEMBER KICKED
+  // ============================================
+  const handleGroupMemberKicked = useCallback((data) => {
+    console.log('🚫 [Global] group:member_kicked:', data);
+    
+    const { conversationId, actor, target } = data;
+    
+    if (!conversationId || !actor || !target) {
+      console.warn('⚠️ [Global] Missing data in group:member_kicked');
+      return;
+    }
+    
+    // Add system message
+    if (typeof addMessage === 'function') {
+      addMessage(conversationId, {
+        messageId: `system-${Date.now()}`,
+        type: 'system',
+        content: `${target.nickname} đã bị ${actor.nickname} kick khỏi nhóm`,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    
+    // If kicked user is current user
+    if (target.uid === user?.uid) {
+      console.log('⚠️ [Global] Current user was kicked from group');
+      
+      // Update conversation to reflect kicked status
+      const conversation = conversations.get(conversationId);
+      if (conversation) {
+        const updatedMembers = (conversation.members || []).map((m) =>
+          m.user?.uid === user.uid
+            ? { ...m, leftAt: new Date(), kickedBy: actor, kickedAt: new Date() }
+            : m
+        );
+        
+        updateConversation(conversationId, {
+          members: updatedMembers,
+        });
+      }
+    }
+  }, [user, addMessage, conversations, updateConversation]);
+
+  // ============================================
+  // 🆕 HANDLER: GROUP PERMISSION CHANGED
+  // ============================================
+  const handleGroupPermissionChanged = useCallback((data) => {
+    console.log('⚙️ [Global] group:permission_changed:', data);
+    
+    const { conversationId, newPermission } = data;
+    
+    if (!conversationId || !newPermission) {
+      console.warn('⚠️ [Global] Missing data in group:permission_changed');
+      return;
+    }
+    
+    // Update conversation settings
+    updateConversation(conversationId, {
+      messagePermission: newPermission,
+    });
+    
+    // Add system message
+    if (typeof addMessage === 'function') {
+      const message = newPermission === 'admins_only'
+        ? 'Chỉ quản trị viên mới có thể gửi tin nhắn'
+        : 'Tất cả thành viên có thể gửi tin nhắn';
+      
+      addMessage(conversationId, {
+        messageId: `system-${Date.now()}`,
+        type: 'system',
+        content: message,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }, [updateConversation, addMessage]);
+
+  // ============================================
+  // 🆕 HANDLER: GROUP ROLE CHANGED
+  // ============================================
+  const handleGroupRoleChanged = useCallback((data) => {
+    console.log('👑 [Global] group:role_changed:', data);
+    
+    const { conversationId, target, newRole } = data;
+    
+    if (!conversationId || !target || !newRole) {
+      console.warn('⚠️ [Global] Missing data in group:role_changed');
+      return;
+    }
+    
+    // Add system message
+    if (typeof addMessage === 'function') {
+      const roleText = newRole === 'admin' ? 'quản trị viên' : 'thành viên';
+      
+      addMessage(conversationId, {
+        messageId: `system-${Date.now()}`,
+        type: 'system',
+        content: `${target.nickname} đã được thăng cấp thành ${roleText}`,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    
+    // If current user's role changed, update conversation
+    if (target.uid === user?.uid) {
+      console.log('⚡ [Global] Current user role changed to:', newRole);
+      
+      const conversation = conversations.get(conversationId);
+      if (conversation) {
+        const updatedMembers = (conversation.members || []).map((m) =>
+          m.user?.uid === user.uid ? { ...m, role: newRole } : m
+        );
+        
+        updateConversation(conversationId, {
+          members: updatedMembers,
+        });
+      }
+    }
+  }, [user, addMessage, conversations, updateConversation]);
 
   // ============================================
   // REGISTER SOCKET LISTENERS (ONCE)
@@ -348,11 +515,20 @@ export const useGlobalSocket = ({
     socket.on('message_deleted', handleMessageDeletedGlobal);
     
     // ============================================
-    // 🆕 REACTION EVENTS
+    // ✅ REACTION EVENTS
     // ============================================
     socket.on('message:reaction:update', handleReactionUpdateGlobal);
 
-    console.log('✅ [Global] All global listeners registered (including reactions)');
+    // ============================================
+    // 🆕 GROUP EVENTS
+    // ============================================
+    socket.on('group:member_joined', handleGroupMemberJoined);
+    socket.on('group:member_left', handleGroupMemberLeft);
+    socket.on('group:member_kicked', handleGroupMemberKicked);
+    socket.on('group:permission_changed', handleGroupPermissionChanged);
+    socket.on('group:role_changed', handleGroupRoleChanged);
+
+    console.log('✅ [Global] All global listeners registered (including group events)');
 
     return () => {
       console.log('🌍 [Global] Cleaning up global listeners');
@@ -366,6 +542,11 @@ export const useGlobalSocket = ({
       socket.off('message_recalled', handleMessageRecalledGlobal);
       socket.off('message_deleted', handleMessageDeletedGlobal);
       socket.off('message:reaction:update', handleReactionUpdateGlobal);
+      socket.off('group:member_joined', handleGroupMemberJoined);
+      socket.off('group:member_left', handleGroupMemberLeft);
+      socket.off('group:member_kicked', handleGroupMemberKicked);
+      socket.off('group:permission_changed', handleGroupPermissionChanged);
+      socket.off('group:role_changed', handleGroupRoleChanged);
     };
   }, [
     socket, 
@@ -379,12 +560,18 @@ export const useGlobalSocket = ({
     handleMessageRecalledGlobal,
     handleMessageDeletedGlobal,
     handleReactionUpdateGlobal,
+    handleGroupMemberJoined,
+    handleGroupMemberLeft,
+    handleGroupMemberKicked,
+    handleGroupPermissionChanged,
+    handleGroupRoleChanged,
     editMessageFromSocket,
     recallMessageFromSocket,
     deleteMessageFromSocket,
     setReactionsFinal,
     updateConversation,
     conversations,
+    addMessage,
   ]);
 
   // Reset registration flag on disconnect

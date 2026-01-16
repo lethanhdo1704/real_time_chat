@@ -1,4 +1,4 @@
-// backend/services/conversation/conversation.create.js
+// backend/services/conversation/conversation.create.js - FIXED RESPONSE FORMAT
 import Conversation from "../../models/Conversation.js";
 import ConversationMember from "../../models/ConversationMember.js";
 import Friend from "../../models/Friend.js";
@@ -7,6 +7,8 @@ import User from "../../models/User.js";
 /**
  * Conversation Create Service
  * Handles creating private and group conversations
+ * 
+ * 🔥 FIXED: Proper response format with nested user objects
  */
 class ConversationCreateService {
   /**
@@ -107,10 +109,14 @@ class ConversationCreateService {
   /**
    * Create group conversation
    * 
+   * 🔥 FIXED: Return conversation wrapped in object for frontend
+   * 🔥 FIXED: Members with nested user object for useGroupPermissions
+   * 🔥 FIXED: Default messagePermission to "all"
+   * 
    * @param {string} userUid - Creator's uid
    * @param {string} name - Group name
    * @param {Array<string>} memberUids - Array of member uids
-   * @returns {Object} Created group conversation
+   * @returns {Object} { conversation: {...} }
    */
   async createGroup(userUid, name, memberUids) {
     if (!memberUids || memberUids.length < 2) {
@@ -118,6 +124,8 @@ class ConversationCreateService {
     }
 
     try {
+      console.log('🆕 [ConversationCreate] Creating group:', { name, creator: userUid, members: memberUids.length });
+
       // Find current user
       const currentUser = await User.findOne({ uid: userUid });
       if (!currentUser) {
@@ -148,7 +156,10 @@ class ConversationCreateService {
         type: "group",
         name,
         createdBy: currentUser._id,
+        messagePermission: "all", // 🔥 Default to allow all members
       });
+
+      console.log('✅ [ConversationCreate] Conversation created:', conversation._id);
 
       // Create members with unreadCount = 0
       const conversationMembers = [
@@ -168,26 +179,58 @@ class ConversationCreateService {
 
       await ConversationMember.insertMany(conversationMembers);
 
+      console.log('✅ [ConversationCreate] Members created:', conversationMembers.length);
+
       // Get full member details
       const allMembers = await ConversationMember.find({
         conversation: conversation._id,
-      }).populate("user", "uid nickname avatar");
+      })
+        .populate("user", "uid nickname avatar")
+        .lean();
 
-      return {
-        conversationId: conversation._id,
-        type: "group",
-        name: conversation.name,
-        avatar: conversation.avatar,
-        members: allMembers.map((m) => ({
+      // 🔥 CRITICAL FIX: Format members with nested user object
+      const formattedMembers = allMembers.map((m) => ({
+        // User data at root
+        uid: m.user.uid,
+        nickname: m.user.nickname,
+        avatar: m.user.avatar,
+        
+        // ✅ Nested user object (for useGroupPermissions hook)
+        user: {
           uid: m.user.uid,
           nickname: m.user.nickname,
           avatar: m.user.avatar,
-          role: m.role,
-        })),
-        lastMessage: null,
-        lastMessageAt: null,
-        unreadCount: 0,
+        },
+        
+        // Member data
+        role: m.role,
+        lastSeenMessage: null,
+        lastSeenAt: null,
+        leftAt: null,
+        kickedBy: null,
+        kickedAt: null,
+      }));
+
+      console.log('✅ [ConversationCreate] Formatted members:', formattedMembers.length);
+
+      // 🔥 CRITICAL FIX: Wrap in conversation object
+      const result = {
+        conversation: {
+          conversationId: conversation._id,
+          type: "group",
+          name: conversation.name,
+          avatar: conversation.avatar,
+          messagePermission: conversation.messagePermission,
+          members: formattedMembers,
+          lastMessage: null,
+          lastMessageAt: null,
+          unreadCount: 0,
+        }
       };
+
+      console.log('✅ [ConversationCreate] Returning result with conversation object');
+
+      return result;
     } catch (error) {
       console.error("❌ [ConversationCreate] createGroup error:", error);
       throw error;

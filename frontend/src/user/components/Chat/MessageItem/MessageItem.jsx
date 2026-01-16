@@ -1,4 +1,4 @@
-// frontend/src/user/components/Chat/MessageItem/MessageItem.jsx
+// frontend/src/components/Chat/MessageItem/MessageItem.jsx - FIXED
 
 import { format } from "date-fns";
 import { useState, useContext } from "react";
@@ -16,10 +16,11 @@ import AvatarImage from "../../common/AvatarImage";
 import useChatStore from "../../../store/chat/chatStore";
 
 /**
- * MessageItem Component - WITH AVATAR DISPLAY
- * ✅ Shows sender avatar next to their messages
- * ✅ Avatar only appears on the last message in a group
- * ✅ Complete with reactions and all features
+ * MessageItem Component - WITH SYSTEM MESSAGE SUPPORT
+ * ✅ FIXED: formatTime moved up before usage
+ * ✅ Renders system messages (kicked, joined, settings changed)
+ * ✅ Shows sender avatar
+ * ✅ Complete with reactions
  */
 export default function MessageItem({
   message,
@@ -56,6 +57,21 @@ export default function MessageItem({
   );
 
   // ============================================
+  // 🔥 FIXED: HELPER FUNCTIONS MOVED UP
+  // ============================================
+  
+  /**
+   * Format time helper - MUST be defined before usage
+   */
+  const formatTime = (date) => {
+    try {
+      return format(new Date(date), "HH:mm");
+    } catch {
+      return "";
+    }
+  };
+
+  // ============================================
   // MESSAGE DATA
   // ============================================
   const messageId = message.messageId || message.uid;
@@ -65,6 +81,43 @@ export default function MessageItem({
   const isPending =
     message.status === "pending" || message._status === "sending";
   const isFailed = message.status === "failed" || message._status === "failed";
+
+  // ============================================
+  // 🔥 SYSTEM MESSAGE RENDER
+  // ============================================
+  if (message.type === 'system') {
+    return (
+      <div
+        id={`message-${messageId}`}
+        className="flex w-full justify-center my-3"
+      >
+        <div className="max-w-[85%] sm:max-w-[75%]">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-full text-sm">
+            <svg
+              className="w-4 h-4 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span className="text-center">
+              {message.content}
+            </span>
+          </div>
+          
+          <div className="text-xs text-gray-400 mt-1 text-center">
+            {formatTime(message.createdAt)}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ============================================
   // EDIT PERMISSIONS
@@ -301,14 +354,6 @@ export default function MessageItem({
     }
   };
 
-  const formatTime = (date) => {
-    try {
-      return format(new Date(date), "HH:mm");
-    } catch {
-      return "";
-    }
-  };
-
   // ============================================
   // REACTIONS DATA
   // ============================================
@@ -371,7 +416,7 @@ export default function MessageItem({
   }
 
   // ============================================
-  // 🆕 NORMAL MESSAGE RENDER WITH AVATAR
+  // NORMAL MESSAGE RENDER WITH AVATAR
   // ============================================
   return (
     <div
@@ -387,7 +432,7 @@ export default function MessageItem({
           isMe ? "flex-row-reverse" : "flex-row"
         } items-end gap-2 max-w-[85%] sm:max-w-[75%]`}
       >
-        {/* 🆕 AVATAR - Only for other users on last message in group */}
+        {/* AVATAR - Only for other users on last message in group */}
         {!isMe && isLastInGroup && message.sender && (
           <div className="shrink-0 mb-1">
             <AvatarImage
@@ -400,7 +445,7 @@ export default function MessageItem({
           </div>
         )}
 
-        {/* 🆕 SPACER - Keep alignment when no avatar */}
+        {/* SPACER - Keep alignment when no avatar */}
         {!isMe && !isLastInGroup && (
           <div className="shrink-0 w-10" />
         )}
@@ -440,7 +485,7 @@ export default function MessageItem({
                 message={message}
                 conversationId={conversationId}
                 onReactionClick={handleReactionClick}
-                sender={message.sender} // 🆕 Pass sender for potential use
+                sender={message.sender}
               />
 
               {/* Hide actions when editing */}

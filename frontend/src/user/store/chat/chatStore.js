@@ -86,4 +86,4 @@ if (typeof window !== 'undefined') {
   console.log('✅ [chatStore] Exposed to window for debugging');
 }
 
-export default useChatStore;
+export default useChatStore;  

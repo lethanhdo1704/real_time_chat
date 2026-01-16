@@ -44,22 +44,32 @@
       "alreadyFriendAlert": "You are already friends with this person!"
     }
   },
-
   "groupList": {
-    "createButton": "Create New Group",
-    "createModal": {
-      "title": "Create New Chat Group",
-      "inputPlaceholder": "Enter group name...",
-      "cancel": "Cancel",
-      "create": "Create Group"
-    },
+    "createButton": "Create Group",
+    "unnamedGroup": "Unnamed Group",
+    "noMessages": "No messages yet",
+    "justNow": "Just now",
+    "minutesAgo": "m ago",
+    "hoursAgo": "h ago",
+    "daysAgo": "d ago",
     "empty": {
-      "title": "No chat groups yet",
-      "subtitle": "Create a group to chat with multiple people"
+      "title": "No groups yet",
+      "subtitle": "Create a group to start chatting"
     },
-    "members": "members"
+    "createModal": {
+      "title": "Create New Group",
+      "groupName": "Group Name",
+      "inputPlaceholder": "Enter group name...",
+      "selectedMembers": "Members",
+      "selected": "selected",
+      "searchFriends": "Search friends...",
+      "noFriends": "No friends to add",
+      "noResults": "No results found",
+      "cancel": "Cancel",
+      "create": "Create",
+      "creating": "Creating..."
+    }
   },
-
   "messagePreview": {
     "you": "You",
     "friend": "Friend",

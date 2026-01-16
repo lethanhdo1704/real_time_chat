@@ -2,7 +2,7 @@
   "title": "Thông tin cuộc trò chuyện",
   "notFound": "Không tìm thấy cuộc trò chuyện",
   "conversation": "Cuộc trò chuyện",
-  "admin": "Admin",
+  "admin": "Quản trị viên",
   "member": "Thành viên",
   "add": "Thêm",
   "search": "Tìm kiếm",
@@ -17,18 +17,23 @@
   "loadMore": "Xem thêm",
   "noData": "Chưa có dữ liệu",
   "enterGroupName": "Nhập tên nhóm",
+
   "membersCount": "{{count}} thành viên",
   "membersCount_one": "{{count}} thành viên",
   "membersCount_other": "{{count}} thành viên",
+
   "membersTitle": "Thành viên ({{count}})",
   "membersTitle_one": "Thành viên ({{count}})",
   "membersTitle_other": "Thành viên ({{count}})",
+
   "messagesCount": "{{count}} tin nhắn",
   "messagesCount_one": "{{count}} tin nhắn",
   "messagesCount_other": "{{count}} tin nhắn",
+
   "viewAllMembers": "Xem tất cả {{count}} thành viên",
-  "viewAllMembers_one": "Xem tất cả {{count}} thành viên",
+  "viewAllMembers_one": "Xem {{count}} thành viên",
   "viewAllMembers_other": "Xem tất cả {{count}} thành viên",
+
   "tabs": {
     "media": "Ảnh",
     "video": "Video",
@@ -36,14 +41,51 @@
     "files": "Tệp",
     "links": "Liên kết"
   },
+
   "settings": {
     "notifications": "Thông báo",
     "privacy": "Bảo mật & Quyền riêng tư",
     "chatSettings": "Cài đặt trò chuyện",
     "archive": "Lưu trữ cuộc trò chuyện"
   },
+
   "actions": {
     "leaveGroup": "Rời khỏi nhóm",
     "deleteConversation": "Xóa cuộc trò chuyện"
+  },
+
+  "conversationInfo": {
+    "groupSettings": {
+      "title": "Cài đặt nhóm",
+      "onlyAdminsCanSend": "Chỉ quản trị viên được gửi tin nhắn",
+      "onlyAdminsCanSendDesc": "Khi bật, chỉ quản trị viên mới có thể gửi tin nhắn trong nhóm"
+    },
+
+    "modals": {
+      "cancel": "Hủy",
+
+      "kickMember": {
+        "title": "Kick thành viên",
+        "message": "Bạn có chắc chắn muốn kick thành viên này khỏi nhóm không?",
+        "kick": "Kick",
+        "kicking": "Đang kick..."
+      },
+
+      "leaveGroup": {
+        "title": "Rời khỏi nhóm",
+        "message": "Bạn có chắc chắn muốn rời khỏi nhóm này không?",
+        "ownerWarning": "Bạn là chủ nhóm. Vui lòng chuyển quyền sở hữu hoặc đảm bảo bạn là thành viên duy nhất trước khi rời.",
+        "leave": "Rời nhóm",
+        "leaving": "Đang rời..."
+      },
+
+      "changeRole": {
+        "title": "Thay đổi vai trò",
+        "admin": "Quản trị viên",
+        "adminDesc": "Có thể quản lý cài đặt nhóm và thành viên",
+        "member": "Thành viên",
+        "memberDesc": "Thành viên nhóm thông thường"
+      }
+    }
   }
 }

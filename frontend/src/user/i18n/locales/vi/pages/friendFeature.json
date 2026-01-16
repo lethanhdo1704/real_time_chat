@@ -44,20 +44,31 @@
       "alreadyFriendAlert": "Bạn đã là bạn bè với người này!"
     }
   },
-
   "groupList": {
-    "createButton": "Tạo nhóm mới",
-    "createModal": {
-      "title": "Tạo nhóm chat mới",
-      "inputPlaceholder": "Nhập tên nhóm...",
-      "cancel": "Hủy",
-      "create": "Tạo nhóm"
-    },
+    "createButton": "Tạo nhóm",
+    "unnamedGroup": "Nhóm chưa đặt tên",
+    "noMessages": "Chưa có tin nhắn",
+    "justNow": "Vừa xong",
+    "minutesAgo": " phút trước",
+    "hoursAgo": " giờ trước",
+    "daysAgo": " ngày trước",
     "empty": {
-      "title": "Chưa có nhóm chat",
-      "subtitle": "Tạo nhóm để trò chuyện với nhiều người"
+      "title": "Chưa có nhóm nào",
+      "subtitle": "Tạo nhóm để bắt đầu trò chuyện"
     },
-    "members": "thành viên"
+    "createModal": {
+      "title": "Tạo nhóm mới",
+      "groupName": "Tên nhóm",
+      "inputPlaceholder": "Nhập tên nhóm...",
+      "selectedMembers": "Thành viên",
+      "selected": "đã chọn",
+      "searchFriends": "Tìm kiếm bạn bè...",
+      "noFriends": "Không có bạn bè để thêm",
+      "noResults": "Không tìm thấy kết quả",
+      "cancel": "Hủy",
+      "create": "Tạo",
+      "creating": "Đang tạo..."
+    }
   },
 
   "messagePreview": {

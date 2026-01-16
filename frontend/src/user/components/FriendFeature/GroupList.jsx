@@ -1,55 +1,169 @@
-// frontend/src/components/FriendFeature/GroupList.jsx
+// frontend/src/components/FriendFeature/GroupList.jsx - FIXED VERSION
+
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import useChatStore from "../../store/chat/chatStore";
+import CreateGroupModal from "./CreateGroupModal";
+import AvatarImage from "../common/AvatarImage";
 
-export default function GroupList({ currentUser, setCurrentRoom }) {
+/**
+ * GroupList Component - FIXED
+ * 
+ * ✅ Fetch groups from Redux store (conversations)
+ * ✅ Filter type='group' only
+ * ✅ Navigate to chat on click
+ * ✅ Show unread count
+ * ✅ Create group modal
+ * ✅ FIXED: Proper key props with fallback
+ * ✅ FIXED: Better null safety
+ * ✅ FIXED: Removed duplicate isActive declaration
+ */
+export default function GroupList({ currentUser }) {
   const { t } = useTranslation("friendFeature");
-  const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Mock data - Replace with actual API call
-  const fetchGroups = async () => {
-    setLoading(true);
-    try {
-      // TODO: Replace with actual API call
-      // const data = await getGroups(currentUser.uid);
-      setGroups(mockGroups);
-    } catch (err) {
-      console.error("Error fetching groups:", err);
-      setGroups([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ============================================
+  // GET STATE FROM STORES (learned from FriendList)
+  // ============================================
 
+  // Get conversations from store
+  const conversations = useChatStore((state) => state.conversations);
+  const conversationsOrder = useChatStore((state) => state.conversationsOrder);
+  const activeConversationId = useChatStore((state) => state.activeConversationId);
+  const fetchConversationsOnce = useChatStore((state) => state.fetchConversationsOnce);
+  const setActiveConversation = useChatStore((state) => state.setActiveConversation);
+
+  // ✅ FIXED: Better filtering with null safety + debugging
+  const groups = conversationsOrder
+    .map((id) => {
+      const conv = conversations.get(id);
+      
+      // 🔍 DEBUG: Log what we're getting
+      if (conv && conv.type === 'group') {
+        console.log('🔍 [GroupList] Found group in store:', {
+          orderId: id,
+          convId: conv._id,
+          conversationId: conv.conversationId,
+          name: conv.name,
+          type: conv.type,
+        });
+      }
+      
+      return conv;
+    })
+    .filter((conv) => {
+      // Filter out null/undefined
+      if (!conv) {
+        return false;
+      }
+      
+      // Must be group type
+      if (conv.type !== 'group') {
+        return false;
+      }
+      
+      // Not deleted
+      if (conv.isDeleted) {
+        console.warn('⚠️ [GroupList] Group is deleted:', conv._id || conv.conversationId);
+        return false;
+      }
+      
+      // ✅ CRITICAL: Must have valid ID for key prop
+      const groupId = conv._id || conv.conversationId;
+      if (!groupId) {
+        console.error('❌ [GroupList] Group without ID:', conv);
+        return false;
+      }
+      
+      return true;
+    });
+
+  // Fetch conversations on mount
   useEffect(() => {
-    fetchGroups();
-  }, []);
+    const loadGroups = async () => {
+      setLoading(true);
+      try {
+        await fetchConversationsOnce();
+      } catch (err) {
+        console.error("❌ [GroupList] Error fetching groups:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleCreateGroup = async () => {
-    if (!newGroupName.trim()) return;
-    
-    try {
-      // TODO: Replace with actual API call
-      // await createGroup(currentUser.uid, newGroupName);
-      setNewGroupName("");
-      setShowCreateModal(false);
-      fetchGroups();
-    } catch (err) {
-      console.error("Error creating group:", err);
-    }
-  };
+    loadGroups();
+  }, [fetchConversationsOnce]);
+
+  // ============================================
+  // HANDLERS
+  // ============================================
 
   const handleSelectGroup = (group) => {
-    setCurrentRoom({
-      id: group._id,
+    const groupId = group._id || group.conversationId;
+    
+    // ✅ CRITICAL: Validate groupId before navigating
+    if (!groupId) {
+      console.error('❌ [GroupList] Cannot select group without ID:', group);
+      return;
+    }
+    
+    console.log('📍 [GroupList] Selecting group:', {
+      id: groupId,
       name: group.name,
-      type: "group",
-      avatar: group.avatar
+      fullGroup: group,
     });
+    
+    // Set active conversation
+    setActiveConversation(groupId);
+    
+    // Navigate to chat
+    navigate(`/groups/${groupId}`);
   };
+
+  const handleCreateSuccess = (newGroup) => {
+    console.log('✅ [GroupList] Group created:', newGroup);
+    
+    // Navigate to new group
+    const groupId = newGroup._id || newGroup.conversationId;
+    
+    if (groupId) {
+      setActiveConversation(groupId);
+      navigate(`/groups/${groupId}`);
+    } else {
+      console.error('❌ [GroupList] Created group has no ID:', newGroup);
+    }
+  };
+
+  // ============================================
+  // FORMAT HELPERS
+  // ============================================
+
+  const formatLastMessageTime = (date) => {
+    if (!date) return '';
+    
+    const now = new Date();
+    const messageDate = new Date(date);
+    const diffInMinutes = Math.floor((now - messageDate) / 1000 / 60);
+    
+    if (diffInMinutes < 1) return t("groupList.justNow");
+    if (diffInMinutes < 60) return `${diffInMinutes}${t("groupList.minutesAgo")}`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}${t("groupList.hoursAgo")}`;
+    return `${Math.floor(diffInMinutes / 1440)}${t("groupList.daysAgo")}`;
+  };
+
+  const truncateMessage = (message, maxLength = 40) => {
+    if (!message) return t("groupList.noMessages");
+    if (message.length <= maxLength) return message;
+    return message.substring(0, maxLength) + '...';
+  };
+
+  // ============================================
+  // RENDER: Loading
+  // ============================================
 
   if (loading) {
     return (
@@ -58,6 +172,10 @@ export default function GroupList({ currentUser, setCurrentRoom }) {
       </div>
     );
   }
+
+  // ============================================
+  // RENDER: Main
+  // ============================================
 
   return (
     <div className="space-y-3">
@@ -74,40 +192,10 @@ export default function GroupList({ currentUser, setCurrentRoom }) {
 
       {/* Create Group Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h3 className="text-lg font-semibold mb-4">
-              {t("groupList.createModal.title")}
-            </h3>
-            <input
-              type="text"
-              placeholder={t("groupList.createModal.inputPlaceholder")}
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-              onKeyPress={(e) => e.key === 'Enter' && handleCreateGroup()}
-              autoFocus
-            />
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setNewGroupName("");
-                }}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                {t("groupList.createModal.cancel")}
-              </button>
-              <button
-                onClick={handleCreateGroup}
-                disabled={!newGroupName.trim()}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 transition-colors"
-              >
-                {t("groupList.createModal.create")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CreateGroupModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleCreateSuccess}
+        />
       )}
 
       {/* Groups List */}
@@ -121,39 +209,74 @@ export default function GroupList({ currentUser, setCurrentRoom }) {
         </div>
       ) : (
         <div className="space-y-2">
-          {groups.map((group) => (
-            <div
-              key={group._id}
-              onClick={() => handleSelectGroup(group)}
-              className="flex items-center p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:shadow-md transition-all cursor-pointer"
-            >
-              <div className="relative shrink-0">
-                <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold">
-                  {group.name.charAt(0).toUpperCase()}
+          {groups.map((group) => {
+            // 🔥 Normalize conversation ID (learned from FriendList)
+            const groupId = group._id || group.conversationId;
+            const lastMessage = group.lastMessage?.content || '';
+            const lastMessageTime = group.lastMessageAt || group.updatedAt;
+            const unreadCount = group.unreadCount || 0;
+            const memberCount = group.members?.length || 0;
+            const groupName = group.name || t("groupList.unnamedGroup");
+
+            // ✅ CRITICAL: Skip if no valid ID (shouldn't happen after filter, but safety check)
+            if (!groupId) {
+              console.warn('⚠️ [GroupList] Skipping group without ID in map:', group);
+              return null;
+            }
+
+            // 🔥 FIX: Normalize conversation ID for comparison (learned from FriendList)
+            const isActive = groupId === activeConversationId;
+
+            return (
+              <div
+                key={groupId} // ✅ FIXED: Guaranteed unique key
+                onClick={() => handleSelectGroup(group)}
+                className={`flex items-center p-3 border border-gray-200 rounded-lg hover:shadow-md transition-all cursor-pointer group ${
+                  isActive 
+                    ? 'bg-blue-50 border-blue-300' 
+                    : 'bg-white hover:bg-gray-50'
+                }`}
+              >
+                <div className="relative shrink-0">
+                  <AvatarImage
+                    avatar={group.avatar}
+                    nickname={groupName}
+                    avatarUpdatedAt={group.avatarUpdatedAt}
+                    size="md"
+                    variant="group"
+                  />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </div>
-                {group.unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                    {group.unreadCount > 9 ? '9+' : group.unreadCount}
-                  </span>
-                )}
+
+                <div className="flex-1 ml-3 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                      {groupName}
+                    </p>
+                    <span className="text-xs text-gray-500 shrink-0 ml-2">
+                      {formatLastMessageTime(lastMessageTime)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <p className={`text-sm truncate ${unreadCount > 0 ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
+                      {truncateMessage(lastMessage)}
+                    </p>
+                    <span className="text-xs text-gray-400 shrink-0 ml-2 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                      {memberCount}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 ml-3 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="font-medium text-gray-900 truncate">{group.name}</p>
-                  <span className="text-xs text-gray-500 shrink-0 ml-2">{group.lastMessageTime}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-500 truncate">{group.lastMessage}</p>
-                  <span className="text-xs text-gray-400 shrink-0 ml-2 flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                    {group.memberCount}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

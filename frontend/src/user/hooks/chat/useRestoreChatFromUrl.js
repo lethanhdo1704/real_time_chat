@@ -1,9 +1,19 @@
-// frontend/src/hooks/chat/useRestoreChatFromUrl.js
+// frontend/src/hooks/chat/useRestoreChatFromUrl.js - FULL CODE FIXED
+
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import useChatStore from "../../store/chat/chatStore";
 import api from "../../services/api";
 
+/**
+ * useRestoreChatFromUrl Hook
+ * 
+ * ✅ Restore conversation state from URL parameter
+ * ✅ Fetch conversation details from backend
+ * ✅ Handle both private and group chats
+ * ✅ Set active conversation and friend
+ * ✅ Graceful error handling
+ */
 export default function useRestoreChatFromUrl() {
   const { conversationId } = useParams();
 
@@ -38,16 +48,14 @@ export default function useRestoreChatFromUrl() {
         console.log('✅ [useRestoreChatFromUrl] Conversation loaded:', {
           conversationId: conversation.conversationId || conversation._id,
           type: conversation.type,
-          hasFriend: !!conversation.friend
+          hasFriend: !!conversation.friend,
+          hasMembers: !!conversation.members,
         });
 
-        // ✅ Set active conversation using correct method
+        // ✅ Get store instance
         const store = useChatStore.getState();
         
-        // Set active conversation ID
-        store.setActiveConversation(conversationId);
-        
-        // Add conversation to store if not exists
+        // ✅ Add or update conversation in store
         if (!store.conversations.has(conversationId)) {
           console.log('➕ [useRestoreChatFromUrl] Adding conversation to store');
           store.addConversation(conversation);
@@ -55,11 +63,17 @@ export default function useRestoreChatFromUrl() {
           console.log('♻️ [useRestoreChatFromUrl] Updating existing conversation');
           store.updateConversation(conversationId, conversation);
         }
+        
+        // ✅ Set active conversation ID
+        store.setActiveConversation(conversationId);
 
-        // Set active friend if private chat
+        // ✅ Set active friend if private chat
         if (conversation.type === 'private' && conversation.friend) {
           console.log('👤 [useRestoreChatFromUrl] Setting active friend:', conversation.friend.nickname);
           store.setActiveFriend(conversation.friend);
+        } else if (conversation.type === 'group') {
+          console.log('👥 [useRestoreChatFromUrl] Group chat - no active friend');
+          store.setActiveFriend(null);
         }
 
         console.log('✅ [useRestoreChatFromUrl] Restore complete');

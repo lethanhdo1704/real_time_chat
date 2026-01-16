@@ -26,7 +26,13 @@
     "selectEmoji": "Select emoji",
     "send": "Send",
     "uploadFile": "Upload file",
-    "replyingTo": "Replying to"
+    "replyingTo": "Replying to",
+    "youWereKicked": "You were kicked from this group",
+    "youLeftGroup": "You have left this group",
+    "kickedBy": "Kicked by {{name}}",
+    "onlyAdminsCanSend": "Only admins can send messages",
+    "disabled": "Input disabled",
+    "sending": "Sending..."
   },
   "emoji": {
     "search": "Search emoji...",

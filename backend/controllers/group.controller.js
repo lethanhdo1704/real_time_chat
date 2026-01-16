@@ -12,6 +12,7 @@ class GroupController {
   /**
    * Get group info
    * GET /api/groups/:conversationId
+   * 🔥 UPDATED: Now returns members list + current user role
    */
   async getGroupInfo(req, res, next) {
     try {
@@ -45,6 +46,34 @@ class GroupController {
         });
       }
 
+      // 🔥 NEW: Get all active members
+      const members = await ConversationMember.find({
+        conversation: conversationId,
+        leftAt: null
+      })
+      .populate('user', 'uid nickname avatar')
+      .select('role joinedAt')
+      .lean(); // Use lean() for better performance
+
+      // 🔥 NEW: Format and sort members (owner -> admin -> member -> by join date)
+      const roleOrder = { owner: 0, admin: 1, member: 2 };
+      const formattedMembers = members
+        .filter(m => m.user) // Filter out any members with missing user data
+        .sort((a, b) => {
+          // Sort by role first
+          const roleDiff = roleOrder[a.role] - roleOrder[b.role];
+          if (roleDiff !== 0) return roleDiff;
+          // Then by join date (earliest first)
+          return new Date(a.joinedAt) - new Date(b.joinedAt);
+        })
+        .map(m => ({
+          uid: m.user.uid,
+          nickname: m.user.nickname,
+          avatar: m.user.avatar,
+          role: m.role,
+          joinedAt: m.joinedAt
+        }));
+
       // Format response - only expose uid, not MongoDB _id
       const groupInfo = {
         _id: conversation._id,
@@ -66,8 +95,15 @@ class GroupController {
         sharedLinks: conversation.sharedLinks,
         isDeleted: conversation.isDeleted,
         createdAt: conversation.createdAt,
-        updatedAt: conversation.updatedAt
+        updatedAt: conversation.updatedAt,
+        // 🔥 NEW: Add members list
+        members: formattedMembers,
+        totalMembers: formattedMembers.length,
+        // 🔥 NEW: Add current user's role for UI permissions
+        currentUserRole: member.role
       };
+
+      console.log(`✅ [GroupController] Group info retrieved with ${formattedMembers.length} members`);
 
       res.json({
         success: true,

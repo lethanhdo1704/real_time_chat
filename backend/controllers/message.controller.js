@@ -1,8 +1,10 @@
-// backend/controllers/message.controller.js
+// backend/controllers/message.controller.js - FIXED VERSION
+
 import messageService from "../services/message/message.service.js";
 import conversationService from "../services/conversation/conversation.service.js";
 import Conversation from "../models/Conversation.js";
 import ConversationMember from "../models/ConversationMember.js";
+import User from "../models/User.js";
 
 class MessageController {
   async sendMessage(req, res, next) {
@@ -10,18 +12,17 @@ class MessageController {
       const {
         conversationId,
         recipientId,
-        content = "", // 🔥 FIX: Default to empty string
+        content = "",
         clientMessageId,
         type,
         replyTo,
-        attachments = [], // 🔥 FIX: Default to empty array
+        attachments = [],
       } = req.body;
 
       // ============================================
       // VALIDATION
       // ============================================
 
-      // 🔥 FIX: Allow empty content if attachments exist
       if (!content && (!attachments || attachments.length === 0)) {
         return res.status(400).json({
           success: false,
@@ -89,6 +90,62 @@ class MessageController {
             message: `Failed to create conversation: ${convError.message}`,
           });
         }
+      }
+
+      // ============================================
+      // 🔥 NEW: CHECK MESSAGE PERMISSIONS (GROUP ONLY)
+      // ============================================
+
+      const conversation = await Conversation.findById(finalConversationId)
+        .select('type messagePermission')
+        .lean();
+
+      if (!conversation) {
+        return res.status(404).json({
+          success: false,
+          message: "CONVERSATION_NOT_FOUND",
+        });
+      }
+
+      // 🔥 CRITICAL: Check if group has message restrictions
+      if (conversation.type === 'group' && conversation.messagePermission === 'admins_only') {
+        console.log("🔒 [MessageController] Checking admin permissions for group");
+
+        // Get sender's User document
+        const sender = await User.findOne({ uid: req.user.uid }).select('_id');
+        if (!sender) {
+          return res.status(404).json({
+            success: false,
+            message: "USER_NOT_FOUND",
+          });
+        }
+
+        // Check sender's role in conversation
+        const member = await ConversationMember.findOne({
+          conversation: finalConversationId,
+          user: sender._id,
+          leftAt: null,
+        }).select('role').lean();
+
+        if (!member) {
+          return res.status(403).json({
+            success: false,
+            message: "NOT_MEMBER",
+            code: "NOT_MEMBER"
+          });
+        }
+
+        // 🔥 CRITICAL: Only owner/admin can send when permission is 'admins_only'
+        if (!['owner', 'admin'].includes(member.role)) {
+          console.log("❌ [MessageController] Permission denied - member cannot send in admins_only group");
+          return res.status(403).json({
+            success: false,
+            message: "ONLY_ADMINS_CAN_SEND_MESSAGES",
+            code: "PERMISSION_DENIED"
+          });
+        }
+
+        console.log("✅ [MessageController] Permission check passed - user is", member.role);
       }
 
       // ============================================
@@ -179,18 +236,12 @@ class MessageController {
   /**
    * 🔥 NEW: Get conversation media (images/videos/audios/files/links)
    * GET /api/messages/:conversationId/media?mediaType=image&before=xxx&limit=20
-   * 
-   * Optimized endpoint for Conversation Info tabs
-   * - Only fetches messages with attachments
-   * - Returns lightweight data (no full message object)
-   * - Faster queries with proper indexes
    */
   async getConversationMedia(req, res, next) {
     try {
       const { conversationId } = req.params;
       const { mediaType, before, limit = 20 } = req.query;
 
-      // Validate mediaType
       const validMediaTypes = ['image', 'video', 'audio', 'file', 'link'];
       if (!mediaType || !validMediaTypes.includes(mediaType)) {
         return res.status(400).json({
@@ -308,7 +359,7 @@ class MessageController {
   }
 
   /**
-   * ✅ IMPROVED: Edit message
+   * Edit message
    * PUT /api/messages/:messageId
    */
   async editMessage(req, res, next) {

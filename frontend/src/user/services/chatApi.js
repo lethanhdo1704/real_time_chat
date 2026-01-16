@@ -1,4 +1,4 @@
-// frontend/src/services/chatApi.js
+// frontend/src/services/chatApi.js - FULL CODE UPDATED
 import api from "./api";
 
 /**
@@ -99,7 +99,7 @@ export const createPrivateConversation = async (friendUid) => {
 };
 
 /**
- * Create group conversation
+ * Create group conversation (OLD - kept for backward compatibility)
  * @param {Object} groupData - Group data (name, memberUids)
  * @returns {Promise<Object>} Created group conversation
  */
@@ -107,6 +107,17 @@ export const createGroupConversation = async (groupData) => {
   const response = await api.post("/conversations/group", {
     ...groupData,
   });
+  return unwrapResponse(response);
+};
+
+/**
+ * 🔥 NEW: Create group (NEW endpoint)
+ * POST /api/groups
+ * @param {Object} groupData - { name, memberUids, avatar?, messagePermission? }
+ * @returns {Promise<Object>} Created group conversation
+ */
+export const createGroup = async (groupData) => {
+  const response = await api.post("/groups", groupData);
   return unwrapResponse(response);
 };
 
@@ -300,10 +311,11 @@ export default {
   getConversationById,
   getConversationInfo,
   createPrivateConversation,
-  createGroupConversation,
+  createGroupConversation, // OLD
+  createGroup, // 🔥 NEW
   markConversationAsRead,
   getMessages,
-  getConversationMedia, // 🔥 NEW
+  getConversationMedia,
   sendMessage,
   editMessage,
   deleteMessage,

@@ -26,7 +26,13 @@
     "selectEmoji": "Chọn emoji",
     "send": "Gửi",
     "uploadFile": "Tải tập tin lên",
-    "replyingTo": "Đang trả lời"
+    "replyingTo": "Đang trả lời",
+    "youWereKicked": "Bạn đã bị kick khỏi nhóm",
+    "youLeftGroup": "Bạn đã rời nhóm",
+    "kickedBy": "Bị kick bởi {{name}}",
+    "onlyAdminsCanSend": "Chỉ quản trị viên mới có thể nhắn tin",
+    "disabled": "Đã vô hiệu hóa",
+    "sending": "Đang gửi..."
   },
   "emoji": {
     "search": "Tìm emoji...",

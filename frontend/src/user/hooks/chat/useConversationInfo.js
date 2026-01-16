@@ -12,12 +12,18 @@ import useChatStore from '../../store/chat/chatStore';
  * ✅ Updates Redux store with counters
  * ✅ Returns loading/error states
  * ✅ Auto-fetch on conversationId change
+ * 🔥 NEW: Returns members list for groups
+ * 🔥 NEW: Returns otherParticipant for private chats
+ * 🔥 NEW: Returns currentUserRole for permission checks
  * 
  * @param {string} conversationId - Conversation ID to fetch info for
- * @returns {Object} { info, loading, error, refetch }
+ * @returns {Object} { info, members, currentUserRole, otherParticipant, loading, error, refetch }
  */
 export const useConversationInfo = (conversationId) => {
   const [info, setInfo] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [otherParticipant, setOtherParticipant] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -38,17 +44,23 @@ export const useConversationInfo = (conversationId) => {
       const data = await getConversationInfo(conversationId);
 
       console.log('✅ [useConversationInfo] Info received:', {
+        type: data.type,
         totalMessages: data.statistics?.totalMessages,
         sharedImages: data.statistics?.shared?.images,
+        membersCount: data.type === 'group' ? data.totalMembers : 2,
       });
 
       // Transform backend response to match our state structure
       const transformedInfo = {
-        id: data.id,
+        id: data._id,
         type: data.type,
         name: data.name,
         avatar: data.avatar,
+        createdBy: data.createdBy,
+        joinMode: data.joinMode,
+        messagePermission: data.messagePermission,
         createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
         counters: {
           totalMessages: data.statistics.totalMessages,
           sharedImages: data.statistics.shared.images,
@@ -61,12 +73,41 @@ export const useConversationInfo = (conversationId) => {
 
       setInfo(transformedInfo);
 
-      // 🔥 Update Redux store with counters
+      // 🔥 NEW: Handle group members
+      if (data.type === 'group') {
+        setMembers(data.members || []);
+        setCurrentUserRole(data.currentUserRole);
+        setOtherParticipant(null); // Reset for groups
+        
+        console.log('👥 [useConversationInfo] Group members loaded:', {
+          count: data.members?.length,
+          currentUserRole: data.currentUserRole,
+        });
+      }
+
+      // 🔥 NEW: Handle private chat participant
+      if (data.type === 'private') {
+        setOtherParticipant(data.otherParticipant || null);
+        setMembers([]); // Reset for private
+        setCurrentUserRole(null); // No roles in private chat
+        
+        console.log('💬 [useConversationInfo] Private chat participant:', data.otherParticipant?.nickname);
+      }
+
+      // 🔥 Update Redux store with counters and members
       updateConversation(conversationId, {
         counters: transformedInfo.counters,
+        ...(data.type === 'group' && {
+          members: data.members,
+          totalMembers: data.totalMembers,
+          currentUserRole: data.currentUserRole,
+        }),
+        ...(data.type === 'private' && {
+          otherParticipant: data.otherParticipant,
+        }),
       });
 
-      console.log('✅ [useConversationInfo] Store updated with counters');
+      console.log('✅ [useConversationInfo] Store updated with counters and members');
     } catch (err) {
       console.error('❌ [useConversationInfo] Fetch failed:', err);
       setError(err.message || 'Failed to load conversation info');
@@ -79,11 +120,22 @@ export const useConversationInfo = (conversationId) => {
   useEffect(() => {
     if (conversationId) {
       fetchInfo();
+    } else {
+      // Reset state when conversationId is cleared
+      setInfo(null);
+      setMembers([]);
+      setCurrentUserRole(null);
+      setOtherParticipant(null);
+      setError(null);
     }
   }, [conversationId]);
 
   return {
     info,
+    members,               // 🔥 NEW: Array of group members
+    totalMembers: members.length, // 🔥 NEW: Total member count
+    currentUserRole,       // 🔥 NEW: Current user's role (owner/admin/member)
+    otherParticipant,      // 🔥 NEW: Other participant in private chat
     loading,
     error,
     refetch: fetchInfo,

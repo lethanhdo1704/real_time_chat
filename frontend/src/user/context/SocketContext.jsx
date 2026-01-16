@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AuthContext } from './AuthContext';
 import { connectSocket, disconnectSocket } from '../services/socketService';
+import useChatStore from '../store/chat/chatStore'; // ✅ Import store
 
 export const SocketContext = createContext(null);
 
@@ -82,7 +83,39 @@ export const SocketProvider = ({ children }) => {
     });
   }, [socket, isConnected]);
 
-  // User update listener
+  // ============================================
+  // 🔥 NEW: CONVERSATION SETTINGS UPDATED LISTENER
+  // ============================================
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSettingsUpdated = (payload) => {
+      console.log('🔧 [SocketContext] Conversation settings updated:', payload);
+      
+      const { conversationId, messagePermission, updatedBy, updatedAt } = payload;
+
+      // Update conversation in store
+      useChatStore.getState().updateConversation(conversationId, {
+        messagePermission,
+        updatedBy,
+        updatedAt,
+      });
+
+      console.log('✅ [SocketContext] Store updated with new messagePermission:', messagePermission);
+    };
+
+    socket.on('conversation:settings_updated', handleSettingsUpdated);
+    console.log('📡 [SocketContext] Listening for conversation:settings_updated');
+
+    return () => {
+      socket.off('conversation:settings_updated', handleSettingsUpdated);
+      console.log('🧹 [SocketContext] Removed conversation:settings_updated listener');
+    };
+  }, [socket]);
+
+  // ============================================
+  // 🔥 EXISTING: USER UPDATE LISTENER
+  // ============================================
   useEffect(() => {
     if (!socket) return;
 

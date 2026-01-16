@@ -1,61 +1,63 @@
-// frontend/src/user/components/Chat/ChatWindow/ChatWindow.jsx
+// frontend/src/components/Chat/ChatWindow/ChatWindow.jsx - UPDATED WITH NEW STRUCTURE
 
-import { useRef, useState } from "react"; // 🔥 Add useState
+import { useRef, useState, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
+import { AuthContext } from "../../../context/AuthContext";
 import useChatWindowLogic from "../../../hooks/chat/useChatWindowLogic.js";
 import ChatWindowHeader from "./ChatWindowHeader.jsx";
 import ChatWindowBody from "./ChatWindowBody.jsx";
 import ChatInput from "../ChatInput/ChatInput.jsx";
 import ChatEmptyState from "../ChatEmptyState.jsx";
-import ConversationInfo from "../ConversationInfo.jsx"; // 🔥 Import ConversationInfo
+import ConversationInfo from "../ConversationInfo/index.jsx"; // 🔥 UPDATED PATH
 import useChatStore from "../../../store/chat/chatStore.js";
 import useFriendStore from "../../../store/friendStore.js";
 import useCallStore from "../../../store/call/callStore.js";
 import callSocketService from "../../../services/socket/call.socket.js";
 import { CALL_TYPE } from "../../../utils/call/callConstants.js";
 import { useSocket } from "../../../context/SocketContext.jsx";
+import useGroupPermissions from "../../../hooks/chat/useGroupPermissions.js";
 
 /**
- * ChatWindow Component - Main Container
+ * ChatWindow Component - WITH GROUP SUPPORT
  * 
- * ✅ Use activeConversationId (string) instead of activeConversation (object)
- * ✅ Real-time presence: Get friend's isOnline/lastSeen from friendStore
- * ✅ Auto-merge presence data with displayInfo
- * ✅ Mobile responsive with back navigation
- * ✅ Call functionality integrated
- * ✅ 🔥 NEW: Conversation Info modal
- * 
- * Responsibilities:
- * - Layout structure & composition
- * - Merge presence data from multiple sources
- * - Pass unified data to child components
- * - Handle navigation & focus management
- * - Handle call actions
- * - Handle conversation info modal
+ * ✅ Group permission checks
+ * ✅ Kicked/left member banner
+ * ✅ System message support
+ * ✅ Call functionality
+ * ✅ Conversation info modal (NEW STRUCTURE)
  */
 export default function ChatWindow() {
   const { t } = useTranslation("chat");
+  const { user } = useContext(AuthContext);
   const inputRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔥 NEW: Conversation Info Modal State
   const [showConversationInfo, setShowConversationInfo] = useState(false);
 
-  // ============================================
-  // SOCKET (for call functionality)
-  // ============================================
   const { socket } = useSocket();
 
   // ============================================
-  // GET CONVERSATION & FRIEND DATA
+  // GET CONVERSATION DATA
   // ============================================
   const conversationId = useChatStore((state) => state.activeConversationId);
   const activeFriend = useChatStore((state) => state.activeFriend);
+  const conversations = useChatStore((state) => state.conversations);
+  const conversation = conversations.get(conversationId);
 
   // ============================================
-  // GET FRIEND PRESENCE FROM STORE (Real-time)
+  // 🔥 GROUP PERMISSIONS
+  // ============================================
+  const {
+    isGroup,
+    memberStatus,
+    kickedBy,
+    kickedAt,
+  } = useGroupPermissions(conversationId, user?.uid);
+
+  // ============================================
+  // GET FRIEND PRESENCE
   // ============================================
   const getFriend = useFriendStore((state) => state.getFriend);
   const friendPresence = activeFriend?.uid ? getFriend(activeFriend.uid) : null;
@@ -67,7 +69,7 @@ export default function ChatWindow() {
   const isBusy = useCallStore((state) => state.isBusy);
 
   // ============================================
-  // GET CHAT DATA FROM HOOK
+  // GET CHAT DATA
   // ============================================
   const {
     displayInfo,
@@ -86,7 +88,7 @@ export default function ChatWindow() {
   } = useChatWindowLogic();
 
   // ============================================
-  // 🔥 MERGE PRESENCE DATA
+  // MERGE PRESENCE DATA
   // ============================================
   const displayInfoWithPresence = displayInfo ? {
     ...displayInfo,
@@ -98,9 +100,6 @@ export default function ChatWindow() {
   // CALL HANDLERS
   // ============================================
   
-  /**
-   * Handle voice call button click
-   */
   const handleVoiceCall = () => {
     if (!activeFriend?.uid) {
       console.error('[ChatWindow] No active friend UID');
@@ -109,19 +108,16 @@ export default function ChatWindow() {
 
     if (!socket || !socket.connected) {
       console.error('[ChatWindow] Socket not connected');
-      // TODO: Show toast "Connection error"
       return;
     }
 
     if (isBusy()) {
       console.warn('[ChatWindow] Already in a call');
-      // TODO: Show toast "Already in a call"
       return;
     }
 
     console.log('[ChatWindow] Starting voice call with:', activeFriend.uid);
 
-    // Update store state
     startOutgoingCall(
       activeFriend.uid,
       {
@@ -131,13 +127,9 @@ export default function ChatWindow() {
       CALL_TYPE.VOICE
     );
 
-    // Emit socket event
     callSocketService.startCall(activeFriend.uid, CALL_TYPE.VOICE);
   };
 
-  /**
-   * Handle video call button click
-   */
   const handleVideoCall = () => {
     if (!activeFriend?.uid) {
       console.error('[ChatWindow] No active friend UID');
@@ -146,19 +138,16 @@ export default function ChatWindow() {
 
     if (!socket || !socket.connected) {
       console.error('[ChatWindow] Socket not connected');
-      // TODO: Show toast "Connection error"
       return;
     }
 
     if (isBusy()) {
       console.warn('[ChatWindow] Already in a call');
-      // TODO: Show toast "Already in a call"
       return;
     }
 
     console.log('[ChatWindow] Starting video call with:', activeFriend.uid);
 
-    // Update store state
     startOutgoingCall(
       activeFriend.uid,
       {
@@ -168,25 +157,18 @@ export default function ChatWindow() {
       CALL_TYPE.VIDEO
     );
 
-    // Emit socket event
     callSocketService.startCall(activeFriend.uid, CALL_TYPE.VIDEO);
   };
 
   // ============================================
-  // 🔥 NEW: CONVERSATION INFO HANDLER
+  // CONVERSATION INFO HANDLERS
   // ============================================
   
-  /**
-   * Handle info button click (3 dots menu)
-   */
   const handleInfoClick = () => {
     console.log('[ChatWindow] Opening conversation info');
     setShowConversationInfo(true);
   };
 
-  /**
-   * Handle close conversation info modal
-   */
   const handleCloseInfo = () => {
     console.log('[ChatWindow] Closing conversation info');
     setShowConversationInfo(false);
@@ -199,10 +181,7 @@ export default function ChatWindow() {
     const pathParts = location.pathname.split("/");
     const currentTab = pathParts[1] || "friends";
     
-    // Clear active conversation state
     useChatStore.getState().exitConversation();
-    
-    // Navigate back to list view
     navigate(`/${currentTab}`);
   };
 
@@ -234,9 +213,9 @@ export default function ChatWindow() {
           lastSeen={displayInfoWithPresence.lastSeen}
           showBackButton={true}
           onBackClick={handleBackClick}
-          onCallClick={handleVoiceCall}
-          onVideoClick={handleVideoCall}
-          onInfoClick={handleInfoClick} // 🔥 Pass handler
+          onCallClick={!isGroup ? handleVoiceCall : null}
+          onVideoClick={!isGroup ? handleVideoCall : null}
+          onInfoClick={handleInfoClick}
         />
 
         <div className="flex-1 flex items-center justify-center px-4">
@@ -255,11 +234,76 @@ export default function ChatWindow() {
   }
 
   // ============================================
+  // 🔥 RENDER KICKED/LEFT BANNER
+  // ============================================
+  const renderKickedBanner = () => {
+    if (memberStatus !== 'kicked' && memberStatus !== 'left') return null;
+
+    const isKicked = memberStatus === 'kicked';
+
+    return (
+      <div className="flex-1 flex items-center justify-center px-4 bg-linear-to-br from-red-50 via-orange-50 to-yellow-50">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border-2 border-red-200">
+          <div className="w-20 h-20 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+            <svg
+              className="w-10 h-10 text-red-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+              />
+            </svg>
+          </div>
+
+          <h3 className="text-xl font-bold text-gray-900 mb-2">
+            {isKicked
+              ? t("group.youWereKicked") || "Bạn đã bị kick khỏi nhóm"
+              : t("group.youLeftGroup") || "Bạn đã rời nhóm"
+            }
+          </h3>
+
+          {isKicked && kickedBy && (
+            <p className="text-gray-600 mb-4">
+              {t("group.kickedBy", { name: kickedBy.nickname || "Admin" })}
+            </p>
+          )}
+
+          {isKicked && kickedAt && (
+            <p className="text-sm text-gray-500 mb-6">
+              {new Date(kickedAt).toLocaleString()}
+            </p>
+          )}
+
+          <div className="space-y-3">
+            <button
+              onClick={handleBackClick}
+              className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+            >
+              {t("group.backToConversations") || "Quay lại danh sách"}
+            </button>
+
+            {isKicked && (
+              <p className="text-xs text-gray-500">
+                {t("group.contactAdminToRejoin") || "Liên hệ quản trị viên để tham gia lại"}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ============================================
   // RENDER: Main Chat Window
   // ============================================
   return (
     <div className="flex flex-col h-full w-full min-h-0 bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 relative">
-      {/* Header with Real-time Presence & Call Buttons */}
+      {/* Header */}
       <ChatWindowHeader
         receiverName={displayInfoWithPresence.name}
         receiverAvatar={displayInfoWithPresence.avatar}
@@ -269,51 +313,58 @@ export default function ChatWindow() {
         lastSeen={displayInfoWithPresence.lastSeen}
         showBackButton={true}
         onBackClick={handleBackClick}
-        onCallClick={handleVoiceCall}
-        onVideoClick={handleVideoCall}
-        onInfoClick={handleInfoClick} // 🔥 Pass handler
+        onCallClick={!isGroup ? handleVoiceCall : null}
+        onVideoClick={!isGroup ? handleVideoCall : null}
+        onInfoClick={handleInfoClick}
       />
 
-      {/* Body: Messages + Typing + Empty States */}
-      <ChatWindowBody
-        messagesContainerRef={messagesContainerRef}
-        typingIndicatorRef={typingIndicatorRef}
-        hookMessagesEndRef={hookMessagesEndRef}
-        messages={messages}
-        conversationId={conversationId}
-        loading={loading}
-        hasMore={hasMore}
-        displayInfo={displayInfoWithPresence}
-        typingUser={typingUser}
-        currentUser={currentUser}
-        onRetryMessage={handleRetryMessage}
-        onFocusInput={focusInput}
-        t={t}
-      />
+      {/* 🔥 Body or Kicked Banner */}
+      {memberStatus === 'kicked' || memberStatus === 'left' ? (
+        renderKickedBanner()
+      ) : (
+        <>
+          {/* Body: Messages */}
+          <ChatWindowBody
+            messagesContainerRef={messagesContainerRef}
+            typingIndicatorRef={typingIndicatorRef}
+            hookMessagesEndRef={hookMessagesEndRef}
+            messages={messages}
+            conversationId={conversationId}
+            loading={loading}
+            hasMore={hasMore}
+            displayInfo={displayInfoWithPresence}
+            typingUser={typingUser}
+            currentUser={currentUser}
+            onRetryMessage={handleRetryMessage}
+            onFocusInput={focusInput}
+            t={t}
+          />
 
-      {/* Input */}
-      <ChatInput
-        ref={inputRef}
-        onSendMessage={handleSendMessage}
-        onTypingChange={handleTypingChange}
-        disabled={sending}
-        sending={sending}
-        placeholder={
-          displayInfoWithPresence.isNewConversation
-            ? t("input.startConversation")
-            : t("input.placeholder")
-        }
-      />
+          {/* Input */}
+          <ChatInput
+            ref={inputRef}
+            onSendMessage={handleSendMessage}
+            onTypingChange={handleTypingChange}
+            disabled={sending}
+            sending={sending}
+            placeholder={
+              displayInfoWithPresence.isNewConversation
+                ? t("input.startConversation")
+                : t("input.placeholder")
+            }
+          />
+        </>
+      )}
 
-      {/* 🔥 Conversation Info Modal - FIXED POSITIONING */}
+      {/* 🔥 Conversation Info Modal - NEW STRUCTURE */}
       {showConversationInfo && (
         <>
-          {/* Mobile: Full Screen Overlay */}
+          {/* Mobile: Full Screen */}
           <div className="lg:hidden fixed inset-0 z-9999 bg-white">
             <ConversationInfo onClose={handleCloseInfo} />
           </div>
 
-          {/* Desktop: Half Screen Side Panel */}
+          {/* Desktop: Half Screen */}
           <div 
             className="hidden lg:block fixed inset-0 z-9999 bg-black/20" 
             onClick={handleCloseInfo}

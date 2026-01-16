@@ -1,4 +1,4 @@
-// backend/services/conversation/conversation.query.js
+// backend/services/conversation/conversation.query.js - FULL FIXED VERSION
 import Conversation from "../../models/Conversation.js";
 import ConversationMember from "../../models/ConversationMember.js";
 import Message from "../../models/Message.js";
@@ -10,6 +10,8 @@ import User from "../../models/User.js";
  * Handles getting conversation lists and details
  * 
  * 🔥 FIXED: Filter lastMessage based on hiddenFor
+ * 🔥 FIXED: Proper member structure with nested user object
+ * 🔥 FIXED: Added messagePermission to group responses
  */
 class ConversationQueryService {
   /**
@@ -121,6 +123,7 @@ class ConversationQueryService {
    * Get user's conversations for sidebar
    * 
    * 🔥 FIXED: Filter lastMessage if hidden by user or recalled
+   * 🔥 FIXED: Added messagePermission to group responses
    * 
    * @param {string} userUid - User's uid
    * @param {number} limit - Number of conversations to return
@@ -270,6 +273,9 @@ class ConversationQueryService {
               unreadCount,
             };
           } else {
+            // ============================================
+            // 🔥 GROUP CONVERSATION - FIXED
+            // ============================================
             const members = await ConversationMember.find({
               conversation: conv._id,
               leftAt: null,
@@ -282,6 +288,7 @@ class ConversationQueryService {
               type: "group",
               name: conv.name,
               avatar: conv.avatar,
+              messagePermission: conv.messagePermission || 'all', // ✅ FIXED: Added messagePermission
               members: members.map((m) => ({
                 uid: m.user.uid,
                 nickname: m.user.nickname,
@@ -306,6 +313,8 @@ class ConversationQueryService {
    * Get conversation detail
    * 
    * 🔥 FIXED: Now includes lastSeenMessage for read receipts
+   * 🔥 FIXED: Proper member structure with nested user object for frontend compatibility
+   * 🔥 FIXED: Added messagePermission to group response
    * 
    * @param {string} conversationId - Conversation ID
    * @param {string} userUid - User's uid
@@ -337,31 +346,53 @@ class ConversationQueryService {
         throw new Error("Not a member");
       }
 
-      // 🔥 FIX: Get full member data with lastSeenMessage
+      // 🔥 FIX: Get full member data with lastSeenMessage and kick info
       const memberDocs = await ConversationMember.find({
         conversation: conversationId,
         leftAt: null
       })
         .populate('user', 'uid nickname avatar')
-        .select('user role lastSeenMessage lastSeenAt')
+        .populate('kickedBy', 'uid nickname avatar')
+        .select('user role lastSeenMessage lastSeenAt leftAt kickedBy kickedAt')
         .lean();
 
       console.log('📥 [ConversationQuery] Found members with read data:', memberDocs.length);
+
+      // 🔥 CRITICAL FIX: Format members to have user data at BOTH root and nested level
+      // This ensures compatibility with frontend useGroupPermissions hook
+      const formattedMembers = memberDocs.map((m) => ({
+        // ✅ User data at root level (for backward compatibility)
+        uid: m.user.uid,
+        nickname: m.user.nickname,
+        avatar: m.user.avatar,
+        
+        // ✅ ALSO include nested user object (for useGroupPermissions hook)
+        user: {
+          uid: m.user.uid,
+          nickname: m.user.nickname,
+          avatar: m.user.avatar,
+        },
+        
+        // Member-specific data
+        role: m.role,
+        lastSeenMessage: m.lastSeenMessage?.toString() || null,
+        lastSeenAt: m.lastSeenAt || null,
+        leftAt: m.leftAt || null,
+        
+        // Kick info (if kicked)
+        kickedBy: m.kickedBy ? {
+          uid: m.kickedBy.uid,
+          nickname: m.kickedBy.nickname,
+          avatar: m.kickedBy.avatar,
+        } : null,
+        kickedAt: m.kickedAt || null,
+      }));
 
       if (conversation.type === "private") {
         return {
           conversationId: conversation._id,
           type: "private",
-
-          // 🔥 FIXED: Include lastSeenMessage for read receipts
-          members: memberDocs.map((m) => ({
-            uid: m.user.uid,
-            nickname: m.user.nickname,
-            avatar: m.user.avatar,
-            role: m.role,
-            lastSeenMessage: m.lastSeenMessage?.toString() || null,
-            lastSeenAt: m.lastSeenAt || null,
-          })),
+          members: formattedMembers,
 
           // optional – giữ cho sidebar / logic cũ
           friend: (() => {
@@ -378,22 +409,16 @@ class ConversationQueryService {
           })(),
         };
       } else {
-        // Group conversation
+        // ============================================
+        // 🔥 GROUP CONVERSATION - FIXED
+        // ============================================
         return {
           conversationId: conversation._id,
           type: "group",
           name: conversation.name,
           avatar: conversation.avatar,
-          
-          // 🔥 FIXED: Include lastSeenMessage for group read receipts too
-          members: memberDocs.map((m) => ({
-            uid: m.user.uid,
-            nickname: m.user.nickname,
-            avatar: m.user.avatar,
-            role: m.role,
-            lastSeenMessage: m.lastSeenMessage?.toString() || null,
-            lastSeenAt: m.lastSeenAt || null,
-          })),
+          messagePermission: conversation.messagePermission || 'all', // ✅ FIXED: Added messagePermission
+          members: formattedMembers,
         };
       }
 
