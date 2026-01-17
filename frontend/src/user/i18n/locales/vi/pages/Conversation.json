@@ -89,6 +89,13 @@
         "adminDesc": "Có thể quản lý cài đặt nhóm và thành viên",
         "member": "Thành viên",
         "memberDesc": "Thành viên nhóm thông thường"
+      },
+
+      "ownerLeave": {
+        "title": "Chuyển quyền sở hữu nhóm",
+        "subtitle": "Bạn là chủ nhóm. Vui lòng chọn một thành viên khác làm chủ nhóm trước khi rời.",
+        "selectNewOwner": "Chọn chủ nhóm mới",
+        "transferAndLeave": "Chuyển quyền và rời nhóm"
       }
     }
   }

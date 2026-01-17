@@ -68,6 +68,7 @@
 
     "modals": {
       "cancel": "Cancel",
+      
 
       "kickMember": {
         "title": "Remove member from group",
@@ -90,7 +91,15 @@
         "adminDesc": "Can manage group settings and members",
         "member": "Member",
         "memberDesc": "Regular group member"
+      },
+      
+      "ownerLeave": {
+        "title": "Transfer group ownership",
+        "subtitle": "You are the group owner. Please select another member to become the new owner before leaving.",
+        "selectNewOwner": "Select a new group owner",
+        "transferAndLeave": "Transfer ownership and leave"
       }
     }
   }
 }
+

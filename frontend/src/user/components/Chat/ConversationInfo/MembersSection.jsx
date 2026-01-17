@@ -32,7 +32,7 @@ function MemberItem({
   const { t } = useTranslation('conversation');
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors group">
+    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <AvatarImage
           avatar={member.avatar}
@@ -67,10 +67,10 @@ function MemberItem({
         </div>
       </div>
 
-      {/* Member Actions (Admin/Owner only) */}
+      {/* Member Actions (Admin/Owner only) - ALWAYS VISIBLE */}
       {!isMe && (canKick || canChangeRole) && (
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {canKick && memberRole === 'member' && (
+        <div className="flex items-center gap-1">
+          {canKick && memberRole !== 'owner' && (
             <button
               onClick={() => handleKickMember(member)}
               className="p-1.5 hover:bg-red-100 rounded text-red-600 transition-colors"
