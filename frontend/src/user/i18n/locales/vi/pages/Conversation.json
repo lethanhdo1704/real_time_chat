@@ -95,7 +95,13 @@
         "title": "Chuyển quyền sở hữu nhóm",
         "subtitle": "Bạn là chủ nhóm. Vui lòng chọn một thành viên khác làm chủ nhóm trước khi rời.",
         "selectNewOwner": "Chọn chủ nhóm mới",
-        "transferAndLeave": "Chuyển quyền và rời nhóm"
+        "transferAndLeave": "Chuyển quyền và rời nhóm",
+        "deleteGroup": "Xóa nhóm",
+        "deleting": "Đang xóa",
+        "noMembers": {
+          "title": "Xóa nhóm",
+          "message": "Bạn là thành viên duy nhất còn lại trong nhóm. Nếu rời khỏi nhóm, nhóm sẽ bị xóa vĩnh viễn."
+        }
       }
     }
   }

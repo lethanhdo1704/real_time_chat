@@ -68,7 +68,6 @@
 
     "modals": {
       "cancel": "Cancel",
-      
 
       "kickMember": {
         "title": "Remove member from group",
@@ -92,14 +91,19 @@
         "member": "Member",
         "memberDesc": "Regular group member"
       },
-      
+
       "ownerLeave": {
         "title": "Transfer group ownership",
         "subtitle": "You are the group owner. Please select another member to become the new owner before leaving.",
         "selectNewOwner": "Select a new group owner",
-        "transferAndLeave": "Transfer ownership and leave"
+        "transferAndLeave": "Transfer ownership and leave",
+        "deleteGroup": "Delete Group",
+        "deleting": "Deleting",
+        "noMembers": {
+          "title": "Delete Group",
+          "message": "You are the only member left in this group. Leaving will permanently delete the group."
+        }
       }
     }
   }
 }
-

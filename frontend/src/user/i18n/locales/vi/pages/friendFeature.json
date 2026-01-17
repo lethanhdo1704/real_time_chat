@@ -67,7 +67,8 @@
       "noResults": "Không tìm thấy kết quả",
       "cancel": "Hủy",
       "create": "Tạo",
-      "creating": "Đang tạo..."
+      "creating": "Đang tạo...",
+      "minMembers": "Cần chọn ít nhất {{count}} người bạn để tạo nhóm"
     }
   },
 

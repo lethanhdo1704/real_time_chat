@@ -1,8 +1,8 @@
-// frontend/src/components/FriendFeature/CreateGroupModal.jsx - NEW
+// frontend/src/components/FriendFeature/CreateGroupModal.jsx - FIXED
 
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Search, Check, Users } from "lucide-react";
+import { X, Search, Check, Users, AlertCircle } from "lucide-react";
 import useFriendStore from "../../store/friendStore";
 import useGroupActions from "../../hooks/chat/useGroupActions";
 import AvatarImage from "../common/AvatarImage";
@@ -10,12 +10,18 @@ import AvatarImage from "../common/AvatarImage";
 /**
  * CreateGroupModal Component
  * 
- * ✅ Select friends to add
+ * ✅ Select friends to add (minimum 2 members)
  * ✅ Set group name
  * ✅ Optional: Set group avatar
  * ✅ Call createGroup API
  * ✅ Handle errors
  */
+
+// ============================================
+// CONSTANTS
+// ============================================
+const MIN_MEMBERS = 2; // Minimum members to select (excluding current user)
+
 export default function CreateGroupModal({ onClose, onSuccess }) {
   const { t } = useTranslation("friendFeature");
   
@@ -63,7 +69,8 @@ export default function CreateGroupModal({ onClose, onSuccess }) {
       return;
     }
 
-    if (selectedFriends.size === 0) {
+    // ✅ FIX 2: Require minimum members
+    if (selectedFriends.size < MIN_MEMBERS) {
       return;
     }
 
@@ -92,7 +99,8 @@ export default function CreateGroupModal({ onClose, onSuccess }) {
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (groupName.trim() && selectedFriends.size > 0) {
+      // ✅ FIX 3: Check minimum members for Enter key
+      if (groupName.trim() && selectedFriends.size >= MIN_MEMBERS) {
         handleCreate();
       }
     }
@@ -141,13 +149,29 @@ export default function CreateGroupModal({ onClose, onSuccess }) {
           </div>
 
           {/* Selected Count */}
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-700 font-medium">
-              {t("groupList.createModal.selectedMembers")}
-            </span>
-            <span className="text-blue-600 font-semibold">
-              {selectedFriends.size} {t("groupList.createModal.selected")}
-            </span>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-700 font-medium">
+                {t("groupList.createModal.selectedMembers")}
+              </span>
+              <span className={`font-semibold ${
+                selectedFriends.size >= MIN_MEMBERS 
+                  ? 'text-blue-600' 
+                  : 'text-gray-400'
+              }`}>
+                {selectedFriends.size} {t("groupList.createModal.selected")}
+              </span>
+            </div>
+
+            {/* ✅ FIX 5: Warning message for UX */}
+            {selectedFriends.size > 0 && selectedFriends.size < MIN_MEMBERS && (
+              <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-xs text-amber-700">
+                  {t("groupList.createModal.minMembers", { count: MIN_MEMBERS })}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Search Friends */}
@@ -239,7 +263,12 @@ export default function CreateGroupModal({ onClose, onSuccess }) {
           </button>
           <button
             onClick={handleCreate}
-            disabled={!groupName.trim() || selectedFriends.size === 0 || loading}
+            // ✅ FIX 4: Require minimum members to enable button
+            disabled={
+              !groupName.trim() ||
+              selectedFriends.size < MIN_MEMBERS ||
+              loading
+            }
             className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors font-medium flex items-center justify-center gap-2"
           >
             {loading ? (

@@ -67,7 +67,8 @@
       "noResults": "No results found",
       "cancel": "Cancel",
       "create": "Create",
-      "creating": "Creating..."
+      "creating": "Creating...",
+      "minMembers": "Please select at least {{count}} members to create a group"
     }
   },
   "messagePreview": {
