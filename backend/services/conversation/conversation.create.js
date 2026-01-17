@@ -1,4 +1,4 @@
-// backend/services/conversation/conversation.create.js - FIXED RESPONSE FORMAT
+// backend/services/conversation/conversation.create.js - FIXED FRIENDSHIP CHECK
 import Conversation from "../../models/Conversation.js";
 import ConversationMember from "../../models/ConversationMember.js";
 import Friend from "../../models/Friend.js";
@@ -9,6 +9,7 @@ import User from "../../models/User.js";
  * Handles creating private and group conversations
  * 
  * 🔥 FIXED: Proper response format with nested user objects
+ * 🔥 FIXED: Bidirectional friendship check
  */
 class ConversationCreateService {
   /**
@@ -112,6 +113,7 @@ class ConversationCreateService {
    * 🔥 FIXED: Return conversation wrapped in object for frontend
    * 🔥 FIXED: Members with nested user object for useGroupPermissions
    * 🔥 FIXED: Default messagePermission to "all"
+   * 🔥 FIXED: Bidirectional friendship check
    * 
    * @param {string} userUid - Creator's uid
    * @param {string} name - Group name
@@ -140,14 +142,45 @@ class ConversationCreateService {
 
       const memberIds = members.map((m) => m._id);
 
-      // Verify all are friends with creator
+      // 🔥 FIXED: Verify all are friends with creator (bidirectional check)
       const friendships = await Friend.find({
-        user: currentUser._id,
-        friend: { $in: memberIds },
-        status: "accepted",
+        $or: [
+          // Creator sent friend request to member
+          {
+            user: currentUser._id,
+            friend: { $in: memberIds },
+            status: "accepted",
+          },
+          // Member sent friend request to creator
+          {
+            user: { $in: memberIds },
+            friend: currentUser._id,
+            status: "accepted",
+          },
+        ],
       });
 
-      if (friendships.length !== memberIds.length) {
+      console.log('🔍 [ConversationCreate] Friendships found:', friendships.length, '/ Required:', memberIds.length);
+
+      // Get unique friend IDs from both directions
+      const friendIds = new Set();
+      friendships.forEach((f) => {
+        if (f.user.toString() === currentUser._id.toString()) {
+          friendIds.add(f.friend.toString());
+        } else {
+          friendIds.add(f.user.toString());
+        }
+      });
+
+      console.log('✅ [ConversationCreate] Unique friends:', friendIds.size);
+
+      // Check if all members are friends
+      const missingFriends = memberIds.filter(
+        (id) => !friendIds.has(id.toString())
+      );
+
+      if (missingFriends.length > 0) {
+        console.error('❌ [ConversationCreate] Missing friendships with:', missingFriends);
         throw new Error("All members must be your friends");
       }
 
