@@ -63,45 +63,59 @@
     "groupSettings": {
       "title": "Group settings",
       "onlyAdminsCanSend": "Only admins can send messages",
-      "onlyAdminsCanSendDesc": "When enabled, only admins can send messages in this group"
-    },
-
-    "modals": {
-      "cancel": "Cancel",
-
-      "kickMember": {
-        "title": "Remove member from group",
-        "message": "Are you sure you want to remove this member from the group?",
-        "kick": "Remove",
-        "kicking": "Removing..."
+      "onlyAdminsCanSendDesc": "When enabled, only admins can send messages in this group",
+      "joinMode": {
+        "title": "Join Mode",
+        "description": "Control how new members can join this group",
+        "approval": {
+          "label": "Approval",
+          "short": "Requires approval",
+          "description": "Members must send a join request. Admins and owners will approve each request manually."
+        },
+        "link": {
+          "label": "Invite Link",
+          "short": "Join instantly",
+          "description": "Anyone with an invite link can join the group instantly without approval."
+        }
       },
 
-      "leaveGroup": {
-        "title": "Leave group",
-        "message": "Are you sure you want to leave this group?",
-        "ownerWarning": "You are the group owner. Please transfer ownership or make sure you are the only member before leaving.",
-        "leave": "Leave group",
-        "leaving": "Leaving..."
-      },
+      "modals": {
+        "cancel": "Cancel",
 
-      "changeRole": {
-        "title": "Change role",
-        "admin": "Admin",
-        "adminDesc": "Can manage group settings and members",
-        "member": "Member",
-        "memberDesc": "Regular group member"
-      },
+        "kickMember": {
+          "title": "Remove member from group",
+          "message": "Are you sure you want to remove this member from the group?",
+          "kick": "Remove",
+          "kicking": "Removing..."
+        },
 
-      "ownerLeave": {
-        "title": "Transfer group ownership",
-        "subtitle": "You are the group owner. Please select another member to become the new owner before leaving.",
-        "selectNewOwner": "Select a new group owner",
-        "transferAndLeave": "Transfer ownership and leave",
-        "deleteGroup": "Delete Group",
-        "deleting": "Deleting",
-        "noMembers": {
-          "title": "Delete Group",
-          "message": "You are the only member left in this group. Leaving will permanently delete the group."
+        "leaveGroup": {
+          "title": "Leave group",
+          "message": "Are you sure you want to leave this group?",
+          "ownerWarning": "You are the group owner. Please transfer ownership or make sure you are the only member before leaving.",
+          "leave": "Leave group",
+          "leaving": "Leaving..."
+        },
+
+        "changeRole": {
+          "title": "Change role",
+          "admin": "Admin",
+          "adminDesc": "Can manage group settings and members",
+          "member": "Member",
+          "memberDesc": "Regular group member"
+        },
+
+        "ownerLeave": {
+          "title": "Transfer group ownership",
+          "subtitle": "You are the group owner. Please select another member to become the new owner before leaving.",
+          "selectNewOwner": "Select a new group owner",
+          "transferAndLeave": "Transfer ownership and leave",
+          "deleteGroup": "Delete Group",
+          "deleting": "Deleting",
+          "noMembers": {
+            "title": "Delete Group",
+            "message": "You are the only member left in this group. Leaving will permanently delete the group."
+          }
         }
       }
     }

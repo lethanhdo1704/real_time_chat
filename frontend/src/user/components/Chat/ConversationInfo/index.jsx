@@ -1,6 +1,6 @@
-// frontend/src/components/Chat/ConversationInfo/index.jsx - FIXED
+// frontend/src/components/Chat/ConversationInfo/index.jsx - WITH JOIN MODE
 
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AuthContext } from "../../../context/AuthContext";
@@ -18,13 +18,12 @@ import DangerZoneSection from "./DangerZoneSection";
 import GroupModals from "./GroupModals";
 
 /**
- * ConversationInfo Component - FIXED
- *
- * 🔧 Fixed Issues:
- * - Counters structure mismatch between API and component
- * - Redux store not properly updated with nested counters
- * - Fallback values not working correctly
- * - transferOwnershipAndLeave from wrong hook
+ * ConversationInfo Component - WITH JOIN MODE SUPPORT
+ * 
+ * 🆕 Added:
+ * - joinMode state management
+ * - Pass joinMode to GroupSettingsSection
+ * - Handle join mode updates from socket
  */
 export default function ConversationInfo({ onClose }) {
   const { t, i18n } = useTranslation("conversation");
@@ -35,6 +34,9 @@ export default function ConversationInfo({ onClose }) {
   const [groupName, setGroupName] = useState("");
   const [isMuted, setIsMuted] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
+  
+  // 🆕 Join mode state
+  const [joinMode, setJoinMode] = useState("approval");
 
   // Group modals
   const [showKickModal, setShowKickModal] = useState(false);
@@ -50,11 +52,11 @@ export default function ConversationInfo({ onClose }) {
   const conversations = useChatStore((state) => state.conversations);
   const conversation = conversations.get(activeConversationId);
 
-  // 🔥 Fetch group info from API (includes members list and counters)
+  // Fetch group info from API
   const { info, loading: infoLoading } =
     useConversationInfo(activeConversationId);
 
-  // 🔥 Group permissions
+  // Group permissions
   const {
     isGroup,
     isMember,
@@ -67,16 +69,22 @@ export default function ConversationInfo({ onClose }) {
     myRole,
   } = useGroupPermissions(activeConversationId, user?.uid);
 
-  // 🔥 Group actions (INCLUDING transferOwnershipAndLeave)
+  // Group actions
   const {
     loading: actionLoading,
     error: actionError,
     kickMember,
     leaveGroup,
     changeMemberRole,
-    transferOwnershipAndLeave, // ✅ FIXED: Added here
+    transferOwnershipAndLeave,
     updateGroupSettings,
   } = useGroupActions();
+
+  // 🆕 Sync join mode from API/Redux
+  useEffect(() => {
+    const currentJoinMode = info?.joinMode || conversation?.joinMode || "approval";
+    setJoinMode(currentJoinMode);
+  }, [info?.joinMode, conversation?.joinMode]);
 
   // Guard
   if (!conversation) {
@@ -88,13 +96,12 @@ export default function ConversationInfo({ onClose }) {
   }
 
   // ============================================
-  // 🔥 COMPUTED VALUES
+  // COMPUTED VALUES
   // ============================================
 
   const displayName =
     conversation.name || conversation.friend?.nickname || t("conversation");
 
-  // 🔥 Get members from API response (info.members) or fallback to Redux
   const members = info?.members || conversation.members || [];
 
   const profileAvatar = isGroup
@@ -104,7 +111,6 @@ export default function ConversationInfo({ onClose }) {
     ? conversation.avatarUpdatedAt
     : conversation.friend?.avatarUpdatedAt;
 
-  // 🔥 Get counters from nested structure
   const counters = {
     totalMessages:
       info?.counters?.totalMessages ||
@@ -169,6 +175,13 @@ export default function ConversationInfo({ onClose }) {
     }
   };
 
+  // 🆕 Handle join mode update
+  const handleJoinModeUpdate = (newMode) => {
+    console.log('✅ [ConversationInfo] Join mode updated to:', newMode);
+    setJoinMode(newMode);
+    // Socket event will update Redux store automatically
+  };
+
   // ============================================
   // RENDER
   // ============================================
@@ -211,12 +224,15 @@ export default function ConversationInfo({ onClose }) {
           t={t}
         />
 
-        {/* Group Settings */}
+        {/* Group Settings - 🆕 Now includes Join Mode */}
         {isGroup && canUpdateSettings && (
           <GroupSettingsSection
+            conversationId={activeConversationId}
+            joinMode={joinMode}
             onlyAdminCanChat={onlyAdminCanChat}
             handleToggleAdminOnly={handleToggleAdminOnly}
             actionLoading={actionLoading}
+            onJoinModeUpdate={handleJoinModeUpdate}
             t={t}
           />
         )}
@@ -249,7 +265,7 @@ export default function ConversationInfo({ onClose }) {
         {/* Settings */}
         <SettingsSection isMuted={isMuted} t={t} />
 
-        {/* Danger Zone - Show for all group members */}
+        {/* Danger Zone */}
         {isGroup && (
           <DangerZoneSection handleLeaveGroup={handleLeaveGroup} t={t} />
         )}
@@ -272,7 +288,7 @@ export default function ConversationInfo({ onClose }) {
         actionError={actionError}
         kickMember={kickMember}
         leaveGroup={leaveGroup}
-        transferOwnershipAndLeave={transferOwnershipAndLeave} // ✅ FIXED: Now properly passed
+        transferOwnershipAndLeave={transferOwnershipAndLeave}
         changeMemberRole={changeMemberRole}
         activeConversationId={activeConversationId}
         onClose={onClose}

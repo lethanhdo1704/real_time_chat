@@ -1,4 +1,4 @@
-// frontend/src/hooks/socket/useGlobalSocket.js - UPDATED FOR TRANSFER & LEAVE
+// frontend/src/hooks/socket/useGlobalSocket.js - MESSENGER STYLE (FULL)
 
 import { useEffect, useContext, useCallback, useRef } from "react";
 import { AuthContext } from "../../context/AuthContext";
@@ -6,24 +6,12 @@ import { SocketContext } from "../../context/SocketContext";
 import useChatStore from "../../store/chat/chatStore";
 
 /**
- * 🔥 GLOBAL SOCKET LISTENER - WITH REACTIONS & GROUP EVENTS
+ * 🔥 GLOBAL SOCKET LISTENER - MESSENGER STYLE
  * 
- * TRÁCH NHIỆM:
- * ✅ Conversation metadata (lastMessage, unread, reorder)
- * ✅ Conversation lifecycle (created, updated)
- * ✅ User-specific events (not message content)
- * ✅ message_recalled (sidebar + messages in store)
- * ✅ message_edited (sidebar + messages in store)
- * ✅ message_deleted (sidebar + messages in store)
- * ✅ message:reaction:update (reactions for all conversations)
- * ✅ 🆕 GROUP EVENTS (member_joined, member_left, member_kicked, etc.)
- * ✅ 🔥 TRANSFER OWNERSHIP & LEAVE
- * 
- * NGUYÊN TẮC:
- * - Register ONCE per connection
- * - Use SocketContext (consistent pattern)
- * - Stable handlers (useCallback)
- * - Update BOTH sidebar AND message store
+ * ✅ Keep groups after kick/leave (like Messenger)
+ * ✅ Mark with isKicked/isLeft flags
+ * ✅ Disable message input
+ * ✅ Keep chat history visible
  */
 export const useGlobalSocket = ({ 
   onConversationUpdate,
@@ -33,20 +21,18 @@ export const useGlobalSocket = ({
   const { socket, isConnected } = useContext(SocketContext);
   const registeredRef = useRef(false);
 
-  // 🔥 Subscribe to store actions
+  // Subscribe to store actions
   const editMessageFromSocket = useChatStore((state) => state.editMessageFromSocket);
   const recallMessageFromSocket = useChatStore((state) => state.recallMessageFromSocket);
   const deleteMessageFromSocket = useChatStore((state) => state.deleteMessageFromSocket);
   const setReactionsFinal = useChatStore((state) => state.setReactionsFinal);
   const updateConversation = useChatStore((state) => state.updateConversation);
   const conversations = useChatStore((state) => state.conversations);
-  const addMessage = useChatStore((state) => state.addMessage);
-  const removeConversation = useChatStore((state) => state.removeConversation);
   const setActiveConversation = useChatStore((state) => state.setActiveConversation);
   const activeConversationId = useChatStore((state) => state.activeConversationId);
 
   // ============================================
-  // HANDLER: CONVERSATION UPDATE (metadata only)
+  // HANDLER: CONVERSATION UPDATE
   // ============================================
   const handleConversationUpdate = useCallback((data) => {
     const { conversationId, lastMessage, lastMessageAt, unreadCount } = data;
@@ -146,15 +132,12 @@ export const useGlobalSocket = ({
     
     console.log('👋 [Global] Left conversation:', conversationId, 'reason:', reason);
 
-    removeConversation(conversationId);
-    
-    if (activeConversationId === conversationId) {
-      setActiveConversation(null);
-    }
-  }, [removeConversation, setActiveConversation, activeConversationId]);
+    // Note: For groups, this is handled by handleGroupMemberLeft
+    // This handler is for system-level conversation removal
+  }, []);
 
   // ============================================
-  // HANDLER: MESSAGE EDITED (GLOBAL)
+  // HANDLER: MESSAGE EDITED
   // ============================================
   const handleMessageEditedGlobal = useCallback((data) => {
     console.log('✏️ [Global] message_edited:', data);
@@ -185,7 +168,6 @@ export const useGlobalSocket = ({
       return;
     }
     
-    // Update sidebar if it's lastMessage
     const conversation = conversations.get(conversationId);
     
     if (!conversation?.lastMessage) return;
@@ -206,7 +188,7 @@ export const useGlobalSocket = ({
   }, [editMessageFromSocket, updateConversation, conversations]);
 
   // ============================================
-  // HANDLER: MESSAGE RECALLED (GLOBAL)
+  // HANDLER: MESSAGE RECALLED
   // ============================================
   const handleMessageRecalledGlobal = useCallback((data) => {
     console.log('↩️ [Global] message_recalled:', data);
@@ -233,7 +215,6 @@ export const useGlobalSocket = ({
       return;
     }
     
-    // Update sidebar if it's lastMessage
     const conversation = conversations.get(conversationId);
     
     if (!conversation?.lastMessage) return;
@@ -256,7 +237,7 @@ export const useGlobalSocket = ({
   }, [recallMessageFromSocket, updateConversation, conversations]);
 
   // ============================================
-  // HANDLER: MESSAGE DELETED (GLOBAL)
+  // HANDLER: MESSAGE DELETED
   // ============================================
   const handleMessageDeletedGlobal = useCallback((data) => {
     const { conversationId, messageId } = data;
@@ -282,7 +263,7 @@ export const useGlobalSocket = ({
   }, [deleteMessageFromSocket]);
 
   // ============================================
-  // HANDLER: REACTION UPDATE (GLOBAL)
+  // HANDLER: REACTION UPDATE
   // ============================================
   const handleReactionUpdateGlobal = useCallback((data) => {
     console.log('🎭 [Global] message:reaction:update:', data);
@@ -314,7 +295,7 @@ export const useGlobalSocket = ({
   }, [setReactionsFinal]);
 
   // ============================================
-  // 🆕 HANDLER: GROUP MEMBER JOINED
+  // HANDLER: GROUP MEMBER JOINED
   // ============================================
   const handleGroupMemberJoined = useCallback((data) => {
     console.log('👥 [Global] group:member_joined:', data);
@@ -326,24 +307,11 @@ export const useGlobalSocket = ({
       return;
     }
     
-    // Add system message
-    if (typeof addMessage === 'function') {
-      addMessage(conversationId, {
-        messageId: `system-${Date.now()}`,
-        type: 'system',
-        content: viaLink
-          ? `${newMember.nickname} đã tham gia qua link mời`
-          : `${newMember.nickname} đã tham gia nhóm`,
-        createdAt: new Date().toISOString(),
-      });
-    }
-    
-    // Reload conversation to get updated members list
-    // This will be handled by ConversationInfo component
-  }, [addMessage]);
+    console.log(`✅ [Global] ${newMember.nickname} joined ${viaLink ? 'via link' : 'group'}`);
+  }, []);
 
   // ============================================
-  // 🆕 HANDLER: GROUP MEMBER LEFT
+  // 🔥 HANDLER: GROUP MEMBER LEFT (MESSENGER STYLE)
   // ============================================
   const handleGroupMemberLeft = useCallback((data) => {
     console.log('👋 [Global] group:member_left:', data);
@@ -355,85 +323,61 @@ export const useGlobalSocket = ({
       return;
     }
     
-    // 🔥 CRITICAL: Check if current user is leaving
+    // Check if current user is leaving
     if (leftMember.uid === user?.uid) {
-      console.log('⚠️ [Global] Current user left group, removing conversation');
+      console.log('⚠️ [Global] Current user left group - MESSENGER STYLE');
       
-      // Remove conversation from sidebar
-      removeConversation(conversationId);
+      // 🔥 MESSENGER STYLE: Keep conversation but mark as left
+      updateConversation(conversationId, {
+        isLeft: true,
+        leftAt: new Date().toISOString(),
+        canSendMessage: false,
+      });
       
-      // Close conversation if currently active
-      if (activeConversationId === conversationId) {
-        setActiveConversation(null);
-      }
+      console.log('✅ [Global] Conversation marked as left (kept in sidebar)');
       
-      return; // Don't add system message if we're leaving
+      return;
     }
     
-    // Add system message for other members leaving
-    if (typeof addMessage === 'function') {
-      addMessage(conversationId, {
-        messageId: `system-${Date.now()}`,
-        type: 'system',
-        content: `${leftMember.nickname} đã rời nhóm`,
-        createdAt: new Date().toISOString(),
-      });
-    }
-  }, [user, addMessage, removeConversation, setActiveConversation, activeConversationId]);
+    console.log(`✅ [Global] ${leftMember.nickname} left group`);
+  }, [user, updateConversation]);
 
   // ============================================
-  // 🆕 HANDLER: GROUP MEMBER KICKED
+  // 🔥 HANDLER: GROUP MEMBER KICKED (MESSENGER STYLE)
   // ============================================
   const handleGroupMemberKicked = useCallback((data) => {
     console.log('🚫 [Global] group:member_kicked:', data);
     
-    const { conversationId, actor, target } = data;
+    const { conversationId, actor, target, kickedAt } = data;
     
     if (!conversationId || !actor || !target) {
       console.warn('⚠️ [Global] Missing data in group:member_kicked');
       return;
     }
     
-    // 🔥 CRITICAL: If kicked user is current user
+    // If current user was kicked
     if (target.uid === user?.uid) {
-      console.log('⚠️ [Global] Current user was kicked from group');
+      console.log('⚠️ [Global] Current user was kicked - MESSENGER STYLE');
       
-      // Add system message before removing
-      if (typeof addMessage === 'function') {
-        addMessage(conversationId, {
-          messageId: `system-${Date.now()}`,
-          type: 'system',
-          content: `Bạn đã bị ${actor.nickname} kick khỏi nhóm`,
-          createdAt: new Date().toISOString(),
-        });
-      }
+      // 🔥 MESSENGER STYLE: Keep conversation but mark as kicked
+      updateConversation(conversationId, {
+        isKicked: true,
+        kickedBy: actor.uid,
+        kickedByNickname: actor.nickname,
+        kickedAt: kickedAt || new Date().toISOString(),
+        canSendMessage: false,
+      });
       
-      // Remove conversation from sidebar after short delay (so user can see the message)
-      setTimeout(() => {
-        removeConversation(conversationId);
-        
-        // Close conversation if currently active
-        if (activeConversationId === conversationId) {
-          setActiveConversation(null);
-        }
-      }, 2000);
+      console.log('✅ [Global] Conversation marked as kicked (kept in sidebar)');
       
       return;
     }
     
-    // Add system message for other members being kicked
-    if (typeof addMessage === 'function') {
-      addMessage(conversationId, {
-        messageId: `system-${Date.now()}`,
-        type: 'system',
-        content: `${target.nickname} đã bị ${actor.nickname} kick khỏi nhóm`,
-        createdAt: new Date().toISOString(),
-      });
-    }
-  }, [user, addMessage, removeConversation, setActiveConversation, activeConversationId]);
+    console.log(`✅ [Global] ${target.nickname} was kicked by ${actor.nickname}`);
+  }, [user, updateConversation]);
 
   // ============================================
-  // 🆕 HANDLER: GROUP PERMISSION CHANGED
+  // HANDLER: GROUP PERMISSION CHANGED
   // ============================================
   const handleGroupPermissionChanged = useCallback((data) => {
     console.log('⚙️ [Global] group:permission_changed:', data);
@@ -445,28 +389,35 @@ export const useGlobalSocket = ({
       return;
     }
     
-    // Update conversation settings
     updateConversation(conversationId, {
       messagePermission: newPermission,
     });
     
-    // Add system message
-    if (typeof addMessage === 'function') {
-      const message = newPermission === 'admins_only'
-        ? 'Chỉ quản trị viên mới có thể gửi tin nhắn'
-        : 'Tất cả thành viên có thể gửi tin nhắn';
-      
-      addMessage(conversationId, {
-        messageId: `system-${Date.now()}`,
-        type: 'system',
-        content: message,
-        createdAt: new Date().toISOString(),
-      });
-    }
-  }, [updateConversation, addMessage]);
+    console.log(`✅ [Global] Message permission changed to: ${newPermission}`);
+  }, [updateConversation]);
 
   // ============================================
-  // 🔥 HANDLER: GROUP ROLE CHANGED
+  // HANDLER: GROUP JOIN MODE CHANGED
+  // ============================================
+  const handleGroupJoinModeChanged = useCallback((data) => {
+    console.log('🔗 [Global] group:joinModeChanged:', data);
+    
+    const { conversationId, newJoinMode } = data;
+    
+    if (!conversationId || !newJoinMode) {
+      console.warn('⚠️ [Global] Missing data in group:joinModeChanged');
+      return;
+    }
+    
+    updateConversation(conversationId, {
+      joinMode: newJoinMode,
+    });
+    
+    console.log(`✅ [Global] Join mode changed to: ${newJoinMode}`);
+  }, [updateConversation]);
+
+  // ============================================
+  // HANDLER: GROUP ROLE CHANGED
   // ============================================
   const handleGroupRoleChanged = useCallback((data) => {
     console.log('👑 [Global] group:role_changed:', data);
@@ -478,53 +429,27 @@ export const useGlobalSocket = ({
       return;
     }
     
-    // 🔥 SPECIAL CASE: Owner transfer with leave
-    // If actor left after transferring ownership, show special message
-    const isOwnerTransferWithLeave = newRole === 'owner' && actor?.uid;
-    
-    // Add system message
-    if (typeof addMessage === 'function') {
-      let content;
-      
-      if (newRole === 'owner') {
-        content = isOwnerTransferWithLeave
-          ? `${target.nickname} đã được chuyển quyền làm chủ nhóm`
-          : `${target.nickname} đã được thăng cấp thành chủ nhóm`;
-      } else if (newRole === 'admin') {
-        content = `${target.nickname} đã được thăng cấp thành quản trị viên`;
-      } else {
-        content = `${target.nickname} đã bị hạ cấp thành thành viên`;
-      }
-      
-      addMessage(conversationId, {
-        messageId: `system-${Date.now()}`,
-        type: 'system',
-        content,
-        createdAt: new Date().toISOString(),
-      });
-    }
-    
-    // 🔥 CRITICAL: If current user's role changed, update conversation
     if (target.uid === user?.uid) {
       console.log('⚡ [Global] Current user role changed to:', newRole);
       
       const conversation = conversations.get(conversationId);
       if (conversation) {
-        // Update current user's role in members list
         const updatedMembers = (conversation.members || []).map((m) =>
           m.user?.uid === user.uid ? { ...m, role: newRole } : m
         );
         
         updateConversation(conversationId, {
           members: updatedMembers,
-          currentUserRole: newRole, // Also update this field if it exists
+          currentUserRole: newRole,
         });
       }
     }
-  }, [user, addMessage, conversations, updateConversation]);
+    
+    console.log(`✅ [Global] ${target.nickname} role changed to: ${newRole}`);
+  }, [user, conversations, updateConversation]);
 
   // ============================================
-  // REGISTER SOCKET LISTENERS (ONCE)
+  // REGISTER SOCKET LISTENERS
   // ============================================
   useEffect(() => {
     if (!socket || !isConnected || !user) {
@@ -540,36 +465,22 @@ export const useGlobalSocket = ({
     console.log('🌍 [Global] Registering global listeners for user:', user.uid);
     registeredRef.current = true;
 
-    // ============================================
-    // ✅ CONVERSATION METADATA EVENTS
-    // ============================================
     socket.on('conversation_update', handleConversationUpdate);
     socket.on('conversation_created', handleConversationCreated);
     socket.on('conversation_joined', handleConversationJoined);
     socket.on('conversation_left', handleConversationLeft);
-    
-    // ============================================
-    // ✅ MESSAGE EVENTS (for both sidebar + message store)
-    // ============================================
     socket.on('message_edited', handleMessageEditedGlobal);
     socket.on('message_recalled', handleMessageRecalledGlobal);
     socket.on('message_deleted', handleMessageDeletedGlobal);
-    
-    // ============================================
-    // ✅ REACTION EVENTS
-    // ============================================
     socket.on('message:reaction:update', handleReactionUpdateGlobal);
-
-    // ============================================
-    // 🆕 GROUP EVENTS
-    // ============================================
     socket.on('group:member_joined', handleGroupMemberJoined);
     socket.on('group:member_left', handleGroupMemberLeft);
     socket.on('group:member_kicked', handleGroupMemberKicked);
     socket.on('group:permission_changed', handleGroupPermissionChanged);
     socket.on('group:role_changed', handleGroupRoleChanged);
+    socket.on('group:joinModeChanged', handleGroupJoinModeChanged);
 
-    console.log('✅ [Global] All global listeners registered (including group events)');
+    console.log('✅ [Global] All global listeners registered');
 
     return () => {
       console.log('🌍 [Global] Cleaning up global listeners');
@@ -588,6 +499,7 @@ export const useGlobalSocket = ({
       socket.off('group:member_kicked', handleGroupMemberKicked);
       socket.off('group:permission_changed', handleGroupPermissionChanged);
       socket.off('group:role_changed', handleGroupRoleChanged);
+      socket.off('group:joinModeChanged', handleGroupJoinModeChanged);
     };
   }, [
     socket, 
@@ -606,9 +518,9 @@ export const useGlobalSocket = ({
     handleGroupMemberKicked,
     handleGroupPermissionChanged,
     handleGroupRoleChanged,
+    handleGroupJoinModeChanged,
   ]);
 
-  // Reset registration flag on disconnect
   useEffect(() => {
     if (!isConnected) {
       registeredRef.current = false;

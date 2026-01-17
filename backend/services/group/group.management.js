@@ -15,10 +15,9 @@ class GroupManagement {
 
   /**
    * Kick member from group
-   * 🔥 UNCHANGED: Already tracks kickedBy + kickedAt via softDeleteMember
    */
   async kickMember(conversationId, actorUid, targetUid) {
-    // 🔥 NEW: Check if conversation is a group
+    // Check if conversation is a group
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
       throw new Error("CONVERSATION_NOT_FOUND");
@@ -43,11 +42,11 @@ class GroupManagement {
       throw new Error("UNAUTHORIZED_TO_KICK");
     }
 
-    // 🔥 CRITICAL: softDeleteMember now sets both kickedBy AND kickedAt
+    // softDeleteMember now sets both kickedBy AND kickedAt
     const member = await ConversationMember.softDeleteMember(
       conversationId,
       target._id,
-      actor._id  // ✅ Track who kicked this user
+      actor._id // Track who kicked this user
     );
 
     if (!member) {
@@ -76,21 +75,20 @@ class GroupManagement {
         avatar: target.avatar,
       },
       conversationId,
-      kickedAt: member.kickedAt  // ✅ Include timestamp in event
+      kickedAt: member.kickedAt,
     });
 
-    return { 
+    return {
       success: true,
-      kickedAt: member.kickedAt
+      kickedAt: member.kickedAt,
     };
   }
 
   /**
    * Leave group
-   * 🔥 NEW: Added group type check - cannot leave private conversations
    */
   async leaveGroup(conversationId, userUid) {
-    // 🔥 CRITICAL: Check if conversation is a group
+    // Check if conversation is a group
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
       throw new Error("CONVERSATION_NOT_FOUND");
@@ -116,11 +114,11 @@ class GroupManagement {
       await groupPermissions.canOwnerLeave(conversationId, user._id);
     }
 
-    // 🔥 CRITICAL: softDeleteMember with null = voluntary leave
+    // softDeleteMember with null = voluntary leave
     await ConversationMember.softDeleteMember(
       conversationId,
       user._id,
-      null  // ✅ null = voluntary leave (kickedBy and kickedAt both null)
+      null // null = voluntary leave
     );
 
     // Check if last member
@@ -154,11 +152,9 @@ class GroupManagement {
   }
 
   /**
-   * 🔥 NEW: Get kick history for a group
-   * Only admins/owner can view this
+   * Get kick history for a group
    */
   async getKickHistory(conversationId, actorUid, limit = 50) {
-    // 🔥 NEW: Check if conversation is a group
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
       throw new Error("CONVERSATION_NOT_FOUND");
@@ -183,12 +179,12 @@ class GroupManagement {
 
     // Get kicked members
     const kickedMembers = await ConversationMember.getKickedMembers(
-      conversationId, 
+      conversationId,
       limit
     );
 
     return {
-      kickedMembers: kickedMembers.map(m => ({
+      kickedMembers: kickedMembers.map((m) => ({
         user: {
           uid: m.user.uid,
           nickname: m.user.nickname,
@@ -201,14 +197,13 @@ class GroupManagement {
         },
         kickedAt: m.kickedAt,
         leftAt: m.leftAt,
-        durationSinceKick: Date.now() - m.kickedAt.getTime()
-      }))
+        durationSinceKick: Date.now() - m.kickedAt.getTime(),
+      })),
     };
   }
 
   /**
-   * 🔥 NEW: Check if user was kicked and get details
-   * Useful for UI to show "You were kicked by X on Y"
+   * Check if user was kicked
    */
   async checkKickStatus(conversationId, userUid) {
     const user = await this.uidToUser(userUid);
@@ -230,16 +225,14 @@ class GroupManagement {
         avatar: kickInfo.kickedBy.avatar,
       },
       kickedAt: kickInfo.kickedAt,
-      leftAt: kickInfo.leftAt
+      leftAt: kickInfo.leftAt,
     };
   }
 
   /**
    * Change member role
-   * 🔥 NEW: Added group type check
    */
   async changeMemberRole(conversationId, actorUid, targetUid, newRole) {
-    // 🔥 NEW: Check if conversation is a group
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
       throw new Error("CONVERSATION_NOT_FOUND");
@@ -265,7 +258,6 @@ class GroupManagement {
       throw new Error("UNAUTHORIZED_TO_CHANGE_ROLE");
     }
 
-    // Get old role first
     const member = await ConversationMember.findOne({
       conversation: conversationId,
       user: target._id,
@@ -317,10 +309,8 @@ class GroupManagement {
 
   /**
    * Transfer ownership
-   * 🔥 NEW: Added group type check
    */
   async transferOwnership(conversationId, currentOwnerUid, newOwnerUid) {
-    // 🔥 NEW: Check if conversation is a group
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
       throw new Error("CONVERSATION_NOT_FOUND");
@@ -402,13 +392,13 @@ class GroupManagement {
   }
 
   /**
-   * 🔥 NEW: Transfer ownership and leave group (Owner only)
-   * This is a combined operation that:
-   * 1. Transfers ownership to newOwnerUid
-   * 2. Removes current owner from group
+   * Transfer ownership and leave group
    */
-  async transferOwnershipAndLeave(conversationId, currentOwnerUid, newOwnerUid) {
-    // Check if conversation is a group
+  async transferOwnershipAndLeave(
+    conversationId,
+    currentOwnerUid,
+    newOwnerUid
+  ) {
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
       throw new Error("CONVERSATION_NOT_FOUND");
@@ -445,32 +435,29 @@ class GroupManagement {
       throw new Error("TARGET_NOT_MEMBER");
     }
 
-    // STEP 1: Transfer ownership
+    // Transfer ownership
     await ConversationMember.findByIdAndUpdate(newOwnerMember._id, {
       role: "owner",
     });
 
-    // STEP 2: Remove current owner from group (soft delete)
+    // Remove current owner
     const leftMember = await ConversationMember.softDeleteMember(
       conversationId,
       currentOwner._id,
-      null // null = voluntary leave
+      null
     );
 
-    // STEP 3: Create notifications
-    await Promise.all([
-      // Notify new owner
-      GroupNotification.createNotification({
-        recipient: newOwner._id,
-        conversation: conversationId,
-        type: "GROUP_ROLE_CHANGED",
-        actor: currentOwner._id,
-        targetUser: newOwner._id,
-        payload: { newRole: "owner", oldRole: newOwnerMember.role },
-      }),
-    ]);
+    // Create notification
+    await GroupNotification.createNotification({
+      recipient: newOwner._id,
+      conversation: conversationId,
+      type: "GROUP_ROLE_CHANGED",
+      actor: currentOwner._id,
+      targetUser: newOwner._id,
+      payload: { newRole: "owner", oldRole: newOwnerMember.role },
+    });
 
-    // STEP 4: Emit events
+    // Emit events
     groupEmitter.emitRoleChanged({
       actor: {
         uid: currentOwner.uid,
@@ -507,10 +494,10 @@ class GroupManagement {
 
   /**
    * Update group info
-   * 🔥 NEW: Added group type check + populate createdBy
+   * 🔥 UPDATED: Added joinMode support
    */
   async updateGroupInfo(conversationId, actorUid, updates) {
-    // 🔥 NEW: Check if conversation is a group
+    // Check if conversation is a group
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
       throw new Error("CONVERSATION_NOT_FOUND");
@@ -533,7 +520,8 @@ class GroupManagement {
       throw new Error("ONLY_OWNER_CAN_UPDATE");
     }
 
-    const allowedFields = ["name", "avatar", "messagePermission"];
+    // 🔥 UPDATED: Added "joinMode" to allowed fields
+    const allowedFields = ["name", "avatar", "messagePermission", "joinMode"];
     const updateData = {};
 
     for (const field of allowedFields) {
@@ -542,13 +530,27 @@ class GroupManagement {
       }
     }
 
-    // 🔥 CRITICAL: Update and populate createdBy with only public fields
+    // 🔥 VALIDATION: Ensure joinMode is valid
+    if (updates.joinMode && !["approval", "link"].includes(updates.joinMode)) {
+      throw new Error("INVALID_JOIN_MODE");
+    }
+
+    // Update conversation
     const updatedConversation = await Conversation.findByIdAndUpdate(
       conversationId,
       updateData,
       { new: true }
-    ).populate('createdBy', 'uid nickname avatar');
+    ).populate("createdBy", "uid nickname avatar");
 
+    // 🔥 NEW: Emit event when joinMode changes
+    if (updates.joinMode) {
+      groupEmitter.emitJoinModeChanged({
+        conversationId,
+        newJoinMode: updates.joinMode,
+      });
+    }
+
+    // Emit event when messagePermission changes
     if (updates.messagePermission) {
       groupEmitter.emitPermissionChanged({
         conversationId,
@@ -556,18 +558,20 @@ class GroupManagement {
       });
     }
 
-    // 🔥 Format response to hide MongoDB _id
+    // Format response
     return {
       _id: updatedConversation._id,
       type: updatedConversation.type,
       name: updatedConversation.name,
       avatar: updatedConversation.avatar,
-      createdBy: updatedConversation.createdBy ? {
-        uid: updatedConversation.createdBy.uid,
-        nickname: updatedConversation.createdBy.nickname,
-        avatar: updatedConversation.createdBy.avatar
-      } : null,
-      joinMode: updatedConversation.joinMode,
+      createdBy: updatedConversation.createdBy
+        ? {
+            uid: updatedConversation.createdBy.uid,
+            nickname: updatedConversation.createdBy.nickname,
+            avatar: updatedConversation.createdBy.avatar,
+          }
+        : null,
+      joinMode: updatedConversation.joinMode, // ✅ Now included
       messagePermission: updatedConversation.messagePermission,
       totalMessages: updatedConversation.totalMessages,
       sharedImages: updatedConversation.sharedImages,
@@ -577,7 +581,7 @@ class GroupManagement {
       sharedLinks: updatedConversation.sharedLinks,
       isDeleted: updatedConversation.isDeleted,
       createdAt: updatedConversation.createdAt,
-      updatedAt: updatedConversation.updatedAt
+      updatedAt: updatedConversation.updatedAt,
     };
   }
 }

@@ -62,7 +62,23 @@
     "groupSettings": {
       "title": "Cài đặt nhóm",
       "onlyAdminsCanSend": "Chỉ quản trị viên được gửi tin nhắn",
-      "onlyAdminsCanSendDesc": "Khi bật, chỉ quản trị viên mới có thể gửi tin nhắn trong nhóm"
+      "onlyAdminsCanSendDesc": "Khi bật, chỉ quản trị viên mới có thể gửi tin nhắn trong nhóm",
+      "joinMode": {
+        "title": "Chế độ tham gia",
+        "description": "Kiểm soát cách người dùng mới tham gia nhóm",
+        "approval": {
+          "label": "Phê duyệt",
+          "short": "Cần chấp thuận",
+          "description": "Người dùng phải gửi yêu cầu tham gia. Quản trị viên sẽ phê duyệt từng yêu cầu."
+        },
+        "link": {
+          "label": "Link mời",
+          "short": "Tham gia ngay",
+          "description": "Bất kỳ ai có link mời đều có thể tham gia nhóm ngay lập tức."
+        },
+        "updating": "Đang cập nhật...",
+        "updateFailed": "Không thể cập nhật chế độ tham gia"
+      }
     },
 
     "modals": {
