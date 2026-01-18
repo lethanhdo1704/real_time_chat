@@ -1,4 +1,4 @@
-// frontend/src/components/Chat/ConversationInfo/index.jsx - FIXED STALE DATA
+// frontend/src/components/Chat/ConversationInfo/index.jsx - PASS isOwner to GroupSettingsSection
 
 import React, { useState, useContext, useEffect, useRef } from "react";
 import { X } from "lucide-react";
@@ -17,14 +17,6 @@ import SettingsSection from "./SettingsSection";
 import DangerZoneSection from "./DangerZoneSection";
 import GroupModals from "./GroupModals";
 
-/**
- * ConversationInfo Component - FIXED STALE DATA OVERWRITES
- * 
- * 🔥 CRITICAL FIX:
- * - Track last confirmed joinMode to prevent stale API overwrites
- * - Ignore API data that's older than our confirmed update
- * - Only update local state if API data is newer
- */
 export default function ConversationInfo({ onClose }) {
   const { t } = useTranslation("conversation");
   const { user } = useContext(AuthContext);
@@ -35,29 +27,24 @@ export default function ConversationInfo({ onClose }) {
   const [isMuted, setIsMuted] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   
-  // 🔥 Track last confirmed joinMode from user action
   const [joinMode, setJoinMode] = useState(null);
-  const lastUserUpdateRef = useRef(null); // Timestamp of last user update
+  const lastUserUpdateRef = useRef(null);
 
-  // Group modals
   const [showKickModal, setShowKickModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
 
-  // Redux state
   const activeConversationId = useChatStore(
     (state) => state.activeConversationId
   );
   const conversations = useChatStore((state) => state.conversations);
   const conversation = conversations.get(activeConversationId);
 
-  // Fetch group info from API
   const { info, loading: infoLoading } =
     useConversationInfo(activeConversationId);
 
-  // Group permissions
   const {
     isGroup,
     isMember,
@@ -70,7 +57,6 @@ export default function ConversationInfo({ onClose }) {
     myRole,
   } = useGroupPermissions(activeConversationId, user?.uid);
 
-  // Group actions
   const {
     loading: actionLoading,
     error: actionError,
@@ -81,39 +67,30 @@ export default function ConversationInfo({ onClose }) {
     updateGroupSettings,
   } = useGroupActions();
 
-  // 🔥 FIXED: Smart sync with stale data protection
   useEffect(() => {
-    // Priority sources
     const apiJoinMode = info?.joinMode;
     const reduxJoinMode = conversation?.joinMode;
     
-    // Check if we have a recent user update (within last 2 seconds)
     const hasRecentUpdate = lastUserUpdateRef.current && 
       (Date.now() - lastUserUpdateRef.current) < 2000;
     
     if (hasRecentUpdate) {
-      console.log('⏭️ [ConversationInfo] Ignoring API data - recent user update');
-      return; // Ignore stale API data
+      return;
     }
     
-    // Determine new value
     let newJoinMode = joinMode;
     
     if (apiJoinMode && apiJoinMode !== joinMode) {
       newJoinMode = apiJoinMode;
-      console.log('📊 [ConversationInfo] joinMode from API:', newJoinMode);
     } else if (reduxJoinMode && joinMode === null) {
       newJoinMode = reduxJoinMode;
-      console.log('📊 [ConversationInfo] joinMode from Redux:', newJoinMode);
     }
     
     if (newJoinMode !== joinMode) {
-      console.log('✅ [ConversationInfo] Updating joinMode:', joinMode, '→', newJoinMode);
       setJoinMode(newJoinMode);
     }
   }, [info?.joinMode, conversation?.joinMode]);
 
-  // Guard - show loading only if conversation not loaded
   if (!conversation) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -121,10 +98,6 @@ export default function ConversationInfo({ onClose }) {
       </div>
     );
   }
-
-  // ============================================
-  // COMPUTED VALUES
-  // ============================================
 
   const displayName =
     conversation.name || conversation.friend?.nickname || t("conversation");
@@ -157,10 +130,6 @@ export default function ConversationInfo({ onClose }) {
 
   const messagePermission = conversation.messagePermission || "all";
   const onlyAdminCanChat = messagePermission === "admins_only";
-
-  // ============================================
-  // HANDLERS
-  // ============================================
 
   const handleSaveGroupName = async () => {
     if (!groupName.trim() || groupName.trim() === displayName) {
@@ -202,30 +171,18 @@ export default function ConversationInfo({ onClose }) {
     }
   };
 
-  // 🔥 FIXED: Update with timestamp to prevent stale overwrites
   const handleJoinModeUpdate = (newMode) => {
-    console.log('✅ [ConversationInfo] User updated join mode to:', newMode);
-    
-    // Record timestamp of this user action
     lastUserUpdateRef.current = Date.now();
-    
-    // Update local state
     setJoinMode(newMode);
     
-    // Update Redux store
     const updateConversation = useChatStore.getState().updateConversation;
     updateConversation(activeConversationId, {
       joinMode: newMode,
     });
   };
 
-  // ============================================
-  // RENDER
-  // ============================================
-
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
         <h2 className="text-lg font-semibold text-gray-900">{t("title")}</h2>
         <button
@@ -236,9 +193,7 @@ export default function ConversationInfo({ onClose }) {
         </button>
       </div>
 
-      {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Profile Section */}
         <ProfileSection
           isGroup={isGroup}
           displayName={displayName}
@@ -261,7 +216,7 @@ export default function ConversationInfo({ onClose }) {
           t={t}
         />
 
-        {/* Group Settings - WITH STALE DATA PROTECTION */}
+        {/* 🔥 UPDATED: Pass isOwner prop */}
         {isGroup && canUpdateSettings && (
           <GroupSettingsSection
             conversationId={activeConversationId}
@@ -270,10 +225,10 @@ export default function ConversationInfo({ onClose }) {
             handleToggleAdminOnly={handleToggleAdminOnly}
             actionLoading={actionLoading}
             onJoinModeUpdate={handleJoinModeUpdate}
+            isOwner={isOwner}
           />
         )}
 
-        {/* Members */}
         {isGroup && members.length > 0 && (
           <MembersSection
             members={members}
@@ -288,7 +243,6 @@ export default function ConversationInfo({ onClose }) {
           />
         )}
 
-        {/* Shared Content */}
         <SharedContentSection
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -298,16 +252,13 @@ export default function ConversationInfo({ onClose }) {
           t={t}
         />
 
-        {/* Settings */}
         <SettingsSection isMuted={isMuted} t={t} />
 
-        {/* Danger Zone */}
         {isGroup && (
           <DangerZoneSection handleLeaveGroup={handleLeaveGroup} t={t} />
         )}
       </div>
 
-      {/* Modals */}
       <GroupModals
         showKickModal={showKickModal}
         setShowKickModal={setShowKickModal}

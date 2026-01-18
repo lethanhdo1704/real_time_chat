@@ -1,15 +1,14 @@
-// frontend/src/hooks/chat/useGroupActions.js
+// frontend/src/hooks/chat/useGroupActions.js - FIXED
 import { useState, useCallback } from "react";
 import groupService from "../../services/groupService";
 import useChatStore from "../../store/chat/chatStore";
 import {
-  transferGroupOwnershipAndLeave, // 🔥 ADD THIS
+  transferGroupOwnershipAndLeave,
 } from "../../services/chatApi";
+
 /**
  * Hook to handle group actions with loading/error states
- * Provides all group management operations
- *
- * @returns {Object} Action functions and states
+ * ✅ FIXED: Correct member structure handling (uid directly, not user.uid)
  */
 export const useGroupActions = () => {
   const [loading, setLoading] = useState(false);
@@ -90,16 +89,31 @@ export const useGroupActions = () => {
 
         console.log("✅ [useGroupActions] Member kicked:", result);
 
-        // Update members in store
+        // ✅ FIXED: Update members in store immediately
         const conversations = useChatStore.getState().conversations;
         const conversation = conversations.get(conversationId);
 
         if (conversation) {
+          console.log("🔄 [useGroupActions] Updating members in store");
+          console.log("📋 [useGroupActions] Current members:", conversation.members);
+          
+          // ✅ FIXED: Check both m.uid and m.user?.uid for compatibility
           const updatedMembers = (conversation.members || []).filter(
-            (m) => m.user?.uid !== memberUid
+            (m) => {
+              const uid = m.uid || m.user?.uid;
+              const shouldKeep = uid !== memberUid;
+              if (!shouldKeep) {
+                console.log("🗑️ [useGroupActions] Removing member:", uid);
+              }
+              return shouldKeep;
+            }
           );
 
+          console.log("✅ [useGroupActions] Updated members:", updatedMembers);
+
           updateConversation(conversationId, { members: updatedMembers });
+        } else {
+          console.warn("⚠️ [useGroupActions] Conversation not found in store");
         }
 
         return result;
@@ -171,14 +185,15 @@ export const useGroupActions = () => {
 
         console.log("✅ [useGroupActions] Role changed:", result);
 
-        // Update member role in store
+        // ✅ FIXED: Update member role in store
         const conversations = useChatStore.getState().conversations;
         const conversation = conversations.get(conversationId);
 
         if (conversation) {
-          const updatedMembers = (conversation.members || []).map((m) =>
-            m.user?.uid === memberUid ? { ...m, role: newRole } : m
-          );
+          const updatedMembers = (conversation.members || []).map((m) => {
+            const uid = m.uid || m.user?.uid;
+            return uid === memberUid ? { ...m, role: newRole } : m;
+          });
 
           updateConversation(conversationId, { members: updatedMembers });
         }
@@ -266,16 +281,16 @@ export const useGroupActions = () => {
     [updateConversation]
   );
 
-  /**
-   * 🔥 NEW: Transfer ownership and leave group (Owner only)
-   */
+  // ============================================
+  // TRANSFER OWNERSHIP AND LEAVE
+  // ============================================
   const transferOwnershipAndLeave = useCallback(
     async (conversationId, newOwnerUid) => {
       setLoading(true);
       setError(null);
 
       try {
-        console.log("🔄 Transferring ownership to:", newOwnerUid);
+        console.log("🔄 [useGroupActions] Transferring ownership and leaving:", newOwnerUid);
         await transferGroupOwnershipAndLeave(conversationId, newOwnerUid);
 
         // Remove from store
@@ -288,13 +303,13 @@ export const useGroupActions = () => {
           setActiveConversation(null);
         }
 
-        console.log("✅ Ownership transferred and left group");
+        console.log("✅ [useGroupActions] Ownership transferred and left group");
         return true;
       } catch (err) {
         const errorMsg =
           err.response?.data?.message || "Failed to transfer ownership";
         setError(errorMsg);
-        console.error("❌ Transfer ownership failed:", err);
+        console.error("❌ [useGroupActions] Transfer ownership failed:", err);
         throw err;
       } finally {
         setLoading(false);
@@ -302,6 +317,7 @@ export const useGroupActions = () => {
     },
     [removeConversation, setActiveConversation]
   );
+
   // ============================================
   // RETURN
   // ============================================

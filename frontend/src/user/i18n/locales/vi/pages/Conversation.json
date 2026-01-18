@@ -63,6 +63,7 @@
       "title": "Cài đặt nhóm",
       "onlyAdminsCanSend": "Chỉ quản trị viên được gửi tin nhắn",
       "onlyAdminsCanSendDesc": "Khi bật, chỉ quản trị viên mới có thể gửi tin nhắn trong nhóm",
+      "manageLinks": "Quản lý liên kết mời",
       "joinMode": {
         "title": "Chế độ tham gia",
         "description": "Kiểm soát cách người dùng mới tham gia nhóm",
@@ -119,6 +120,50 @@
           "message": "Bạn là thành viên duy nhất còn lại trong nhóm. Nếu rời khỏi nhóm, nhóm sẽ bị xóa vĩnh viễn."
         }
       }
+    }
+  },
+  "inviteLinks": {
+    "title": "Liên kết mời",
+    "subtitle": "Tạo và quản lý liên kết mời cho nhóm này",
+    "createNew": "Tạo liên kết mới",
+    "noLinks": "Chưa có liên kết mời nào",
+    "active": "Đang hoạt động",
+    "inactive": "Không hoạt động",
+    "copy": "Sao chép link",
+    "deactivate": "Vô hiệu hóa",
+    "expiresIn": "Hết hạn sau",
+    "maxUses": "Số lượt sử dụng tối đa",
+    "use": "lượt",
+    "uses": "lượt",
+    "noExpiry": "Không hết hạn",
+    "unlimited": "Không giới hạn",
+    "1hour": "1 giờ",
+    "1day": "1 ngày",
+    "7days": "7 ngày",
+    "30days": "30 ngày",
+    "creating": "Đang tạo...",
+    "create": "Tạo liên kết",
+    "info": "Chỉ liên kết đang hoạt động mới có thể được sử dụng để tham gia. Bạn chỉ có thể có một liên kết hoạt động tại một thời điểm.",
+    "inviteCode": "Mã mời",
+    "joining": "Đang tham gia nhóm...",
+    "joiningMessage": "Vui lòng đợi trong khi chúng tôi thêm bạn vào nhóm",
+    "success": "Tham gia thành công!",
+    "successMessage": "Bạn đã được thêm vào nhóm",
+    "redirecting": "Đang chuyển đến cuộc trò chuyện...",
+    "error": "Không thể tham gia",
+    "goHome": "Về trang chủ",
+    "login": "Đăng nhập để tham gia",
+    "loginRequired": "Yêu cầu đăng nhập",
+    "loginMessage": "Bạn cần đăng nhập để tham gia nhóm này",
+    "loginButton": "Đăng nhập",
+    "members": "thành viên",
+    "errors": {
+      "notFound": "Liên kết mời này không tồn tại hoặc đã bị xóa",
+      "expired": "Liên kết mời này đã hết hạn",
+      "inactive": "Liên kết mời này đã bị vô hiệu hóa",
+      "maxUses": "Liên kết mời này đã đạt số lượt sử dụng tối đa",
+      "alreadyMember": "Bạn đã là thành viên của nhóm này",
+      "generic": "Không thể tham gia nhóm. Vui lòng thử lại."
     }
   }
 }

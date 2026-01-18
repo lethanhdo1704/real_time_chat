@@ -1,4 +1,4 @@
-// frontend/src/services/groupService.js - FIXED VERSION
+// frontend/src/services/groupService.js - COMBINED VERSION
 
 import axios from 'axios';
 
@@ -380,17 +380,17 @@ export const rejectJoinRequest = async (notificationId, requesterId) => {
 
 /**
  * Create invite link
- * POST /api/groups/:conversationId/invite-link
- * ✅ FIXED: Now uses correct /api/groups endpoint
+ * POST /api/groups/:conversationId/invite-links
+ * ✅ UPDATED: Changed endpoint from /invite-link to /invite-links (plural)
  * 
  * @param {string} conversationId - Conversation ID
  * @param {Object} options - { expiresIn?, maxUses? }
- * @returns {Promise<Object>} Invite link data
+ * @returns {Promise<Object>} { _id, code, url, expiresAt, maxUses, usedCount, isActive }
  */
 export const createInviteLink = async (conversationId, options = {}) => {
-  console.log('📤 [groupService] Creating invite link:', conversationId, options);
+  console.log('🔗 [groupService] Creating invite link:', conversationId, options);
   const response = await groupApi.post(
-    `/${conversationId}/invite-link`,
+    `/${conversationId}/invite-links`,
     options
   );
   console.log('✅ [groupService] Invite link created:', response.data);
@@ -398,15 +398,46 @@ export const createInviteLink = async (conversationId, options = {}) => {
 };
 
 /**
- * Join via invite link
+ * Get all invite links for a group (Owner/Admin only)
+ * GET /api/groups/:conversationId/invite-links
+ * ✅ NEW: Added method to retrieve all links
+ * 
+ * @param {string} conversationId - Conversation ID
+ * @returns {Promise<Object>} { links: [...] }
+ */
+export const getInviteLinks = async (conversationId) => {
+  console.log('📋 [groupService] Getting invite links:', conversationId);
+  const response = await groupApi.get(`/${conversationId}/invite-links`);
+  console.log('✅ [groupService] Invite links received:', response.data);
+  return unwrapResponse(response);
+};
+
+/**
+ * Deactivate invite link
+ * DELETE /api/groups/:conversationId/invite-links/:linkId
+ * ✅ NEW: Added method to deactivate links
+ * 
+ * @param {string} conversationId - Conversation ID
+ * @param {string} linkId - Link ID
+ * @returns {Promise<Object>} { _id, code, isActive }
+ */
+export const deactivateInviteLink = async (conversationId, linkId) => {
+  console.log('🗑️ [groupService] Deactivating invite link:', linkId);
+  const response = await groupApi.delete(`/${conversationId}/invite-links/${linkId}`);
+  console.log('✅ [groupService] Invite link deactivated:', response.data);
+  return unwrapResponse(response);
+};
+
+/**
+ * Join via invite link (Public - no auth required for viewing)
  * POST /api/groups/join/:code
  * ✅ FIXED: Now uses correct /api/groups endpoint
  * 
  * @param {string} code - Invite link code
- * @returns {Promise<Object>} Join result
+ * @returns {Promise<Object>} Join result with conversation data
  */
 export const joinViaLink = async (code) => {
-  console.log('📤 [groupService] Joining via link:', code);
+  console.log('🔗 [groupService] Joining via link:', code);
   const response = await groupApi.post(`/join/${code}`);
   console.log('✅ [groupService] Joined via link:', response.data);
   return unwrapResponse(response);
@@ -508,8 +539,10 @@ export default {
   approveJoinRequest,
   rejectJoinRequest,
   
-  // Links
+  // Invite Links (Enhanced)
   createInviteLink,
+  getInviteLinks,
+  deactivateInviteLink,
   joinViaLink,
   
   // Notifications

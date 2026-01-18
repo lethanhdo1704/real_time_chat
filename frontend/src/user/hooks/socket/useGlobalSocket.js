@@ -1,4 +1,4 @@
-// frontend/src/hooks/socket/useGlobalSocket.js - MESSENGER STYLE (FULL)
+// frontend/src/hooks/socket/useGlobalSocket.js - FULL FIXED VERSION
 
 import { useEffect, useContext, useCallback, useRef } from "react";
 import { AuthContext } from "../../context/AuthContext";
@@ -6,12 +6,13 @@ import { SocketContext } from "../../context/SocketContext";
 import useChatStore from "../../store/chat/chatStore";
 
 /**
- * 🔥 GLOBAL SOCKET LISTENER - MESSENGER STYLE
+ * 🔥 GLOBAL SOCKET LISTENER - MESSENGER STYLE (FULL FIXED)
  * 
  * ✅ Keep groups after kick/leave (like Messenger)
  * ✅ Mark with isKicked/isLeft flags
  * ✅ Disable message input
  * ✅ Keep chat history visible
+ * ✅ FIXED: Real-time member list updates for kick/leave/role changes
  */
 export const useGlobalSocket = ({ 
   onConversationUpdate,
@@ -308,10 +309,42 @@ export const useGlobalSocket = ({
     }
     
     console.log(`✅ [Global] ${newMember.nickname} joined ${viaLink ? 'via link' : 'group'}`);
-  }, []);
+    
+    // ✅ Add new member to members list
+    const conversation = conversations.get(conversationId);
+    
+    if (conversation && conversation.members) {
+      console.log('🔄 [Global] Adding new member to list');
+      
+      // Check if member already exists
+      const memberExists = conversation.members.some((m) => {
+        const memberUid = m.uid || m.user?.uid;
+        return memberUid === newMember.uid;
+      });
+      
+      if (!memberExists) {
+        const updatedMembers = [
+          ...conversation.members,
+          {
+            uid: newMember.uid,
+            nickname: newMember.nickname,
+            avatar: newMember.avatar,
+            role: 'member',
+            joinedAt: new Date().toISOString(),
+          }
+        ];
+        
+        updateConversation(conversationId, {
+          members: updatedMembers,
+        });
+        
+        console.log('✅ [Global] Member added to list');
+      }
+    }
+  }, [conversations, updateConversation]);
 
   // ============================================
-  // 🔥 HANDLER: GROUP MEMBER LEFT (MESSENGER STYLE)
+  // 🔥 HANDLER: GROUP MEMBER LEFT (FIXED)
   // ============================================
   const handleGroupMemberLeft = useCallback((data) => {
     console.log('👋 [Global] group:member_left:', data);
@@ -323,7 +356,9 @@ export const useGlobalSocket = ({
       return;
     }
     
-    // Check if current user is leaving
+    // ============================================
+    // CASE 1: Current user left
+    // ============================================
     if (leftMember.uid === user?.uid) {
       console.log('⚠️ [Global] Current user left group - MESSENGER STYLE');
       
@@ -336,14 +371,48 @@ export const useGlobalSocket = ({
       
       console.log('✅ [Global] Conversation marked as left (kept in sidebar)');
       
+      // If this is the active conversation, close it
+      if (activeConversationId === conversationId) {
+        console.log('🚪 [Global] Closing active conversation (you left)');
+        setActiveConversation(null);
+      }
+      
       return;
     }
     
+    // ============================================
+    // CASE 2: Someone else left
+    // ✅ FIXED: Update members list in real-time
+    // ============================================
     console.log(`✅ [Global] ${leftMember.nickname} left group`);
-  }, [user, updateConversation]);
+    
+    const conversation = conversations.get(conversationId);
+    
+    if (conversation && conversation.members) {
+      console.log('🔄 [Global] Removing left member from list');
+      
+      // Remove left member from members array
+      const updatedMembers = conversation.members.filter((m) => {
+        const memberUid = m.uid || m.user?.uid;
+        return memberUid !== leftMember.uid;
+      });
+      
+      console.log('✅ [Global] Members updated:', {
+        before: conversation.members.length,
+        after: updatedMembers.length,
+        removedUid: leftMember.uid,
+      });
+      
+      updateConversation(conversationId, {
+        members: updatedMembers,
+      });
+    } else {
+      console.log('⏭️ [Global] No members to update (not a group or not loaded)');
+    }
+  }, [user, conversations, updateConversation, activeConversationId, setActiveConversation]);
 
   // ============================================
-  // 🔥 HANDLER: GROUP MEMBER KICKED (MESSENGER STYLE)
+  // 🔥 HANDLER: GROUP MEMBER KICKED (FIXED)
   // ============================================
   const handleGroupMemberKicked = useCallback((data) => {
     console.log('🚫 [Global] group:member_kicked:', data);
@@ -355,7 +424,9 @@ export const useGlobalSocket = ({
       return;
     }
     
-    // If current user was kicked
+    // ============================================
+    // CASE 1: Current user was kicked
+    // ============================================
     if (target.uid === user?.uid) {
       console.log('⚠️ [Global] Current user was kicked - MESSENGER STYLE');
       
@@ -370,11 +441,45 @@ export const useGlobalSocket = ({
       
       console.log('✅ [Global] Conversation marked as kicked (kept in sidebar)');
       
+      // If this is the active conversation, close it
+      if (activeConversationId === conversationId) {
+        console.log('🚪 [Global] Closing active conversation (you were kicked)');
+        setActiveConversation(null);
+      }
+      
       return;
     }
     
+    // ============================================
+    // CASE 2: Someone else was kicked
+    // ✅ FIXED: Update members list in real-time
+    // ============================================
     console.log(`✅ [Global] ${target.nickname} was kicked by ${actor.nickname}`);
-  }, [user, updateConversation]);
+    
+    const conversation = conversations.get(conversationId);
+    
+    if (conversation && conversation.members) {
+      console.log('🔄 [Global] Removing kicked member from list');
+      
+      // Remove kicked member from members array
+      const updatedMembers = conversation.members.filter((m) => {
+        const memberUid = m.uid || m.user?.uid;
+        return memberUid !== target.uid;
+      });
+      
+      console.log('✅ [Global] Members updated:', {
+        before: conversation.members.length,
+        after: updatedMembers.length,
+        removedUid: target.uid,
+      });
+      
+      updateConversation(conversationId, {
+        members: updatedMembers,
+      });
+    } else {
+      console.log('⏭️ [Global] No members to update (not a group or not loaded)');
+    }
+  }, [user, conversations, updateConversation, activeConversationId, setActiveConversation]);
 
   // ============================================
   // HANDLER: GROUP PERMISSION CHANGED
@@ -417,7 +522,7 @@ export const useGlobalSocket = ({
   }, [updateConversation]);
 
   // ============================================
-  // HANDLER: GROUP ROLE CHANGED
+  // 🔥 HANDLER: GROUP ROLE CHANGED (FIXED)
   // ============================================
   const handleGroupRoleChanged = useCallback((data) => {
     console.log('👑 [Global] group:role_changed:', data);
@@ -429,23 +534,46 @@ export const useGlobalSocket = ({
       return;
     }
     
-    if (target.uid === user?.uid) {
-      console.log('⚡ [Global] Current user role changed to:', newRole);
-      
-      const conversation = conversations.get(conversationId);
-      if (conversation) {
-        const updatedMembers = (conversation.members || []).map((m) =>
-          m.user?.uid === user.uid ? { ...m, role: newRole } : m
-        );
-        
-        updateConversation(conversationId, {
-          members: updatedMembers,
-          currentUserRole: newRole,
-        });
-      }
+    const conversation = conversations.get(conversationId);
+    
+    if (!conversation) {
+      console.log('⏭️ [Global] Conversation not found');
+      return;
     }
     
-    console.log(`✅ [Global] ${target.nickname} role changed to: ${newRole}`);
+    // ============================================
+    // Update members list for ANY member (including current user)
+    // ============================================
+    if (conversation.members) {
+      console.log('🔄 [Global] Updating role in members list');
+      
+      const updatedMembers = conversation.members.map((m) => {
+        const memberUid = m.uid || m.user?.uid;
+        
+        if (memberUid === target.uid) {
+          console.log(`✅ [Global] Updating ${m.nickname || 'member'} role to ${newRole}`);
+          return { ...m, role: newRole };
+        }
+        
+        return m;
+      });
+      
+      // ✅ If current user's role changed, also update currentUserRole
+      const updates = {
+        members: updatedMembers,
+      };
+      
+      if (target.uid === user?.uid) {
+        console.log('⚡ [Global] Current user role changed to:', newRole);
+        updates.currentUserRole = newRole;
+      }
+      
+      updateConversation(conversationId, updates);
+      
+      console.log('✅ [Global] Members list updated with new role');
+    } else {
+      console.log('⏭️ [Global] No members to update');
+    }
   }, [user, conversations, updateConversation]);
 
   // ============================================

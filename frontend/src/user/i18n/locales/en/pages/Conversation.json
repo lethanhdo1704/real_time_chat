@@ -64,6 +64,7 @@
       "title": "Group settings",
       "onlyAdminsCanSend": "Only admins can send messages",
       "onlyAdminsCanSendDesc": "When enabled, only admins can send messages in this group",
+      "manageLinks": "Manage Invite Links",
       "joinMode": {
         "title": "Join Mode",
         "description": "Control how new members can join this group",
@@ -118,6 +119,50 @@
           }
         }
       }
+    }
+  },
+  "inviteLinks": {
+    "title": "Invite Links",
+    "subtitle": "Create and manage invite links for this group",
+    "createNew": "Create New Link",
+    "noLinks": "No invite links yet",
+    "active": "Active",
+    "inactive": "Inactive",
+    "copy": "Copy link",
+    "deactivate": "Deactivate",
+    "expiresIn": "Expires In",
+    "maxUses": "Max Uses",
+    "use": "use",
+    "uses": "uses",
+    "noExpiry": "No expiry",
+    "unlimited": "Unlimited",
+    "1hour": "1 hour",
+    "1day": "1 day",
+    "7days": "7 days",
+    "30days": "30 days",
+    "creating": "Creating...",
+    "create": "Create Link",
+    "info": "Only active links can be used to join. You can have one active link at a time.",
+    "inviteCode": "Invite Code",
+    "joining": "Joining Group...",
+    "joiningMessage": "Please wait while we add you to the group",
+    "success": "Successfully Joined!",
+    "successMessage": "You have been added to the group",
+    "redirecting": "Redirecting to conversation...",
+    "error": "Unable to Join",
+    "goHome": "Go to Home",
+    "login": "Login to Join",
+    "loginRequired": "Login Required",
+    "loginMessage": "You need to login to join this group",
+    "loginButton": "Login",
+    "members": "members",
+    "errors": {
+      "notFound": "This invite link does not exist or has been deleted",
+      "expired": "This invite link has expired",
+      "inactive": "This invite link has been deactivated",
+      "maxUses": "This invite link has reached its maximum number of uses",
+      "alreadyMember": "You are already a member of this group",
+      "generic": "Failed to join group. Please try again."
     }
   }
 }

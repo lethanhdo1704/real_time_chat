@@ -1,103 +1,41 @@
-// backend/services/group/management/ownership.service.js
+// backend/services/group/management/group.update.service.js
+
+import User from "../../../models/User.js";
 import Conversation from "../../../models/Conversation.js";
 import ConversationMember from "../../../models/ConversationMember.js";
-import GroupNotification from "../../../models/GroupNotification.js";
 import groupEmitter from "../group.emitter.js";
-import userHelper from "./user.helper.service.js";
 
-class OwnershipService {
+/**
+ * Group Update Service
+ * Handles updating group information (name, avatar, settings)
+ */
+class GroupUpdateService {
   /**
-   * Transfer ownership
+   * Convert UID to User
    */
-  async transferOwnership(conversationId, currentOwnerUid, newOwnerUid) {
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation) {
-      throw new Error("CONVERSATION_NOT_FOUND");
-    }
-    if (conversation.type !== "group") {
-      throw new Error("NOT_A_GROUP");
-    }
-
-    const [currentOwner, newOwner] = await Promise.all([
-      userHelper.uidToUser(currentOwnerUid),
-      userHelper.uidToUser(newOwnerUid),
-    ]);
-
-    // Verify current owner
-    const ownerMember = await ConversationMember.findOne({
-      conversation: conversationId,
-      user: currentOwner._id,
-      role: "owner",
-      leftAt: null,
-    });
-
-    if (!ownerMember) {
-      throw new Error("NOT_OWNER");
-    }
-
-    // Verify new owner is member
-    const newOwnerMember = await ConversationMember.findOne({
-      conversation: conversationId,
-      user: newOwner._id,
-      leftAt: null,
-    });
-
-    if (!newOwnerMember) {
-      throw new Error("TARGET_NOT_MEMBER");
-    }
-
-    // Transfer ownership
-    await Promise.all([
-      ConversationMember.findByIdAndUpdate(ownerMember._id, {
-        role: "admin",
-      }),
-      ConversationMember.findByIdAndUpdate(newOwnerMember._id, {
-        role: "owner",
-      }),
-    ]);
-
-    // Create notifications
-    await Promise.all([
-      GroupNotification.createNotification({
-        recipient: newOwner._id,
-        conversation: conversationId,
-        type: "GROUP_ROLE_CHANGED",
-        actor: currentOwner._id,
-        targetUser: newOwner._id,
-        payload: { newRole: "owner", oldRole: newOwnerMember.role },
-      }),
-      GroupNotification.createNotification({
-        recipient: currentOwner._id,
-        conversation: conversationId,
-        type: "GROUP_ROLE_CHANGED",
-        actor: currentOwner._id,
-        targetUser: currentOwner._id,
-        payload: { newRole: "admin", oldRole: "owner" },
-      }),
-    ]);
-
-    groupEmitter.emitRoleChanged({
-      actor: {
-        uid: currentOwner.uid,
-      },
-      target: {
-        uid: newOwner.uid,
-      },
-      conversationId,
-      newRole: "owner",
-    });
-
-    return { success: true };
+  async uidToUser(uid) {
+    const user = await User.findOne({ uid }).select("_id uid nickname avatar");
+    if (!user) throw new Error("USER_NOT_FOUND");
+    return user;
   }
 
   /**
-   * Transfer ownership and leave group
+   * Update group information
+   * @param {string} conversationId - Conversation ID
+   * @param {string} actorUid - User UID (must be owner)
+   * @param {Object} updates - { name?, avatar?, messagePermission?, joinMode? }
+   * @returns {Promise<Object>} Updated group info
    */
-  async transferOwnershipAndLeave(
-    conversationId,
-    currentOwnerUid,
-    newOwnerUid
-  ) {
+  async updateGroupInfo(conversationId, actorUid, updates) {
+    console.log("✏️ [GroupUpdateService] Updating group:", {
+      conversationId,
+      actorUid,
+      updates,
+    });
+
+    // ============================================
+    // 1. VERIFY CONVERSATION EXISTS AND IS GROUP
+    // ============================================
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
       throw new Error("CONVERSATION_NOT_FOUND");
@@ -106,90 +44,151 @@ class OwnershipService {
       throw new Error("NOT_A_GROUP");
     }
 
-    const [currentOwner, newOwner] = await Promise.all([
-      userHelper.uidToUser(currentOwnerUid),
-      userHelper.uidToUser(newOwnerUid),
-    ]);
+    // ============================================
+    // 2. VERIFY ACTOR IS OWNER
+    // ============================================
+    const actor = await this.uidToUser(actorUid);
 
-    // Verify current owner
-    const ownerMember = await ConversationMember.findOne({
+    const member = await ConversationMember.findOne({
       conversation: conversationId,
-      user: currentOwner._id,
+      user: actor._id,
       role: "owner",
       leftAt: null,
     });
 
-    if (!ownerMember) {
-      throw new Error("NOT_OWNER");
+    if (!member) {
+      throw new Error("ONLY_OWNER_CAN_UPDATE");
     }
 
-    // Verify new owner is member
-    const newOwnerMember = await ConversationMember.findOne({
-      conversation: conversationId,
-      user: newOwner._id,
-      leftAt: null,
-    });
+    // ============================================
+    // 3. VALIDATE AND PREPARE UPDATE DATA
+    // ============================================
+    const allowedFields = ["name", "avatar", "messagePermission", "joinMode"];
+    const updateData = {};
 
-    if (!newOwnerMember) {
-      throw new Error("TARGET_NOT_MEMBER");
+    for (const field of allowedFields) {
+      if (updates[field] !== undefined) {
+        updateData[field] = updates[field];
+      }
     }
 
-    // Transfer ownership
-    await ConversationMember.findByIdAndUpdate(newOwnerMember._id, {
-      role: "owner",
-    });
+    if (Object.keys(updateData).length === 0) {
+      throw new Error("NO_FIELDS_TO_UPDATE");
+    }
 
-    // Remove current owner
-    const leftMember = await ConversationMember.softDeleteMember(
+    // Validate joinMode
+    if (updates.joinMode && !["approval", "link"].includes(updates.joinMode)) {
+      throw new Error("INVALID_JOIN_MODE");
+    }
+
+    // Validate messagePermission
+    if (updates.messagePermission) {
+      const validPermissions = ["all", "admins_only", "owner_only"];
+      if (!validPermissions.includes(updates.messagePermission)) {
+        throw new Error("INVALID_MESSAGE_PERMISSION");
+      }
+    }
+
+    // Validate name
+    if (updates.name !== undefined) {
+      if (typeof updates.name !== "string") {
+        throw new Error("INVALID_NAME_TYPE");
+      }
+      const trimmedName = updates.name.trim();
+      if (trimmedName.length === 0) {
+        throw new Error("NAME_CANNOT_BE_EMPTY");
+      }
+      if (trimmedName.length > 100) {
+        throw new Error("NAME_TOO_LONG");
+      }
+      updateData.name = trimmedName;
+    }
+
+    // ============================================
+    // 4. UPDATE CONVERSATION
+    // ============================================
+    const updatedConversation = await Conversation.findByIdAndUpdate(
       conversationId,
-      currentOwner._id,
-      null
-    );
+      updateData,
+      { new: true }
+    ).populate("createdBy", "uid nickname avatar");
 
-    // Create notification
-    await GroupNotification.createNotification({
-      recipient: newOwner._id,
-      conversation: conversationId,
-      type: "GROUP_ROLE_CHANGED",
-      actor: currentOwner._id,
-      targetUser: newOwner._id,
-      payload: { newRole: "owner", oldRole: newOwnerMember.role },
-    });
+    // ============================================
+    // 5. EMIT EVENTS
+    // ============================================
+    if (updates.joinMode) {
+      groupEmitter.emitJoinModeChanged({
+        conversationId,
+        newJoinMode: updates.joinMode,
+      });
+    }
 
-    // Emit events
-    groupEmitter.emitRoleChanged({
-      actor: {
-        uid: currentOwner.uid,
-      },
-      target: {
-        uid: newOwner.uid,
-        nickname: newOwner.nickname,
-        avatar: newOwner.avatar,
-      },
-      conversationId,
-      newRole: "owner",
-    });
+    if (updates.messagePermission) {
+      groupEmitter.emitPermissionChanged({
+        conversationId,
+        newPermission: updates.messagePermission,
+      });
+    }
 
-    groupEmitter.emitMemberLeft({
-      user: {
-        uid: currentOwner.uid,
-        nickname: currentOwner.nickname,
-        avatar: currentOwner.avatar,
-      },
-      conversationId,
-    });
+    console.log("✅ [GroupUpdateService] Group updated successfully");
 
+    // ============================================
+    // 6. RETURN FORMATTED RESPONSE
+    // ============================================
     return {
-      success: true,
-      conversationId,
-      leftAt: leftMember.leftAt,
-      newOwner: {
-        uid: newOwner.uid,
-        nickname: newOwner.nickname,
-        avatar: newOwner.avatar,
-      },
+      _id: updatedConversation._id,
+      type: updatedConversation.type,
+      name: updatedConversation.name,
+      avatar: updatedConversation.avatar,
+      createdBy: updatedConversation.createdBy
+        ? {
+            uid: updatedConversation.createdBy.uid,
+            nickname: updatedConversation.createdBy.nickname,
+            avatar: updatedConversation.createdBy.avatar,
+          }
+        : null,
+      joinMode: updatedConversation.joinMode,
+      messagePermission: updatedConversation.messagePermission,
+      totalMessages: updatedConversation.totalMessages,
+      sharedImages: updatedConversation.sharedImages,
+      sharedVideos: updatedConversation.sharedVideos,
+      sharedAudios: updatedConversation.sharedAudios,
+      sharedFiles: updatedConversation.sharedFiles,
+      sharedLinks: updatedConversation.sharedLinks,
+      isDeleted: updatedConversation.isDeleted,
+      createdAt: updatedConversation.createdAt,
+      updatedAt: updatedConversation.updatedAt,
     };
+  }
+
+  /**
+   * Update group name only
+   */
+  async updateGroupName(conversationId, actorUid, name) {
+    return this.updateGroupInfo(conversationId, actorUid, { name });
+  }
+
+  /**
+   * Update group avatar only
+   */
+  async updateGroupAvatar(conversationId, actorUid, avatar) {
+    return this.updateGroupInfo(conversationId, actorUid, { avatar });
+  }
+
+  /**
+   * Update message permission only
+   */
+  async updateMessagePermission(conversationId, actorUid, messagePermission) {
+    return this.updateGroupInfo(conversationId, actorUid, { messagePermission });
+  }
+
+  /**
+   * Update join mode only
+   */
+  async updateJoinMode(conversationId, actorUid, joinMode) {
+    return this.updateGroupInfo(conversationId, actorUid, { joinMode });
   }
 }
 
-export default new OwnershipService();
+// ✅ CRITICAL: Export as default singleton instance
+export default new GroupUpdateService();
