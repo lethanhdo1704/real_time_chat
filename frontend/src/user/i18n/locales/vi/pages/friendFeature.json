@@ -46,6 +46,7 @@
   },
   "groupList": {
     "createButton": "Tạo nhóm",
+    "joinButton": "Tham gia nhóm",
     "unnamedGroup": "Nhóm chưa đặt tên",
     "noMessages": "Chưa có tin nhắn",
     "justNow": "Vừa xong",
@@ -89,5 +90,38 @@
   "common": {
     "uid": "UID",
     "loading": "Đang tải..."
+  },
+
+  "joinGroup": {
+    "title": "Tham gia nhóm",
+    "subtitle": "Nhập mã hoặc link mời để tham gia nhóm",
+    "inputLabel": "Mã / Link mời",
+    "placeholder": "Nhập mã hoặc dán link mời",
+    "hint": "Bạn có thể nhập trực tiếp mã hoặc dán link mời đầy đủ",
+    "join": "Tham gia",
+    "joining": "Đang tham gia...",
+    "cancel": "Hủy",
+
+    "success": {
+      "title": "Tham gia thành công!",
+      "message": "Bạn đã tham gia nhóm. Đang chuyển hướng..."
+    },
+
+    "error": "Không thể tham gia nhóm",
+
+    "errors": {
+      "emptyInput": "Vui lòng nhập mã hoặc link mời",
+      "invalidFormat": "Định dạng mã hoặc link không hợp lệ",
+      "notFound": "Link mời không tồn tại hoặc đã bị xóa",
+      "expired": "Link mời đã hết hạn",
+      "inactive": "Link mời hiện không hoạt động",
+      "maxUses": "Link mời đã đạt số lượt sử dụng tối đa",
+      "alreadyMember": "Bạn đã là thành viên của nhóm này",
+      "generic": "Đã xảy ra lỗi. Vui lòng thử lại"
+    },
+
+    "examples": {
+      "title": "Ví dụ"
+    }
   }
 }

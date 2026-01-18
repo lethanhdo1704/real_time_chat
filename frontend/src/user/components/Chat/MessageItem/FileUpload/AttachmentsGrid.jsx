@@ -8,10 +8,10 @@ import FileAttachment from './FileAttachment';
 import LinkPreview from './LinkPreview';
 
 /**
- * AttachmentsGrid Component - FIXED VERSION
+ * AttachmentsGrid Component - SINGLE COLUMN LAYOUT
  * 
- * Renders different attachment types:
- * - link → LinkPreview (NEW!)
+ * Renders different attachment types in vertical stack (1 per row):
+ * - link → LinkPreview
  * - image → ImageAttachment (green)
  * - video → VideoAttachment (violet)
  * - audio → AudioAttachment (orange)
@@ -64,29 +64,8 @@ export default function AttachmentsGrid({ attachments, isMe, t }) {
     }
   };
 
-  // Layout based on count
-  const getGridClass = () => {
-    const count = attachments.length;
-    
-    if (count === 1) {
-      return 'flex flex-col gap-2';
-    }
-    
-    if (count === 2) {
-      return 'grid grid-cols-2 gap-2';
-    }
-    
-    // 3+ files: 2x2 grid (but links should stack vertically for better UX)
-    const hasLinks = attachments.some(a => a.mime === 'text/url' || a.mediaType === 'link');
-    if (hasLinks && count <= 3) {
-      return 'flex flex-col gap-2';
-    }
-    
-    return 'grid grid-cols-2 gap-2';
-  };
-
   return (
-    <div className={`${getGridClass()} animate-in slide-in-from-bottom duration-300`}>
+    <div className="flex flex-col gap-2 animate-in slide-in-from-bottom duration-300">
       {attachments.map((attachment, index) => renderAttachment(attachment, index))}
     </div>
   );

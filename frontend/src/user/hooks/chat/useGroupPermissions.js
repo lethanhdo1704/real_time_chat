@@ -1,5 +1,8 @@
-// frontend/src/hooks/chat/useGroupPermissions.js - SIMPLE FIX
+// frontend/src/hooks/chat/useGroupPermissions.js - FIXED
+
 import { useMemo } from 'react';
+import useChatStore from '../../store/chat/chatStore';
+
 export const useGroupPermissions = (conversationId, currentUserUid) => {
   const conversations = useChatStore((state) => state.conversations);
   const conversation = conversations.get(conversationId);
@@ -16,7 +19,7 @@ export const useGroupPermissions = (conversationId, currentUserUid) => {
         isMember: true,
         isOwner: false,
         isAdmin: false,
-        canSendMessage: true, // ✅ ALLOW SENDING
+        canSendMessage: true,
         canInvite: false,
         canKick: false,
         canChangeRole: false,
@@ -93,10 +96,67 @@ export const useGroupPermissions = (conversationId, currentUserUid) => {
     // ============================================
     // CASE 4: Group Chat
     // ============================================
+    
+    // 🔥 CRITICAL FIX: Check conversation-level flags FIRST
+    // These are set by WebSocket when user gets kicked/leaves
+    if (conversation.isKicked) {
+      console.log('🚫 [useGroupPermissions] User was KICKED (conversation flag)');
+      
+      return {
+        isGroup: true,
+        isMember: false,
+        isOwner: false,
+        isAdmin: false,
+        canSendMessage: false,
+        canInvite: false,
+        canKick: false,
+        canChangeRole: false,
+        canUpdateSettings: false,
+        canApproveJoinRequest: false,
+        canLeave: false,
+        myRole: null,
+        memberStatus: 'kicked',
+        kickedBy: conversation.kickedBy || null,
+        kickedAt: conversation.kickedAt || null,
+        leftAt: null,
+        activeMembersCount: (conversation.members || []).filter(m => !m.kickedBy && !m.leftAt).length,
+      };
+    }
+
+    if (conversation.isLeft) {
+      console.log('👋 [useGroupPermissions] User LEFT (conversation flag)');
+      
+      return {
+        isGroup: true,
+        isMember: false,
+        isOwner: false,
+        isAdmin: false,
+        canSendMessage: false,
+        canInvite: false,
+        canKick: false,
+        canChangeRole: false,
+        canUpdateSettings: false,
+        canApproveJoinRequest: false,
+        canLeave: false,
+        myRole: null,
+        memberStatus: 'left',
+        kickedBy: null,
+        kickedAt: null,
+        leftAt: conversation.leftAt || null,
+        activeMembersCount: (conversation.members || []).filter(m => !m.kickedBy && !m.leftAt).length,
+      };
+    }
+
+    // 🔥 THEN check member-level status (for other members kicked/left)
     const members = conversation.members || [];
-    const myMember = members.find((m) => m.uid === currentUserUid);
+    const myMember = members.find((m) => {
+      const memberUid = m.uid || m.user?.uid;
+      return memberUid === currentUserUid;
+    });
 
     if (!myMember) {
+      console.warn('⚠️ [useGroupPermissions] Not a member');
+      
       return {
         isGroup: true,
         isMember: false,
@@ -118,10 +178,13 @@ export const useGroupPermissions = (conversationId, currentUserUid) => {
       };
     }
 
+    // Check member-level kicked/left status (backup check)
     const wasKicked = !!myMember.kickedBy;
     const hasLeft = !!myMember.leftAt;
 
     if (wasKicked || hasLeft) {
+      console.log('🚫 [useGroupPermissions] Kicked/Left (member flag)');
+      
       return {
         isGroup: true,
         isMember: false,
@@ -143,6 +206,7 @@ export const useGroupPermissions = (conversationId, currentUserUid) => {
       };
     }
 
+    // Active member - compute permissions
     const myRole = myMember.role;
     const isOwner = myRole === 'owner';
     const isAdmin = myRole === 'admin' || isOwner;

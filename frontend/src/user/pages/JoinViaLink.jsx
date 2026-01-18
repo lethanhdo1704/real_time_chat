@@ -1,4 +1,4 @@
-// frontend/src/pages/JoinViaLink.jsx - Public page to join group via link
+// frontend/src/pages/JoinViaLink.jsx - COMPLETE FILE
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -18,14 +18,44 @@ export default function JoinViaLink() {
   const [groupInfo, setGroupInfo] = useState(null);
 
   useEffect(() => {
-    // Auto-join if user is logged in
+    console.log('🔗 [JoinViaLink] Effect triggered:', { 
+      code, 
+      hasUser: !!user, 
+      loading, 
+      success, 
+      error 
+    });
+
+    // 🔥 PRIORITY 1: Check for pending invite code after login
+    const pendingCode = sessionStorage.getItem('pendingInviteCode');
+    
+    if (pendingCode && user && !loading && !success && !error) {
+      console.log('🔗 [JoinViaLink] Found pending code after login:', pendingCode);
+      
+      // Clear pending code immediately
+      sessionStorage.removeItem('pendingInviteCode');
+      
+      // Auto-join with pending code
+      handleJoin();
+      return;
+    }
+    
+    // 🔥 PRIORITY 2: Auto-join if user is already logged in
     if (user && code && !loading && !success && !error) {
+      console.log('🔗 [JoinViaLink] User already logged in, auto-joining:', code);
       handleJoin();
     }
   }, [user, code]);
 
   const handleJoin = async () => {
     if (!user) {
+      console.log('🔗 [JoinViaLink] No user, saving code and redirecting to login');
+      
+      // 🔥 Save code to sessionStorage before redirecting to login
+      sessionStorage.setItem('pendingInviteCode', code);
+      
+      console.log('💾 [JoinViaLink] Saved pendingInviteCode:', code);
+      
       // Redirect to login with return URL
       navigate(`/login?redirect=/join/${code}`);
       return;
@@ -35,21 +65,35 @@ export default function JoinViaLink() {
     setError(null);
 
     try {
+      console.log('🔗 [JoinViaLink] Calling joinViaLink API:', code);
       const result = await joinViaLink(code);
       
+      console.log('✅ [JoinViaLink] Join successful:', result);
       setGroupInfo(result.conversation);
       setSuccess(true);
 
-      // Redirect to conversation after 2 seconds
+      // 🔥 Redirect to conversation immediately after short delay (500ms)
       setTimeout(() => {
-        navigate(`/`, { 
-          state: { 
-            openConversation: result.conversation._id 
-          } 
-        });
-      }, 2000);
+        console.log('🏠 [JoinViaLink] Redirecting to conversation');
+        
+        // Import chatStore để set active conversation
+        const useChatStore = window.useChatStore;
+        if (useChatStore) {
+          // Add conversation to store if not exists
+          const addConversation = useChatStore.getState().addConversation;
+          const setActiveConversation = useChatStore.getState().setActiveConversation;
+          
+          addConversation(result.conversation);
+          setActiveConversation(result.conversation._id);
+          
+          console.log('✅ [JoinViaLink] Set active conversation:', result.conversation._id);
+        }
+        
+        // Navigate to home (conversation will auto-open from store)
+        navigate('/');
+      }, 500);
     } catch (err) {
-      console.error('Failed to join via link:', err);
+      console.error('❌ [JoinViaLink] Join failed:', err);
       
       const errorMessage = err.response?.data?.message || err.message;
       
@@ -64,10 +108,24 @@ export default function JoinViaLink() {
         setError(t('inviteLinks.errors.maxUses'));
       } else if (errorMessage.includes('ALREADY_MEMBER')) {
         setError(t('inviteLinks.errors.alreadyMember'));
-        // Still redirect to conversation
+        
+        // 🔥 Still redirect to conversation after 1 second
         setTimeout(() => {
+          const useChatStore = window.useChatStore;
+          if (useChatStore) {
+            const setActiveConversation = useChatStore.getState().setActiveConversation;
+            // Find conversation by searching in store
+            const conversations = useChatStore.getState().conversations;
+            const foundConversation = Array.from(conversations.values()).find(
+              conv => conv._id === err.response?.data?.conversationId
+            );
+            
+            if (foundConversation) {
+              setActiveConversation(foundConversation._id);
+            }
+          }
           navigate('/');
-        }, 2000);
+        }, 1000);
       } else {
         setError(errorMessage || t('inviteLinks.errors.generic'));
       }

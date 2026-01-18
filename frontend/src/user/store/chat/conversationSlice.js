@@ -1,18 +1,11 @@
-// frontend/src/store/chat/conversationSlice.js - COMPLETE WITH removeConversation
+// frontend/src/store/chat/conversationSlice.js - FIXED WITH isKicked/isLeft
 
 import * as chatApi from "../../services/chatApi";
 
 /**
- * Conversation Slice - COMPLETE VERSION
- * Manages conversations list, loading, active conversation, and counters
- *
- * Features:
- * ✅ Counters support (totalMessages, sharedImages, etc.)
- * ✅ Update counters from socket events
- * ✅ Better conversation ordering (move to top on update)
- * ✅ Handle non-existent conversations gracefully
- * ✅ Remove conversation (for leave group/delete)
- * ✅ Exit conversation (for mobile back button)
+ * Conversation Slice - FIXED VERSION
+ * ✅ Proper handling of isKicked and isLeft flags
+ * ✅ Don't confuse socket joined state with conversation state
  */
 export const createConversationSlice = (set, get) => ({
   // ============================================
@@ -31,9 +24,6 @@ export const createConversationSlice = (set, get) => ({
   // ACTIONS - FETCH
   // ============================================
 
-  /**
-   * 🔥 Fetch conversations once with store-level lock
-   */
   fetchConversationsOnce: async () => {
     const { hasFetchedConversations, loadingConversations } = get();
 
@@ -42,13 +32,11 @@ export const createConversationSlice = (set, get) => ({
       loadingConversations,
     });
 
-    // 🔒 Guard: Already fetched
     if (hasFetchedConversations) {
       console.log("⏭️ [conversationSlice] Already fetched, skip");
       return;
     }
 
-    // 🔒 Guard: Already loading
     if (loadingConversations) {
       console.log("⏳ [conversationSlice] Already loading, skip");
       return;
@@ -75,7 +63,7 @@ export const createConversationSlice = (set, get) => ({
       set({
         conversations: conversationsMap,
         conversationsOrder: order,
-        hasFetchedConversations: true, // 🔒 LOCK
+        hasFetchedConversations: true,
         loadingConversations: false,
       });
 
@@ -124,10 +112,8 @@ export const createConversationSlice = (set, get) => ({
     const conversations = new Map(get().conversations);
     const existingOrder = get().conversationsOrder;
 
-    // Add or update conversation
     conversations.set(id, conversation);
 
-    // 🔥 Move to top of order (remove if exists, then add to front)
     const order = [id, ...existingOrder.filter((cid) => cid !== id)];
 
     set({
@@ -149,15 +135,21 @@ export const createConversationSlice = (set, get) => ({
     const existing = conversations.get(conversationId);
 
     if (existing) {
-      // 🔥 Merge updates properly, including counters
+      // ✅ FIXED: Proper logging for kicked/left status
+      if (updates.isKicked) {
+        console.log('🚫 [conversationSlice] Marking conversation as KICKED:', conversationId);
+      }
+      if (updates.isLeft) {
+        console.log('👋 [conversationSlice] Marking conversation as LEFT:', conversationId);
+      }
+
+      // 🔥 Merge updates properly
       const updated = {
         ...existing,
         ...updates,
-        // Preserve nested objects if not being updated
         friend: updates.friend !== undefined ? updates.friend : existing.friend,
         members:
           updates.members !== undefined ? updates.members : existing.members,
-        // 🔥 Merge counters properly
         counters: updates.counters 
           ? { ...existing.counters, ...updates.counters }
           : existing.counters,
@@ -165,7 +157,7 @@ export const createConversationSlice = (set, get) => ({
 
       conversations.set(conversationId, updated);
 
-      // 🔥 Move to top if lastMessage was updated
+      // Move to top if lastMessage was updated
       if (updates.lastMessage || updates.lastMessageAt) {
         const existingOrder = get().conversationsOrder;
         const order = [
@@ -195,7 +187,6 @@ export const createConversationSlice = (set, get) => ({
         conversationId
       );
 
-      // 🔥 Create placeholder conversation if it doesn't exist
       const placeholder = {
         _id: conversationId,
         conversationId,
@@ -222,28 +213,20 @@ export const createConversationSlice = (set, get) => ({
     }
   },
 
-  /**
-   * 🔥 Remove conversation from store
-   * Used when leaving group or deleting conversation
-   */
   removeConversation: (conversationId) => {
     console.log('🗑️ [conversationSlice] removeConversation:', conversationId);
     
     const state = get();
     
-    // Remove from conversations Map
     const nextConversations = new Map(state.conversations);
     nextConversations.delete(conversationId);
     
-    // Remove from order array
     const nextOrder = state.conversationsOrder.filter(id => id !== conversationId);
     
-    // Clear active if it's this conversation
     const nextActiveId = state.activeConversationId === conversationId 
       ? null 
       : state.activeConversationId;
     
-    // Clear activeFriend if it's this conversation
     const nextActiveFriend = state.activeConversationId === conversationId
       ? null
       : state.activeFriend;
@@ -259,16 +242,9 @@ export const createConversationSlice = (set, get) => ({
   },
 
   // ============================================
-  // 🔥 UPDATE COUNTERS FROM SOCKET
+  // UPDATE COUNTERS FROM SOCKET
   // ============================================
 
-  /**
-   * Update conversation counters from socket event
-   * Called when message_received event includes updated counters
-   * 
-   * @param {string} conversationId - Conversation ID
-   * @param {Object} counters - New counters from backend
-   */
   updateCounters: (conversationId, counters) => {
     console.log("📊 [conversationSlice] updateCounters:", conversationId, counters);
 
@@ -278,7 +254,7 @@ export const createConversationSlice = (set, get) => ({
     if (existing) {
       conversations.set(conversationId, {
         ...existing,
-        counters: counters, // 🔥 Replace with new counters from backend
+        counters: counters,
       });
 
       set({ conversations });
@@ -312,10 +288,11 @@ export const createConversationSlice = (set, get) => ({
     const { clearFriend = false } = options;
     const updates = { activeConversationId: conversationId };
 
-    // 🔥 OPTIONAL: Clear previous conversation's joined state
-    // This allows re-joining if user navigates back
+    // ✅ IMPORTANT: Only mark as left from socket room, NOT conversation state
+    // This is for socket join/leave tracking, not for kicked/left status
     if (previousConversationId && previousConversationId !== conversationId) {
       if (state.markConversationLeft) {
+        // This is chatStore.markConversationLeft for socket tracking
         state.markConversationLeft(previousConversationId);
       }
     }
@@ -365,13 +342,9 @@ export const createConversationSlice = (set, get) => ({
   },
 
   // ============================================
-  // 🔥 EXIT CONVERSATION (for mobile back)
+  // EXIT CONVERSATION (for mobile back)
   // ============================================
 
-  /**
-   * Exit current conversation and clear active state
-   * Used when user clicks back button on mobile
-   */
   exitConversation: () => {
     const state = get();
     const previousConversationId = state.activeConversationId;
@@ -381,12 +354,11 @@ export const createConversationSlice = (set, get) => ({
       previousConversationId
     );
 
-    // Mark conversation as left (allows re-joining later)
+    // Mark conversation as left from socket room
     if (previousConversationId && state.markConversationLeft) {
       state.markConversationLeft(previousConversationId);
     }
 
-    // Clear active state
     set({
       activeConversationId: null,
       activeFriend: null,
@@ -461,7 +433,7 @@ export const createConversationSlice = (set, get) => ({
   },
 
   // ============================================
-  // 🔥 RESET (for logout/account switch)
+  // RESET (for logout/account switch)
   // ============================================
 
   resetConversations: () => {
@@ -478,7 +450,7 @@ export const createConversationSlice = (set, get) => ({
   },
 
   // ============================================
-  // 🔥 SET CONVERSATION DETAIL (members, roles, avatars, counters)
+  // SET CONVERSATION DETAIL
   // ============================================
 
   setConversationDetail: (detail) => {
@@ -493,8 +465,8 @@ export const createConversationSlice = (set, get) => ({
     const existing = conversations.get(conversationId) || {};
 
     conversations.set(conversationId, {
-      ...existing, // keep unreadCount, lastMessage, sidebar data
-      ...detail, // 🔥 merge members, type, friend, counters
+      ...existing,
+      ...detail,
       _detailFetched: true,
       _placeholder: false,
     });

@@ -1,88 +1,38 @@
-// frontend/src/components/FriendFeature/GroupList.jsx - FIXED VERSION
+// frontend/src/user/components/FriendFeature/GroupList.jsx - WITH JOIN BUTTON
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import useChatStore from "../../store/chat/chatStore";
 import CreateGroupModal from "./CreateGroupModal";
+import JoinGroupModal from "./JoinGroupModal"; // 🔥 NEW
 import AvatarImage from "../common/AvatarImage";
 
-/**
- * GroupList Component - FIXED
- * 
- * ✅ Fetch groups from Redux store (conversations)
- * ✅ Filter type='group' only
- * ✅ Navigate to chat on click
- * ✅ Show unread count
- * ✅ Create group modal
- * ✅ FIXED: Proper key props with fallback
- * ✅ FIXED: Better null safety
- * ✅ FIXED: Removed duplicate isActive declaration
- */
 export default function GroupList({ currentUser }) {
   const { t } = useTranslation("friendFeature");
   const navigate = useNavigate();
   
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false); // 🔥 NEW
   const [loading, setLoading] = useState(false);
 
-  // ============================================
-  // GET STATE FROM STORES (learned from FriendList)
-  // ============================================
-
-  // Get conversations from store
   const conversations = useChatStore((state) => state.conversations);
   const conversationsOrder = useChatStore((state) => state.conversationsOrder);
   const activeConversationId = useChatStore((state) => state.activeConversationId);
   const fetchConversationsOnce = useChatStore((state) => state.fetchConversationsOnce);
   const setActiveConversation = useChatStore((state) => state.setActiveConversation);
 
-  // ✅ FIXED: Better filtering with null safety + debugging
   const groups = conversationsOrder
-    .map((id) => {
-      const conv = conversations.get(id);
-      
-      // 🔍 DEBUG: Log what we're getting
-      if (conv && conv.type === 'group') {
-        console.log('🔍 [GroupList] Found group in store:', {
-          orderId: id,
-          convId: conv._id,
-          conversationId: conv.conversationId,
-          name: conv.name,
-          type: conv.type,
-        });
-      }
-      
-      return conv;
-    })
+    .map((id) => conversations.get(id))
     .filter((conv) => {
-      // Filter out null/undefined
-      if (!conv) {
-        return false;
-      }
-      
-      // Must be group type
-      if (conv.type !== 'group') {
-        return false;
-      }
-      
-      // Not deleted
-      if (conv.isDeleted) {
-        console.warn('⚠️ [GroupList] Group is deleted:', conv._id || conv.conversationId);
-        return false;
-      }
-      
-      // ✅ CRITICAL: Must have valid ID for key prop
+      if (!conv) return false;
+      if (conv.type !== 'group') return false;
+      if (conv.isDeleted) return false;
       const groupId = conv._id || conv.conversationId;
-      if (!groupId) {
-        console.error('❌ [GroupList] Group without ID:', conv);
-        return false;
-      }
-      
+      if (!groupId) return false;
       return true;
     });
 
-  // Fetch conversations on mount
   useEffect(() => {
     const loadGroups = async () => {
       setLoading(true);
@@ -94,61 +44,29 @@ export default function GroupList({ currentUser }) {
         setLoading(false);
       }
     };
-
     loadGroups();
   }, [fetchConversationsOnce]);
 
-  // ============================================
-  // HANDLERS
-  // ============================================
-
   const handleSelectGroup = (group) => {
     const groupId = group._id || group.conversationId;
-    
-    // ✅ CRITICAL: Validate groupId before navigating
-    if (!groupId) {
-      console.error('❌ [GroupList] Cannot select group without ID:', group);
-      return;
-    }
-    
-    console.log('📍 [GroupList] Selecting group:', {
-      id: groupId,
-      name: group.name,
-      fullGroup: group,
-    });
-    
-    // Set active conversation
+    if (!groupId) return;
     setActiveConversation(groupId);
-    
-    // Navigate to chat
     navigate(`/groups/${groupId}`);
   };
 
   const handleCreateSuccess = (newGroup) => {
-    console.log('✅ [GroupList] Group created:', newGroup);
-    
-    // Navigate to new group
     const groupId = newGroup._id || newGroup.conversationId;
-    
     if (groupId) {
       setActiveConversation(groupId);
       navigate(`/groups/${groupId}`);
-    } else {
-      console.error('❌ [GroupList] Created group has no ID:', newGroup);
     }
   };
 
-  // ============================================
-  // FORMAT HELPERS
-  // ============================================
-
   const formatLastMessageTime = (date) => {
     if (!date) return '';
-    
     const now = new Date();
     const messageDate = new Date(date);
     const diffInMinutes = Math.floor((now - messageDate) / 1000 / 60);
-    
     if (diffInMinutes < 1) return t("groupList.justNow");
     if (diffInMinutes < 60) return `${diffInMinutes}${t("groupList.minutesAgo")}`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}${t("groupList.hoursAgo")}`;
@@ -161,10 +79,6 @@ export default function GroupList({ currentUser }) {
     return message.substring(0, maxLength) + '...';
   };
 
-  // ============================================
-  // RENDER: Loading
-  // ============================================
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-32">
@@ -173,28 +87,48 @@ export default function GroupList({ currentUser }) {
     );
   }
 
-  // ============================================
-  // RENDER: Main
-  // ============================================
-
   return (
     <div className="space-y-3">
-      {/* Create Group Button */}
-      <button
-        onClick={() => setShowCreateModal(true)}
-        className="w-full flex items-center justify-center gap-2 p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-sm font-medium cursor-pointer"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-        {t("groupList.createButton")}
-      </button>
+      {/* 🔥 NEW: Action Buttons Grid */}
+      <div className="grid grid-cols-2 gap-2">
+        {/* Create Group Button */}
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center justify-center gap-2 p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-sm font-medium cursor-pointer"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          <span className="hidden sm:inline">{t("groupList.createButton")}</span>
+          <span className="sm:hidden">{t("groupList.create")}</span>
+        </button>
+
+        {/* 🔥 NEW: Join Group Button */}
+        <button
+          onClick={() => setShowJoinModal(true)}
+          className="flex items-center justify-center gap-2 p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-sm font-medium cursor-pointer"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span className="hidden sm:inline">{t("groupList.joinButton")}</span>
+          <span className="sm:hidden">{t("groupList.join")}</span>
+        </button>
+      </div>
 
       {/* Create Group Modal */}
       {showCreateModal && (
         <CreateGroupModal
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleCreateSuccess}
+        />
+      )}
+
+      {/* 🔥 NEW: Join Group Modal */}
+      {showJoinModal && (
+        <JoinGroupModal
+          show={showJoinModal}
+          onClose={() => setShowJoinModal(false)}
         />
       )}
 
@@ -210,7 +144,6 @@ export default function GroupList({ currentUser }) {
       ) : (
         <div className="space-y-2">
           {groups.map((group) => {
-            // 🔥 Normalize conversation ID (learned from FriendList)
             const groupId = group._id || group.conversationId;
             const lastMessage = group.lastMessage?.content || '';
             const lastMessageTime = group.lastMessageAt || group.updatedAt;
@@ -218,18 +151,13 @@ export default function GroupList({ currentUser }) {
             const memberCount = group.members?.length || 0;
             const groupName = group.name || t("groupList.unnamedGroup");
 
-            // ✅ CRITICAL: Skip if no valid ID (shouldn't happen after filter, but safety check)
-            if (!groupId) {
-              console.warn('⚠️ [GroupList] Skipping group without ID in map:', group);
-              return null;
-            }
+            if (!groupId) return null;
 
-            // 🔥 FIX: Normalize conversation ID for comparison (learned from FriendList)
             const isActive = groupId === activeConversationId;
 
             return (
               <div
-                key={groupId} // ✅ FIXED: Guaranteed unique key
+                key={groupId}
                 onClick={() => handleSelectGroup(group)}
                 className={`flex items-center p-3 border border-gray-200 rounded-lg hover:shadow-md transition-all cursor-pointer group ${
                   isActive 
