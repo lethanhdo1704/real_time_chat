@@ -5,21 +5,15 @@ import IceQueue from './iceQueue';
 import MediaDevicesHandler from './mediaDevices';
 
 /**
- * 🎯 WEBRTC MANAGER (SINGLETON) - FULL FIXED VERSION
+ * 🎯 WEBRTC MANAGER (SINGLETON) - FULLY FIXED VERSION
  * 
- * Responsibilities:
- * - Manage RTCPeerConnection
- * - Handle offer/answer
- * - Manage ICE candidates
- * - Handle media streams
- * - Event callbacks
+ * ✅ CRITICAL FIXES:
+ * 1. Reset iceQueue.isRemoteDescriptionSet between calls
+ * 2. Clear all state properly in cleanup
+ * 3. Reset flags when creating new peer connection
+ * 4. Proper remote stream handling
  * 
- * ✅ FIXES:
- * - Remote stream notification improved
- * - Proper track handling
- * - Better connection state management
- * - ICE candidate queueing
- * - Cleanup improvements
+ * Now supports UNLIMITED consecutive calls without F5 refresh
  */
 class WebRTCManager {
   static instance = null;
@@ -34,7 +28,7 @@ class WebRTCManager {
     this.mediaHandler = new MediaDevicesHandler();
     this.remoteStream = null;
     this.hasNotifiedRemoteStream = false;
-    this.currentCallType = null; // ✅ NEW: Track call type
+    this.currentCallType = null;
 
     // Event callbacks
     this.onIceCandidate = null;
@@ -58,22 +52,22 @@ class WebRTCManager {
    * @returns {Promise<MediaStream>}
    */
   async initializeCall(callType) {
-    console.log(`[WebRTC] Initializing ${callType} call`);
+    console.log(`[WebRTC] 🚀 Initializing ${callType} call`);
 
-    // ✅ Save call type
+    // Save call type
     this.currentCallType = callType;
 
     try {
       // 1. Get user media
       const localStream = await this.mediaHandler.getUserMedia(callType);
 
-      // 2. Create peer connection
+      // 2. Create peer connection (with full state reset)
       this.createPeerConnection();
 
       // 3. Add local tracks to peer connection
       localStream.getTracks().forEach(track => {
         this.peerConnection.addTrack(track, localStream);
-        console.log(`[WebRTC] Added ${track.kind} track:`, {
+        console.log(`[WebRTC] ✅ Added ${track.kind} track:`, {
           id: track.id,
           label: track.label,
           enabled: track.enabled
@@ -83,7 +77,7 @@ class WebRTCManager {
       return localStream;
 
     } catch (error) {
-      console.error('[WebRTC] Initialize error:', error);
+      console.error('[WebRTC] ❌ Initialize error:', error);
       this.cleanup();
       throw error;
     }
@@ -91,22 +85,33 @@ class WebRTCManager {
 
   /**
    * Create RTCPeerConnection with event handlers
+   * 
+   * 🔥 CRITICAL FIX: Reset ALL state flags here
    */
   createPeerConnection() {
     if (this.peerConnection) {
-      console.warn('[WebRTC] PeerConnection already exists, closing old one');
+      console.warn('[WebRTC] ⚠️ PeerConnection already exists, closing old one');
       this.closePeerConnection();
     }
 
-    console.log('[WebRTC] Creating peer connection with ICE servers:', ICE_SERVERS);
+    console.log('[WebRTC] 🔌 Creating new peer connection with ICE servers:', ICE_SERVERS);
 
     this.peerConnection = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     
-    // ✅ CRITICAL FIX: Reset ALL flags khi tạo PC mới
-    this.hasNotifiedRemoteStream = false;
-    this.remoteStream = null; // ⭐ Clear remote stream cũ
+    // ✅✅✅ CRITICAL FIX #1: Reset ICE queue state
+    this.iceQueue.clear();
+    this.iceQueue.isRemoteDescriptionSet = false; // 🔥 THIS IS THE KEY FIX
     
-    console.log('[WebRTC] 🔄 Reset hasNotifiedRemoteStream flag and cleared remote stream');
+    // ✅✅✅ CRITICAL FIX #2: Reset remote stream flags
+    this.hasNotifiedRemoteStream = false;
+    this.remoteStream = null;
+    
+    console.log('[WebRTC] 🔄 ALL FLAGS RESET:', {
+      iceQueueCleared: true,
+      isRemoteDescriptionSet: false,
+      hasNotifiedRemoteStream: false,
+      remoteStream: null
+    });
 
     // ============================================
     // ICE CANDIDATE EVENT
@@ -116,14 +121,14 @@ class WebRTCManager {
         console.log('[WebRTC] 🧊 ICE candidate generated:', {
           type: event.candidate.type,
           protocol: event.candidate.protocol,
-          address: event.candidate.address
+          address: event.candidate.address?.substring(0, 20) || 'N/A'
         });
         
         if (this.onIceCandidate) {
           this.onIceCandidate(event.candidate);
         }
       } else {
-        console.log('[WebRTC] 🧊 ICE gathering complete');
+        console.log('[WebRTC] ✅ ICE gathering complete');
       }
     };
 
@@ -131,12 +136,10 @@ class WebRTCManager {
     // TRACK EVENT (Remote Stream)
     // ============================================
     this.peerConnection.ontrack = (event) => {
-      console.log('[WebRTC] 🎵 Remote track received:', event.track.kind);
-      console.log('[WebRTC] 🎵 Track details:', {
+      console.log('[WebRTC] 🎵 Remote track received:', {
+        kind: event.track.kind,
         id: event.track.id,
-        label: event.track.label,
         enabled: event.track.enabled,
-        muted: event.track.muted,
         readyState: event.track.readyState
       });
 
@@ -148,7 +151,7 @@ class WebRTCManager {
         return;
       }
 
-      // ✅ FIX: Luôn update stream reference (track có thể đến từng cái)
+      // Update stream reference (tracks may arrive one at a time)
       const isNewStream = !this.remoteStream || this.remoteStream.id !== remoteStream.id;
       
       if (isNewStream) {
@@ -161,19 +164,16 @@ class WebRTCManager {
         });
       } else {
         console.log('[WebRTC] 🔄 Stream updated with new track:', {
-          id: remoteStream.id,
           audioTracks: remoteStream.getAudioTracks().length,
-          videoTracks: remoteStream.getVideoTracks().length,
-          active: remoteStream.active
+          videoTracks: remoteStream.getVideoTracks().length
         });
       }
 
-      // ✅ CRITICAL FIX: Notify callback IMMEDIATELY when stream arrives
-      // Don't wait for all tracks - they may arrive at different times
+      // Notify callback immediately when stream arrives
       if (!this.hasNotifiedRemoteStream && this.onTrack) {
         this.hasNotifiedRemoteStream = true;
         
-        console.log('[WebRTC] ✅ Remote stream ready, notifying callback immediately', {
+        console.log('[WebRTC] ✅ Notifying remote stream callback:', {
           audioTracks: remoteStream.getAudioTracks().length,
           videoTracks: remoteStream.getVideoTracks().length,
           callType: this.currentCallType
@@ -182,9 +182,7 @@ class WebRTCManager {
         this.onTrack(remoteStream);
       }
 
-      // ============================================
-      // Monitor Track Events
-      // ============================================
+      // Monitor track events
       event.track.onended = () => {
         console.log('[WebRTC] 🔴 Track ended:', event.track.kind);
       };
@@ -216,6 +214,8 @@ class WebRTCManager {
         console.error('[WebRTC] ❌ Connection failed');
       } else if (state === 'disconnected') {
         console.warn('[WebRTC] ⚠️ Connection disconnected');
+      } else if (state === 'closed') {
+        console.log('[WebRTC] 🔒 Connection closed');
       }
     };
 
@@ -274,7 +274,7 @@ class WebRTCManager {
 
       console.log('[WebRTC] ✅ Offer created and set as local description:', {
         type: offer.type,
-        sdp: offer.sdp.substring(0, 100) + '...'
+        sdpPreview: offer.sdp.substring(0, 100) + '...'
       });
 
       return offer;
@@ -305,6 +305,7 @@ class WebRTCManager {
 
       // 2. Mark that remote description is set (for ICE queue)
       this.iceQueue.isRemoteDescriptionSet = true;
+      console.log('[WebRTC] 🔓 ICE queue unlocked - can process candidates now');
 
       // 3. Process queued ICE candidates
       await this.iceQueue.processQueue(this.peerConnection);
@@ -315,7 +316,7 @@ class WebRTCManager {
 
       console.log('[WebRTC] ✅ Answer created and set as local description:', {
         type: answer.type,
-        sdp: answer.sdp.substring(0, 100) + '...'
+        sdpPreview: answer.sdp.substring(0, 100) + '...'
       });
 
       return answer;
@@ -344,6 +345,7 @@ class WebRTCManager {
 
       // Mark that remote description is set (for ICE queue)
       this.iceQueue.isRemoteDescriptionSet = true;
+      console.log('[WebRTC] 🔓 ICE queue unlocked - can process candidates now');
 
       // Process queued ICE candidates
       await this.iceQueue.processQueue(this.peerConnection);
@@ -367,7 +369,7 @@ class WebRTCManager {
 
     // If remote description not set yet, queue the candidate
     if (!this.iceQueue.canAddDirectly()) {
-      console.log('[WebRTC] 🧊 Queueing ICE candidate (remote description not set)');
+      console.log('[WebRTC] 🧊 Queueing ICE candidate (remote description not set yet)');
       this.iceQueue.add(candidate);
       return;
     }
@@ -410,6 +412,13 @@ class WebRTCManager {
   }
 
   /**
+   * Get remote stream
+   */
+  getRemoteStream() {
+    return this.remoteStream;
+  }
+
+  /**
    * Close peer connection
    */
   closePeerConnection() {
@@ -432,6 +441,8 @@ class WebRTCManager {
 
   /**
    * Cleanup all resources
+   * 
+   * 🔥 CRITICAL FIX: Properly reset ALL state
    */
   cleanup() {
     console.log('[WebRTC] 🧹 Cleanup started');
@@ -442,20 +453,48 @@ class WebRTCManager {
     // Close peer connection
     this.closePeerConnection();
 
-    // Clear remote stream reference (don't stop tracks - they belong to peer connection)
+    // ✅✅✅ CRITICAL FIX #3: Reset ICE queue state in cleanup too
+    this.iceQueue.clear();
+    this.iceQueue.isRemoteDescriptionSet = false; // 🔥 MUST RESET THIS
+
+    // Clear remote stream reference
     this.remoteStream = null;
     this.hasNotifiedRemoteStream = false;
-    this.currentCallType = null; // ✅ Reset call type
+    this.currentCallType = null;
 
-    // Clear ICE queue
-    this.iceQueue.clear();
+    // Clear callbacks (DON'T set to null if you want to reuse)
+    // Only clear if you're sure they'll be re-registered
+    // this.onIceCandidate = null;
+    // this.onTrack = null;
+    // this.onConnectionStateChange = null;
 
-    // Clear callbacks
-    this.onIceCandidate = null;
-    this.onTrack = null;
-    this.onConnectionStateChange = null;
+    console.log('[WebRTC] ✅ Cleanup complete - ready for next call');
+  }
 
-    console.log('[WebRTC] ✅ Cleanup complete');
+  /**
+   * Get connection statistics
+   */
+  async getStats() {
+    if (!this.peerConnection) {
+      return null;
+    }
+
+    try {
+      const stats = await this.peerConnection.getStats();
+      return stats;
+    } catch (error) {
+      console.error('[WebRTC] ❌ Get stats error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if peer connection is active
+   */
+  isActive() {
+    return this.peerConnection && 
+           this.peerConnection.connectionState !== 'closed' &&
+           this.peerConnection.connectionState !== 'failed';
   }
 }
 
