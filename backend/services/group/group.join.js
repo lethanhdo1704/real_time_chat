@@ -237,15 +237,16 @@ class GroupJoin {
 
   /**
    * Join via invite link
-   * 🔥 PRODUCTION FIX: Handle rejoin after kick/leave
+   * 🔥 FIXED: Respect joinMode setting properly
    */
   async joinViaLink(code, userId) {
     // Validate link
     const link = await GroupInviteLink.validateLink(code);
     
-    const [user, creator] = await Promise.all([
+    const [user, creator, conversation] = await Promise.all([
       User.findById(userId).select("uid nickname avatar"),
       User.findById(link.createdBy).select("uid nickname avatar"),
+      Conversation.findById(link.conversation._id).select("joinMode name avatar"),
     ]);
 
     // ✅ Check if already ACTIVE member
@@ -259,17 +260,30 @@ class GroupJoin {
       throw new Error("ALREADY_MEMBER");
     }
 
-    // Check creator role to determine auto-join
-    const shouldAutoJoin = ["owner", "admin"].includes(link.creatorRole);
+    // 🔥 FIX: Determine auto-join based on joinMode AND creator role
+    let shouldAutoJoin = false;
+    
+    if (conversation.joinMode === "link") {
+      // Link mode: ANY valid link allows auto-join
+      shouldAutoJoin = true;
+    } else if (conversation.joinMode === "approval") {
+      // Approval mode: Only admin/owner links allow auto-join
+      shouldAutoJoin = ["owner", "admin"].includes(link.creatorRole);
+    }
 
     if (shouldAutoJoin) {
-      // 🔥 CRITICAL FIX: Admin/owner links can override kick status
+      // 🔥 Auto-join: Check if we can override kick status
+      // - In "link" mode: ANY link can override kick status
+      // - In "approval" mode: Only admin/owner links can override kick status
+      const allowKickedRejoin = conversation.joinMode === "link" || 
+                                ["owner", "admin"].includes(link.creatorRole);
+      
       try {
         await ConversationMember.rejoinMember(
           link.conversation._id,
           userId,
           'member',
-          true  // ✅ allowKickedRejoin = true (admin/owner link)
+          allowKickedRejoin  // ✅ true if link mode or admin/owner link
         );
       } catch (error) {
         if (error.message === 'USER_WAS_KICKED') {
@@ -299,13 +313,12 @@ class GroupJoin {
         conversation: link.conversation,
       };
     } else {
-      // 🔥 Regular member's link: Check kick status first
+      // 🔥 Approval mode + regular member's link: Send join request
       const wasKicked = await ConversationMember.wasKicked(link.conversation._id, userId);
       if (wasKicked) {
         throw new Error("USER_WAS_KICKED_CANNOT_JOIN_VIA_LINK");
       }
 
-      // Create join request (regular member's link)
       await this.sendJoinRequest(link.conversation._id, userId);
 
       return {

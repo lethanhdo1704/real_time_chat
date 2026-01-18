@@ -257,7 +257,7 @@ export default function CreateGroupModal({ onClose, onSuccess }) {
           <button
             onClick={onClose}
             disabled={loading}
-            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50 cursor-pointer"
           >
             {t("groupList.createModal.cancel")}
           </button>
@@ -269,7 +269,7 @@ export default function CreateGroupModal({ onClose, onSuccess }) {
               selectedFriends.size < MIN_MEMBERS ||
               loading
             }
-            className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors font-medium flex items-center justify-center gap-2"
+            className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors font-medium flex items-center justify-center gap-2 cursor-pointer"
           >
             {loading ? (
               <>

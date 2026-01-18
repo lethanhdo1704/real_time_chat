@@ -1,4 +1,4 @@
-// backend/controllers/group.controller.js
+// backend/controllers/group.controller.js - SIMPLIFIED VERSION
 import groupInvite from "../services/group/group.invite.js";
 import groupJoin from "../services/group/group.join.js";
 import groupManagement from "../services/group/group.management.js";
@@ -12,7 +12,6 @@ class GroupController {
   /**
    * Get group info
    * GET /api/groups/:conversationId
-   * 🔥 UPDATED: Now returns members list + current user role
    */
   async getGroupInfo(req, res, next) {
     try {
@@ -22,7 +21,6 @@ class GroupController {
         `📋 [GroupController] Getting group info for ${conversationId}`
       );
 
-      // Get conversation with populated createdBy
       const conversation = await Conversation.findById(conversationId).populate(
         "createdBy",
         "uid nickname avatar"
@@ -35,7 +33,6 @@ class GroupController {
         });
       }
 
-      // Check if user is member
       const user = await User.findOne({ uid: req.user.uid });
       const member = await ConversationMember.findOne({
         conversation: conversationId,
@@ -50,24 +47,20 @@ class GroupController {
         });
       }
 
-      // 🔥 NEW: Get all active members
       const members = await ConversationMember.find({
         conversation: conversationId,
         leftAt: null,
       })
         .populate("user", "uid nickname avatar")
         .select("role joinedAt")
-        .lean(); // Use lean() for better performance
+        .lean();
 
-      // 🔥 NEW: Format and sort members (owner -> admin -> member -> by join date)
       const roleOrder = { owner: 0, admin: 1, member: 2 };
       const formattedMembers = members
-        .filter((m) => m.user) // Filter out any members with missing user data
+        .filter((m) => m.user)
         .sort((a, b) => {
-          // Sort by role first
           const roleDiff = roleOrder[a.role] - roleOrder[b.role];
           if (roleDiff !== 0) return roleDiff;
-          // Then by join date (earliest first)
           return new Date(a.joinedAt) - new Date(b.joinedAt);
         })
         .map((m) => ({
@@ -78,7 +71,6 @@ class GroupController {
           joinedAt: m.joinedAt,
         }));
 
-      // Format response - only expose uid, not MongoDB _id
       const groupInfo = {
         _id: conversation._id,
         type: conversation.type,
@@ -102,10 +94,8 @@ class GroupController {
         isDeleted: conversation.isDeleted,
         createdAt: conversation.createdAt,
         updatedAt: conversation.updatedAt,
-        // 🔥 NEW: Add members list
         members: formattedMembers,
         totalMembers: formattedMembers.length,
-        // 🔥 NEW: Add current user's role for UI permissions
         currentUserRole: member.role,
       };
 
@@ -208,7 +198,7 @@ class GroupController {
   }
 
   /**
-   * Send join request
+   * 🛡️ Send join request - WITH DUPLICATE PREVENTION
    * POST /api/groups/:conversationId/join-request
    */
   async sendJoinRequest(req, res, next) {
@@ -217,6 +207,8 @@ class GroupController {
 
       console.log(`📥 [GroupController] Join request for ${conversationId}`);
 
+      // 🛡️ Check if user already has pending join request
+      // This is handled by unique index in GroupNotification model
       const result = await groupJoin.sendJoinRequest(
         conversationId,
         req.user.id
@@ -227,6 +219,18 @@ class GroupController {
         data: result,
       });
     } catch (error) {
+      // Handle duplicate join request error
+      if (
+        error.code === 11000 &&
+        error.message.includes("one_pending_join_request")
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "PENDING_REQUEST_EXISTS",
+          details: "You already have a pending join request for this group",
+        });
+      }
+
       console.error(
         "❌ [GroupController] sendJoinRequest error:",
         error.message
@@ -313,19 +317,41 @@ class GroupController {
     }
   }
 
+  // ============================================
+  // 🔥 INVITE LINK METHODS
+  // ============================================
+
   /**
-   * Create invite link
-   * POST /api/groups/:conversationId/invite-link
+   * 🛡️ Create invite link - ONE LINK PER USER (enforced by unique index)
+   * POST /api/groups/:conversationId/invite-links
    */
   async createInviteLink(req, res, next) {
     try {
       const { conversationId } = req.params;
-      const { expiresIn, maxUses } = req.body;
+      const { expiresIn, maxUses } = req.body || {};
+
+      console.log(
+        `🔗 [GroupController] Creating invite link for ${conversationId}`,
+        {
+          expiresIn,
+          maxUses,
+          userUid: req.user.uid,
+        }
+      );
+
+      // Convert uid to MongoDB _id
+      const user = await User.findOne({ uid: req.user.uid });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
 
       // Get member info
       const member = await ConversationMember.findOne({
         conversation: conversationId,
-        user: req.user.id,
+        user: user._id,
         leftAt: null,
       }).select("role");
 
@@ -336,29 +362,50 @@ class GroupController {
         });
       }
 
+      // Calculate expiry date
       const expiresAt = expiresIn
         ? new Date(Date.now() + expiresIn * 1000)
         : null;
 
-      const link = await GroupInviteLink.create({
+      // Create invite link using static method (auto-deactivates old links)
+      const link = await GroupInviteLink.createLink({
         conversation: conversationId,
-        createdBy: req.user.id,
+        createdBy: user._id,
         creatorRole: member.role,
         expiresAt,
         maxUses: maxUses || null,
       });
 
+      console.log(`✅ [GroupController] Invite link created: ${link.code}`);
+
       res.json({
         success: true,
         data: {
+          _id: link._id,
           code: link.code,
-          url: `${process.env.FRONTEND_URL}/join/${link.code}`,
+          url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/join/${link.code}`,
           expiresAt: link.expiresAt,
           maxUses: link.maxUses,
+          usedCount: link.usedCount,
+          isActive: link.isActive,
           creatorRole: link.creatorRole,
+          createdAt: link.createdAt,
         },
       });
     } catch (error) {
+      // Handle unique constraint violation (user already has active link)
+      if (
+        error.code === 11000 &&
+        error.message.includes("one_active_link_per_user_per_group")
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "ACTIVE_LINK_EXISTS",
+          details:
+            "You already have an active invite link for this group. Please deactivate it first.",
+        });
+      }
+
       console.error(
         "❌ [GroupController] createInviteLink error:",
         error.message
@@ -368,6 +415,172 @@ class GroupController {
   }
 
   /**
+   * Get all invite links for a group
+   * 🔒 ADMIN/OWNER ONLY
+   * GET /api/groups/:conversationId/invite-links
+   */
+  async getInviteLinks(req, res, next) {
+    try {
+      const { conversationId } = req.params;
+
+      console.log(
+        `📋 [GroupController] Getting invite links for ${conversationId}`
+      );
+
+      // Convert uid to _id
+      const user = await User.findOne({ uid: req.user.uid });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Check membership AND role
+      const member = await ConversationMember.findOne({
+        conversation: conversationId,
+        user: user._id,
+        leftAt: null,
+      });
+
+      if (!member) {
+        return res.status(403).json({
+          success: false,
+          message: "Not a member of this group",
+        });
+      }
+
+      // 🔒 FIXED: Only owner can view all links
+      if (member.role !== "owner") {
+        return res.status(403).json({
+          success: false,
+          message: "UNAUTHORIZED",
+          details: "Only the group owner can view all invite links",
+        });
+      }
+
+      // Get all links for this conversation
+      const links = await GroupInviteLink.find({
+        conversation: conversationId,
+      })
+        .populate("createdBy", "uid nickname avatar")
+        .sort({ createdAt: -1 })
+        .lean();
+
+      // Format response
+      const formattedLinks = links.map((link) => ({
+        _id: link._id,
+        code: link.code,
+        url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/join/${link.code}`,
+        createdBy: link.createdBy
+          ? {
+              uid: link.createdBy.uid,
+              nickname: link.createdBy.nickname,
+              avatar: link.createdBy.avatar,
+            }
+          : null,
+        creatorRole: link.creatorRole,
+        expiresAt: link.expiresAt,
+        maxUses: link.maxUses,
+        usedCount: link.usedCount,
+        isActive: link.isActive,
+        createdAt: link.createdAt,
+      }));
+
+      console.log(
+        `✅ [GroupController] Found ${formattedLinks.length} invite links`
+      );
+
+      res.json({
+        success: true,
+        data: { links: formattedLinks },
+      });
+    } catch (error) {
+      console.error(
+        "❌ [GroupController] getInviteLinks error:",
+        error.message
+      );
+      next(error);
+    }
+  }
+
+  /**
+   * Deactivate invite link
+   * DELETE /api/groups/:conversationId/invite-links/:linkId
+   */
+  async deactivateInviteLink(req, res, next) {
+    try {
+      const { conversationId, linkId } = req.params;
+
+      console.log(`🗑️ [GroupController] Deactivating link ${linkId}`);
+
+      // Convert uid to _id
+      const user = await User.findOne({ uid: req.user.uid });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Check if user is admin/owner OR the creator of the link
+      const member = await ConversationMember.findOne({
+        conversation: conversationId,
+        user: user._id,
+        leftAt: null,
+      });
+
+      const link = await GroupInviteLink.findOne({
+        _id: linkId,
+        conversation: conversationId,
+      });
+
+      if (!link) {
+        return res.status(404).json({
+          success: false,
+          message: "Invite link not found",
+        });
+      }
+
+      // Check permission: admin/owner OR link creator
+      const isAdminOrOwner = member && ["admin", "owner"].includes(member.role);
+      const isCreator = link.createdBy.toString() === user._id.toString();
+
+      if (!isAdminOrOwner && !isCreator) {
+        return res.status(403).json({
+          success: false,
+          message: "You don't have permission to deactivate this link",
+        });
+      }
+
+      // Deactivate link
+      link.isActive = false;
+      await link.save();
+
+      console.log(`✅ [GroupController] Link deactivated: ${link.code}`);
+
+      res.json({
+        success: true,
+        data: {
+          _id: link._id,
+          code: link.code,
+          isActive: link.isActive,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "❌ [GroupController] deactivateInviteLink error:",
+        error.message
+      );
+      next(error);
+    }
+  }
+
+  // ============================================
+  // END INVITE LINK METHODS
+  // ============================================
+
+  /**
    * Join via invite link
    * POST /api/groups/join/:code
    */
@@ -375,7 +588,9 @@ class GroupController {
     try {
       const { code } = req.params;
 
-      console.log(`🔗 [GroupController] Joining via link ${code}`);
+      console.log(
+        `🔗 [GroupController] Join attempt via link ${code} by user ${req.user.id}`
+      );
 
       const result = await groupJoin.joinViaLink(code, req.user.id);
 
@@ -647,8 +862,9 @@ class GroupController {
       next(error);
     }
   }
+
   /**
-   * 🔥 NEW: Transfer ownership and leave group
+   * Transfer ownership and leave group
    * POST /api/groups/:conversationId/transfer-and-leave
    */
   async transferOwnershipAndLeave(req, res, next) {

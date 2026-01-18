@@ -1,4 +1,4 @@
-// frontend/src/hooks/chat/useConversationInfo.js
+// frontend/src/hooks/chat/useConversationInfo.js - FIXED
 import { useState, useEffect } from 'react';
 import { getConversationInfo } from '../../services/chatApi';
 import useChatStore from '../../store/chat/chatStore';
@@ -15,6 +15,7 @@ import useChatStore from '../../store/chat/chatStore';
  * 🔥 NEW: Returns members list for groups
  * 🔥 NEW: Returns otherParticipant for private chats
  * 🔥 NEW: Returns currentUserRole for permission checks
+ * 🔥 FIXED: Properly syncs joinMode to Redux store
  * 
  * @param {string} conversationId - Conversation ID to fetch info for
  * @returns {Object} { info, members, currentUserRole, otherParticipant, loading, error, refetch }
@@ -45,6 +46,8 @@ export const useConversationInfo = (conversationId) => {
 
       console.log('✅ [useConversationInfo] Info received:', {
         type: data.type,
+        joinMode: data.joinMode, // ✅ Log joinMode
+        messagePermission: data.messagePermission,
         totalMessages: data.statistics?.totalMessages,
         sharedImages: data.statistics?.shared?.images,
         membersCount: data.type === 'group' ? data.totalMembers : 2,
@@ -57,8 +60,8 @@ export const useConversationInfo = (conversationId) => {
         name: data.name,
         avatar: data.avatar,
         createdBy: data.createdBy,
-        joinMode: data.joinMode,
-        messagePermission: data.messagePermission,
+        joinMode: data.joinMode || 'approval', // ✅ CRITICAL: Include joinMode with fallback
+        messagePermission: data.messagePermission || 'all',
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
         counters: {
@@ -94,9 +97,11 @@ export const useConversationInfo = (conversationId) => {
         console.log('💬 [useConversationInfo] Private chat participant:', data.otherParticipant?.nickname);
       }
 
-      // 🔥 Update Redux store with counters and members
+      // 🔥 FIXED: Update Redux store with ALL group settings including joinMode
       updateConversation(conversationId, {
         counters: transformedInfo.counters,
+        joinMode: transformedInfo.joinMode, // ✅ CRITICAL: Must sync joinMode
+        messagePermission: transformedInfo.messagePermission, // ✅ Also sync message permission
         ...(data.type === 'group' && {
           members: data.members,
           totalMembers: data.totalMembers,
@@ -107,7 +112,12 @@ export const useConversationInfo = (conversationId) => {
         }),
       });
 
-      console.log('✅ [useConversationInfo] Store updated with counters and members');
+      console.log('✅ [useConversationInfo] Store updated with:', {
+        joinMode: transformedInfo.joinMode,
+        messagePermission: transformedInfo.messagePermission,
+        countersUpdated: true,
+        membersUpdated: data.type === 'group',
+      });
     } catch (err) {
       console.error('❌ [useConversationInfo] Fetch failed:', err);
       setError(err.message || 'Failed to load conversation info');

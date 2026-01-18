@@ -1,6 +1,6 @@
-// frontend/src/components/Chat/ConversationInfo/index.jsx - WITH JOIN MODE
+// frontend/src/components/Chat/ConversationInfo/index.jsx - FIXED STALE DATA
 
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AuthContext } from "../../../context/AuthContext";
@@ -18,15 +18,15 @@ import DangerZoneSection from "./DangerZoneSection";
 import GroupModals from "./GroupModals";
 
 /**
- * ConversationInfo Component - WITH JOIN MODE SUPPORT
+ * ConversationInfo Component - FIXED STALE DATA OVERWRITES
  * 
- * 🆕 Added:
- * - joinMode state management
- * - Pass joinMode to GroupSettingsSection
- * - Handle join mode updates from socket
+ * 🔥 CRITICAL FIX:
+ * - Track last confirmed joinMode to prevent stale API overwrites
+ * - Ignore API data that's older than our confirmed update
+ * - Only update local state if API data is newer
  */
 export default function ConversationInfo({ onClose }) {
-  const { t, i18n } = useTranslation("conversation");
+  const { t } = useTranslation("conversation");
   const { user } = useContext(AuthContext);
 
   const [activeTab, setActiveTab] = useState("media");
@@ -35,8 +35,9 @@ export default function ConversationInfo({ onClose }) {
   const [isMuted, setIsMuted] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   
-  // 🆕 Join mode state
-  const [joinMode, setJoinMode] = useState("approval");
+  // 🔥 Track last confirmed joinMode from user action
+  const [joinMode, setJoinMode] = useState(null);
+  const lastUserUpdateRef = useRef(null); // Timestamp of last user update
 
   // Group modals
   const [showKickModal, setShowKickModal] = useState(false);
@@ -80,13 +81,39 @@ export default function ConversationInfo({ onClose }) {
     updateGroupSettings,
   } = useGroupActions();
 
-  // 🆕 Sync join mode from API/Redux
+  // 🔥 FIXED: Smart sync with stale data protection
   useEffect(() => {
-    const currentJoinMode = info?.joinMode || conversation?.joinMode || "approval";
-    setJoinMode(currentJoinMode);
+    // Priority sources
+    const apiJoinMode = info?.joinMode;
+    const reduxJoinMode = conversation?.joinMode;
+    
+    // Check if we have a recent user update (within last 2 seconds)
+    const hasRecentUpdate = lastUserUpdateRef.current && 
+      (Date.now() - lastUserUpdateRef.current) < 2000;
+    
+    if (hasRecentUpdate) {
+      console.log('⏭️ [ConversationInfo] Ignoring API data - recent user update');
+      return; // Ignore stale API data
+    }
+    
+    // Determine new value
+    let newJoinMode = joinMode;
+    
+    if (apiJoinMode && apiJoinMode !== joinMode) {
+      newJoinMode = apiJoinMode;
+      console.log('📊 [ConversationInfo] joinMode from API:', newJoinMode);
+    } else if (reduxJoinMode && joinMode === null) {
+      newJoinMode = reduxJoinMode;
+      console.log('📊 [ConversationInfo] joinMode from Redux:', newJoinMode);
+    }
+    
+    if (newJoinMode !== joinMode) {
+      console.log('✅ [ConversationInfo] Updating joinMode:', joinMode, '→', newJoinMode);
+      setJoinMode(newJoinMode);
+    }
   }, [info?.joinMode, conversation?.joinMode]);
 
-  // Guard
+  // Guard - show loading only if conversation not loaded
   if (!conversation) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -175,11 +202,21 @@ export default function ConversationInfo({ onClose }) {
     }
   };
 
-  // 🆕 Handle join mode update
+  // 🔥 FIXED: Update with timestamp to prevent stale overwrites
   const handleJoinModeUpdate = (newMode) => {
-    console.log('✅ [ConversationInfo] Join mode updated to:', newMode);
+    console.log('✅ [ConversationInfo] User updated join mode to:', newMode);
+    
+    // Record timestamp of this user action
+    lastUserUpdateRef.current = Date.now();
+    
+    // Update local state
     setJoinMode(newMode);
-    // Socket event will update Redux store automatically
+    
+    // Update Redux store
+    const updateConversation = useChatStore.getState().updateConversation;
+    updateConversation(activeConversationId, {
+      joinMode: newMode,
+    });
   };
 
   // ============================================
@@ -224,7 +261,7 @@ export default function ConversationInfo({ onClose }) {
           t={t}
         />
 
-        {/* Group Settings - 🆕 Now includes Join Mode */}
+        {/* Group Settings - WITH STALE DATA PROTECTION */}
         {isGroup && canUpdateSettings && (
           <GroupSettingsSection
             conversationId={activeConversationId}
@@ -233,7 +270,6 @@ export default function ConversationInfo({ onClose }) {
             handleToggleAdminOnly={handleToggleAdminOnly}
             actionLoading={actionLoading}
             onJoinModeUpdate={handleJoinModeUpdate}
-            t={t}
           />
         )}
 

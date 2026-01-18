@@ -1,4 +1,4 @@
-// frontend/src/services/chatApi.js - FULL CODE UPDATED
+// frontend/src/services/chatApi.js - FIXED WITH JOINMODE
 import api from "./api";
 
 /**
@@ -57,16 +57,16 @@ export const getConversationById = async (conversationId) => {
 };
 
 /**
- * 🔥 NEW: Get conversation info with counters
+ * 🔥 FIXED: Get conversation info with counters AND joinMode
  * Used for Conversation Info modal
  * 
- * Backend response:
+ * Backend response from /api/groups/:conversationId:
  * {
- *   id, type, name, avatar, createdAt,
- *   statistics: {
- *     totalMessages,
- *     shared: { images, videos, audios, files, links }
- *   }
+ *   _id, type, name, avatar, createdBy,
+ *   joinMode, messagePermission,  // ✅ CRITICAL
+ *   totalMessages, sharedImages, sharedVideos, sharedAudios, sharedFiles, sharedLinks,
+ *   members, totalMembers, currentUserRole,
+ *   createdAt, updatedAt
  * }
  * 
  * @param {string} conversationId - Conversation ID
@@ -75,15 +75,52 @@ export const getConversationById = async (conversationId) => {
 export const getConversationInfo = async (conversationId) => {
   console.log('📊 [chatApi] getConversationInfo:', conversationId);
   
-  const response = await api.get(`/conversations/${conversationId}/info`);
+  // ✅ CRITICAL: Use /api/groups/:id endpoint (not /conversations/:id/info)
+  const response = await api.get(`/groups/${conversationId}`);
   const data = unwrapResponse(response);
   
-  console.log('✅ [chatApi] Conversation info received:', {
-    totalMessages: data.statistics?.totalMessages,
-    sharedImages: data.statistics?.shared?.images,
+  // 🔍 DEBUG: Log raw response
+  console.log('🔍 [chatApi] Raw API response:', {
+    joinMode: data.joinMode,
+    messagePermission: data.messagePermission,
+    name: data.name,
+    totalMessages: data.totalMessages,
   });
   
-  return data;
+  // ✅ Transform to match frontend structure
+  const transformed = {
+    _id: data._id,
+    type: data.type,
+    name: data.name,
+    avatar: data.avatar,
+    createdBy: data.createdBy,
+    joinMode: data.joinMode || 'approval', // ✅ CRITICAL: Must preserve
+    messagePermission: data.messagePermission || 'all',
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+    members: data.members,
+    totalMembers: data.totalMembers,
+    currentUserRole: data.currentUserRole,
+    otherParticipant: data.otherParticipant,
+    statistics: {
+      totalMessages: data.totalMessages || 0,
+      shared: {
+        images: data.sharedImages || 0,
+        videos: data.sharedVideos || 0,
+        audios: data.sharedAudios || 0,
+        files: data.sharedFiles || 0,
+        links: data.sharedLinks || 0,
+      },
+    },
+  };
+  
+  console.log('✅ [chatApi] Transformed response:', {
+    joinMode: transformed.joinMode,
+    messagePermission: transformed.messagePermission,
+    totalMessages: transformed.statistics.totalMessages,
+  });
+  
+  return transformed;
 };
 
 /**
@@ -324,6 +361,7 @@ export const transferGroupOwnershipAndLeave = async (conversationId, newOwnerUid
   
   return data;
 };
+
 // ============================================
 // DEFAULT EXPORT
 // ============================================

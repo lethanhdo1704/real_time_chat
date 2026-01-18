@@ -1,4 +1,4 @@
-// backend/models/GroupNotification.js
+// backend/models/GroupNotification.js - UPDATED
 import mongoose from "mongoose";
 const { Schema } = mongoose;
 
@@ -18,17 +18,23 @@ const groupNotificationSchema = new Schema(
       ref: "Conversation",
       required: true,
     },
+    
+    // 👤 Target user (for certain notification types)
     targetUser: {
       type: Schema.Types.ObjectId,
       ref: "User",
       default: null,
       index: true,
     },
+    
+    // 🛡️ Unique key for preventing duplicate notifications
+    // Format: "type:conversation:actor" or "type:conversation:actor:recipient"
     uniqueKey: {
       type: String,
       index: true,
       sparse: true,
     },
+    
     // 📋 Loại thông báo
     type: {
       type: String,
@@ -66,6 +72,14 @@ const groupNotificationSchema = new Schema(
       default: false,
       index: true,
     },
+    
+    // ⏰ Trạng thái xử lý (for requests)
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected", "expired"],
+      default: "pending",
+      index: true,
+    },
 
     // 📅 Thời gian tạo
     createdAt: {
@@ -75,7 +89,7 @@ const groupNotificationSchema = new Schema(
     },
   },
   {
-    timestamps: false, // Không cần updatedAt
+    timestamps: false,
   }
 );
 
@@ -95,6 +109,44 @@ groupNotificationSchema.index({ conversation: 1 });
 // Query by type (để lọc)
 groupNotificationSchema.index({ recipient: 1, type: 1, createdAt: -1 });
 
+// 🛡️ PREVENT DUPLICATE JOIN REQUESTS
+// A user can only have 1 pending join request per group
+groupNotificationSchema.index(
+  { 
+    conversation: 1, 
+    actor: 1, 
+    type: 1,
+    status: 1
+  },
+  {
+    unique: true,
+    partialFilterExpression: { 
+      type: "GROUP_JOIN_REQUEST",
+      status: "pending"
+    },
+    name: 'one_pending_join_request_per_user_per_group'
+  }
+);
+
+// 🛡️ PREVENT DUPLICATE INVITES
+// A user can only have 1 pending invite per group
+groupNotificationSchema.index(
+  { 
+    conversation: 1, 
+    recipient: 1, 
+    type: 1,
+    status: 1
+  },
+  {
+    unique: true,
+    partialFilterExpression: { 
+      type: "GROUP_INVITE",
+      status: "pending"
+    },
+    name: 'one_pending_invite_per_user_per_group'
+  }
+);
+
 // ========================================
 // 🛠 STATIC METHODS
 // ========================================
@@ -110,12 +162,74 @@ groupNotificationSchema.statics.createNotification = async function (data) {
     type: data.type,
     actor: data.actor,
     payload: data.payload || {},
+    status: data.status || "pending",
+    targetUser: data.targetUser || null,
   });
 
   return notification.populate([
     { path: "actor", select: "uid nickname avatar" },
     { path: "conversation", select: "name avatar type" },
   ]);
+};
+
+/**
+ * 🛡️ Check if user has pending join request for this group
+ */
+groupNotificationSchema.statics.hasPendingJoinRequest = async function (
+  conversationId,
+  userId
+) {
+  const existing = await this.findOne({
+    conversation: conversationId,
+    actor: userId,
+    type: "GROUP_JOIN_REQUEST",
+    status: "pending",
+  });
+  
+  return !!existing;
+};
+
+/**
+ * 🛡️ Check if user has pending invite for this group
+ */
+groupNotificationSchema.statics.hasPendingInvite = async function (
+  conversationId,
+  userId
+) {
+  const existing = await this.findOne({
+    conversation: conversationId,
+    recipient: userId,
+    type: "GROUP_INVITE",
+    status: "pending",
+  });
+  
+  return !!existing;
+};
+
+/**
+ * 🛡️ Cancel previous pending requests/invites before creating new one
+ */
+groupNotificationSchema.statics.cancelPendingNotifications = async function (
+  conversationId,
+  userId,
+  type
+) {
+  const query = {
+    conversation: conversationId,
+    type,
+    status: "pending",
+  };
+  
+  // For join requests, actor is the requester
+  if (type === "GROUP_JOIN_REQUEST") {
+    query.actor = userId;
+  }
+  // For invites, recipient is the invited user
+  else if (type === "GROUP_INVITE") {
+    query.recipient = userId;
+  }
+  
+  return this.updateMany(query, { status: "expired" });
 };
 
 /**
@@ -188,6 +302,23 @@ groupNotificationSchema.statics.deleteByConversation = async function (
   return this.deleteMany({ conversation: conversationId });
 };
 
+/**
+ * Update notification status (approve/reject requests)
+ */
+groupNotificationSchema.statics.updateStatus = async function (
+  notificationId,
+  status
+) {
+  return this.findByIdAndUpdate(
+    notificationId,
+    { status },
+    { new: true }
+  ).populate([
+    { path: "actor", select: "uid nickname avatar" },
+    { path: "conversation", select: "name avatar type" },
+  ]);
+};
+
 // ========================================
 // 🎯 INSTANCE METHODS
 // ========================================
@@ -200,6 +331,7 @@ groupNotificationSchema.methods.toClient = function () {
     id: this._id,
     type: this.type,
     isRead: this.isRead,
+    status: this.status,
     createdAt: this.createdAt,
     actor: this.actor,
     conversation: this.conversation,

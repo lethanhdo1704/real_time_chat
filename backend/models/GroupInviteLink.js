@@ -1,4 +1,4 @@
-// backend/models/GroupInviteLink.js
+// backend/models/GroupInviteLink.js - SIMPLE: DELETE OLD LINKS
 import mongoose from "mongoose";
 import { nanoid } from "nanoid";
 
@@ -25,7 +25,6 @@ const groupInviteLinkSchema = new Schema({
     required: true,
   },
   
-  // Role của người tạo link (quyết định auto-join hay không)
   creatorRole: {
     type: String,
     enum: ["owner", "admin", "member"],
@@ -34,12 +33,12 @@ const groupInviteLinkSchema = new Schema({
   
   expiresAt: {
     type: Date,
-    default: null, // null = không bao giờ hết hạn
+    default: null,
   },
   
   maxUses: {
     type: Number,
-    default: null, // null = không giới hạn
+    default: null,
   },
   
   usedCount: {
@@ -59,11 +58,27 @@ const groupInviteLinkSchema = new Schema({
   },
 });
 
-// Indexes
+// ========================================
+// INDEXES
+// ========================================
+
 groupInviteLinkSchema.index({ conversation: 1, isActive: 1 });
 groupInviteLinkSchema.index({ code: 1, isActive: 1 });
 
-// Static method: Check if link is valid
+// 🛡️ ONE ACTIVE LINK PER USER PER GROUP
+groupInviteLinkSchema.index(
+  { conversation: 1, createdBy: 1, isActive: 1 },
+  { 
+    unique: true,
+    partialFilterExpression: { isActive: true },
+    name: 'one_active_link_per_user_per_group'
+  }
+);
+
+// ========================================
+// STATIC METHODS
+// ========================================
+
 groupInviteLinkSchema.statics.validateLink = async function(code) {
   const link = await this.findOne({
     code,
@@ -74,12 +89,10 @@ groupInviteLinkSchema.statics.validateLink = async function(code) {
     throw new Error("LINK_NOT_FOUND");
   }
   
-  // Check expiry
   if (link.expiresAt && link.expiresAt < new Date()) {
     throw new Error("LINK_EXPIRED");
   }
   
-  // Check max uses
   if (link.maxUses && link.usedCount >= link.maxUses) {
     throw new Error("LINK_MAX_USES_REACHED");
   }
@@ -87,13 +100,37 @@ groupInviteLinkSchema.statics.validateLink = async function(code) {
   return link;
 };
 
-// Static method: Increment use count
 groupInviteLinkSchema.statics.incrementUseCount = async function(linkId) {
   return this.findByIdAndUpdate(
     linkId,
     { $inc: { usedCount: 1 } },
     { new: true }
   );
+};
+
+groupInviteLinkSchema.statics.getUserActiveLink = async function(conversationId, userId) {
+  return this.findOne({
+    conversation: conversationId,
+    createdBy: userId,
+    isActive: true,
+  });
+};
+
+/**
+ * 🔥 XÓA link cũ thay vì deactivate
+ * Đơn giản, hiệu quả, không spam database
+ */
+groupInviteLinkSchema.statics.createLink = async function(data) {
+  // Xóa tất cả link cũ của user này trong group này
+  await this.deleteMany({
+    conversation: data.conversation,
+    createdBy: data.createdBy,
+  });
+  
+  // Tạo link mới
+  const link = await this.create(data);
+  
+  return link.populate('createdBy', 'uid nickname avatar');
 };
 
 export default mongoose.model("GroupInviteLink", groupInviteLinkSchema);
