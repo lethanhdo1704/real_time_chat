@@ -1,5 +1,4 @@
-// utils/emoji.js
-
+// frontend/src/user/utils/emoji.js
 // Emoji regex for splitting only (no .test() with 'g' flag)
 export const EMOJI_REGEX = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})/gu;
 
