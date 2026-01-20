@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AuthContext } from './AuthContext';
 import { connectSocket, disconnectSocket } from '../services/socketService';
-import useChatStore from '../store/chat/chatStore'; // ✅ Import store
+import useChatStore from '../store/chat/chatStore';
 
 export const SocketContext = createContext(null);
 
@@ -11,6 +11,35 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const hasInitialized = useRef(false);
+
+  // ============================================
+  // 🔥 STABLE CALLBACK REFS - Prevent re-registration
+  // ============================================
+  const handleSettingsUpdatedRef = useRef(null);
+  const handleUserUpdateRef = useRef(null);
+
+  // ============================================
+  // UPDATE CALLBACK REFS (no deps = stable)
+  // ============================================
+  useEffect(() => {
+    handleSettingsUpdatedRef.current = (payload) => {
+      console.log('🔧 [SocketContext] Conversation settings updated:', payload);
+      
+      const { conversationId, messagePermission, updatedBy, updatedAt } = payload;
+
+      useChatStore.getState().updateConversation(conversationId, {
+        messagePermission,
+        updatedBy,
+        updatedAt,
+      });
+
+      console.log('✅ [SocketContext] Store updated with new messagePermission:', messagePermission);
+    };
+
+    handleUserUpdateRef.current = (payload) => {
+      console.log('🔥 [SocketContext] USER UPDATE RECEIVED:', payload);
+    };
+  });
 
   // ============================================
   // 🔥 SINGLE EFFECT: Socket lifecycle
@@ -71,7 +100,39 @@ export const SocketProvider = ({ children }) => {
       setIsConnected(false);
       hasInitialized.current = false;
     }
-  }, [user?.uid]); // 🔥 ONLY depend on user ID primitive value
+  }, [user?.uid]);
+
+  // ============================================
+  // 🔥 REGISTER LISTENERS - Using stable refs
+  // ============================================
+  useEffect(() => {
+    if (!socket) return;
+
+    // Wrapper functions that call the refs
+    const onSettingsUpdated = (payload) => {
+      handleSettingsUpdatedRef.current?.(payload);
+    };
+
+    const onUserUpdate = (payload) => {
+      handleUserUpdateRef.current?.(payload);
+    };
+
+    // Register listeners ONCE per socket instance
+    socket.on('conversation:settings_updated', onSettingsUpdated);
+    socket.on('user:update', onUserUpdate);
+    
+    console.log('📡 [SocketContext] Listeners registered:', [
+      'conversation:settings_updated',
+      'user:update'
+    ]);
+
+    // Cleanup when socket changes or unmounts
+    return () => {
+      socket.off('conversation:settings_updated', onSettingsUpdated);
+      socket.off('user:update', onUserUpdate);
+      console.log('🧹 [SocketContext] Listeners removed');
+    };
+  }, [socket]); // Only re-run when socket instance changes (reconnect)
 
   // Debug state
   useEffect(() => {
@@ -82,54 +143,6 @@ export const SocketProvider = ({ children }) => {
       socketConnected: socket?.connected
     });
   }, [socket, isConnected]);
-
-  // ============================================
-  // 🔥 NEW: CONVERSATION SETTINGS UPDATED LISTENER
-  // ============================================
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleSettingsUpdated = (payload) => {
-      console.log('🔧 [SocketContext] Conversation settings updated:', payload);
-      
-      const { conversationId, messagePermission, updatedBy, updatedAt } = payload;
-
-      // Update conversation in store
-      useChatStore.getState().updateConversation(conversationId, {
-        messagePermission,
-        updatedBy,
-        updatedAt,
-      });
-
-      console.log('✅ [SocketContext] Store updated with new messagePermission:', messagePermission);
-    };
-
-    socket.on('conversation:settings_updated', handleSettingsUpdated);
-    console.log('📡 [SocketContext] Listening for conversation:settings_updated');
-
-    return () => {
-      socket.off('conversation:settings_updated', handleSettingsUpdated);
-      console.log('🧹 [SocketContext] Removed conversation:settings_updated listener');
-    };
-  }, [socket]);
-
-  // ============================================
-  // 🔥 EXISTING: USER UPDATE LISTENER
-  // ============================================
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleUserUpdate = (payload) => {
-      console.log('🔥 [SocketContext] USER UPDATE RECEIVED:', payload);
-    };
-
-    socket.on('user:update', handleUserUpdate);
-    console.log('📡 [SocketContext] Listening for user:update');
-
-    return () => {
-      socket.off('user:update', handleUserUpdate);
-    };
-  }, [socket]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>

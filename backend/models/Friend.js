@@ -1,15 +1,14 @@
-// backend/models/Friend.js
+// backend/models/Friend.js - OPTIMIZED VERSION
 import mongoose from "mongoose";
+
 const friendSchema = new mongoose.Schema(
   {
     user: {
-      // người gửi lời mời
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
     friend: {
-      // người nhận lời mời
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -26,4 +25,22 @@ const friendSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// ✅ CRITICAL INDEXES cho performance
+friendSchema.index({ user: 1, status: 1 }); // Query lời mời của user theo status
+friendSchema.index({ friend: 1, status: 1 }); // Query lời mời đến friend theo status
+friendSchema.index({ user: 1, friend: 1 }, { unique: true }); // Tránh duplicate + tăng tốc
+
+// ✅ Indexes bổ sung
+friendSchema.index({ status: 1 }); // Filter theo status
+friendSchema.index({ friend: 1, status: 1, seenAt: 1 }); // Query unseen requests
+friendSchema.index({ createdAt: -1 }); // Sort theo thời gian
+
+// ✅ Compound index cho query phức tạp
+friendSchema.index({ 
+  user: 1, 
+  friend: 1, 
+  status: 1 
+}); // Check relationship status
+
 export default mongoose.model("Friend", friendSchema);

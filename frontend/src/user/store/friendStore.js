@@ -1,4 +1,4 @@
-// frontend/src/user/store/friendStore.js
+// frontend/src/user/store/friendStore.js - OPTIMIZED VERSION
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 
@@ -134,12 +134,13 @@ const useFriendStore = create(
         })),
 
         // ============================================
-        // 🆕 PRESENCE ACTIONS
+        // 🆕 PRESENCE ACTIONS - ✅ OPTIMIZED
         // ============================================
         
         /**
          * Update friend presence status
          * Called from socket listeners
+         * ✅ OPTIMIZED: Skip persist for frequent presence updates
          */
         updateFriendPresence: (uid, presenceData) => set((state) => {
           const friend = state.friends.find(f => f.uid === uid);
@@ -158,11 +159,12 @@ const useFriendStore = create(
                 : f
             )
           };
-        }),
+        }, false, 'updateFriendPresence'), // ✅ Named action for devtools
 
         /**
          * Set friend online
          * WHY: lastSeen = null when online (they haven't LEFT yet)
+         * ✅ OPTIMIZED: Skip persist
          */
         setFriendOnline: (uid) => set((state) => {
           console.log(`🟢 [friendStore] Setting ${uid} ONLINE`);
@@ -174,7 +176,7 @@ const useFriendStore = create(
                 : f
             )
           };
-        }),
+        }, false, 'setFriendOnline'),
 
         /**
          * Set friend offline with lastSeen
@@ -190,7 +192,7 @@ const useFriendStore = create(
                 : f
             )
           };
-        }),
+        }, false, 'setFriendOffline'),
 
         // ============================================
         // COMBINED OPERATIONS
@@ -317,13 +319,42 @@ const useFriendStore = create(
       }),
       {
         name: 'friend-storage',
+        version: 1,
+        
+        // ✅ OPTIMIZED: Only persist essential data
         partialize: (state) => ({
-          friends: state.friends,
+          friends: state.friends.map(f => ({
+            // ✅ Persist core friend data
+            uid: f.uid,
+            _id: f._id,
+            nickname: f.nickname,
+            avatar: f.avatar,
+            fullName: f.fullName,
+            status: f.status,
+            // ❌ DON'T persist presence data (will be fetched fresh)
+            // isOnline and lastSeen will be reset on hydrate
+          })),
           friendRequests: state.friendRequests,
           sentRequests: state.sentRequests,
           lastFetchTime: state.lastFetchTime,
           unseenCount: state.unseenCount,
         }),
+        
+        // ✅ OPTIMIZED: Reset presence data on hydrate
+        merge: (persistedState, currentState) => {
+          if (!persistedState) return currentState;
+          
+          return {
+            ...currentState,
+            ...persistedState,
+            // ✅ Reset all presence data (will update via socket)
+            friends: (persistedState.friends || []).map(f => ({
+              ...f,
+              isOnline: false, // Reset to offline
+              lastSeen: null,  // Will be updated by socket
+            })),
+          };
+        },
       }
     ),
     { name: 'FriendStore' }

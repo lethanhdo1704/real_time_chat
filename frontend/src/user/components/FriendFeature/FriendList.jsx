@@ -1,4 +1,4 @@
-// frontend/src/components/FriendFeature/FriendList.jsx - FIXED isActive check
+// frontend/src/components/FriendFeature/FriendList.jsx - OPTIMIZED VERSION
 import { useEffect, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import ConversationItem from "../Chat/ConversationItem";
@@ -8,9 +8,14 @@ import useFriendActions from "../../hooks/friends/useFriendActions";
 import { checkConversation } from "../../services/chatApi";
 
 /**
- * FriendList Component - ✅ FIXED: isActive check now uses conversationId
+ * FriendList Component - ✅ OPTIMIZED VERSION
  * 
- * Sorting Priority:
+ * Performance improvements:
+ * 1. Cache-first strategy for handleSelectFriend (avoid unnecessary API calls)
+ * 2. Optimized sorting with pre-computed values
+ * 3. Stable callback references
+ * 
+ * Sorting Priority (unchanged):
  * 1. lastMessageAt (conversation.lastMessage.createdAt) - MỚI NHẤT LÊN ĐẦU
  * 2. unreadCount - Nếu cùng thời gian, unread lên trước
  * 3. Alphabetical by name - Fallback
@@ -46,7 +51,7 @@ export default function FriendList({ currentUser, onSelectFriend }) {
   } = useFriendActions();
 
   // ============================================
-  // HELPER: GET CONVERSATION FOR FRIEND
+  // ✅ OPTIMIZED: STABLE HELPER FUNCTION
   // ============================================
 
   const getConversationForFriend = useCallback((friendUid) => {
@@ -56,41 +61,47 @@ export default function FriendList({ currentUser, onSelectFriend }) {
       }
       return false;
     });
-  }, [conversations]);
+  }, [conversations]); // ✅ Only recreate when conversations array changes
 
   // ============================================
-  // 🔥 OPTIMIZED SORTING BY lastMessageAt + unreadCount
+  // 🔥 OPTIMIZED SORTING - Pre-compute values
   // ============================================
 
   const sortedFriends = useMemo(() => {
+    // ✅ Build lookup maps ONCE to avoid repeated computations
+    const convMap = new Map();
+    const timeMap = new Map();
+    
+    friends.forEach(friend => {
+      const conv = getConversationForFriend(friend.uid);
+      convMap.set(friend.uid, conv);
+      
+      // ✅ Parse time ONCE and store as timestamp (number)
+      if (conv?.lastMessage?.createdAt) {
+        timeMap.set(friend.uid, new Date(conv.lastMessage.createdAt).getTime());
+      } else if (conv?.lastMessageAt) {
+        timeMap.set(friend.uid, new Date(conv.lastMessageAt).getTime());
+      }
+    });
+    
     return [...friends].sort((a, b) => {
-      const convA = getConversationForFriend(a.uid);
-      const convB = getConversationForFriend(b.uid);
+      const timeA = timeMap.get(a.uid);
+      const timeB = timeMap.get(b.uid);
 
       // ============================================
       // 🔥 PRIORITY 1: lastMessageAt (NEWEST FIRST)
       // ============================================
       
-      const timeA = convA?.lastMessage?.createdAt 
-        ? new Date(convA.lastMessage.createdAt) 
-        : convA?.lastMessageAt 
-        ? new Date(convA.lastMessageAt) 
-        : null;
-        
-      const timeB = convB?.lastMessage?.createdAt 
-        ? new Date(convB.lastMessage.createdAt) 
-        : convB?.lastMessageAt 
-        ? new Date(convB.lastMessageAt) 
-        : null;
-
-      // Both have messages → Compare time (NEWEST FIRST)
+      // Both have messages → Compare timestamps (numbers, not Date objects)
       if (timeA && timeB) {
-        const timeDiff = timeB - timeA;
+        const timeDiff = timeB - timeA; // NEWEST FIRST
         
         // ============================================
         // 🔥 PRIORITY 2: unreadCount (IF SAME TIME)
         // ============================================
         if (timeDiff === 0) {
+          const convA = convMap.get(a.uid);
+          const convB = convMap.get(b.uid);
           const unreadA = convA?.unreadCount || 0;
           const unreadB = convB?.unreadCount || 0;
           
@@ -119,21 +130,43 @@ export default function FriendList({ currentUser, onSelectFriend }) {
   }, [friends, getConversationForFriend]);
 
   // ============================================
-  // 🔥 HANDLE FRIEND SELECTION WITH API CHECK
+  // 🔥 OPTIMIZED: CACHE-FIRST FRIEND SELECTION
   // ============================================
 
   const handleSelectFriend = useCallback(async (friend) => {
-    try {
-      console.log('🔍 [FriendList] Checking conversation with friend:', friend.uid);
+    // ============================================
+    // ✅ STEP 1: Check store cache FIRST (fast path)
+    // ============================================
+    const existingConv = getConversationForFriend(friend.uid);
+    
+    if (existingConv) {
+      // ✅ Conversation already in store → Navigate immediately
+      console.log('⚡ [FriendList] Using cached conversation:', existingConv.conversationId || existingConv._id);
+      
+      if (onSelectFriend) {
+        onSelectFriend({
+          ...friend,
+          conversationId: existingConv.conversationId || existingConv._id,
+          conversationExists: true,
+        });
+      }
+      return; // ✅ Early exit - no API call needed
+    }
 
-      // 🔥 STEP 1: Call backend to check if conversation exists
+    // ============================================
+    // ✅ STEP 2: Cache miss → Check API (slow path)
+    // ============================================
+    try {
+      console.log('🔍 [FriendList] No cached conversation, checking API for friend:', friend.uid);
+
+      // 🔥 Call backend to check if conversation exists
       const result = await checkConversation(friend.uid);
 
-      console.log('✅ [FriendList] Check result:', result);
+      console.log('✅ [FriendList] API check result:', result);
 
       if (result.exists && result.conversationId) {
-        // 🔥 CASE A: Conversation exists → Navigate directly
-        console.log('📍 [FriendList] Conversation exists, navigating to:', result.conversationId);
+        // 🔥 CASE A: Conversation exists on server → Navigate
+        console.log('📍 [FriendList] Conversation exists on server, navigating to:', result.conversationId);
         
         if (onSelectFriend) {
           onSelectFriend({
@@ -144,7 +177,7 @@ export default function FriendList({ currentUser, onSelectFriend }) {
         }
       } else {
         // 🔥 CASE B: No conversation → Lazy mode
-        console.log('💤 [FriendList] No conversation, entering lazy mode');
+        console.log('💤 [FriendList] No conversation exists, entering lazy mode');
         
         if (onSelectFriend) {
           onSelectFriend({
@@ -174,7 +207,7 @@ export default function FriendList({ currentUser, onSelectFriend }) {
         });
       }
     }
-  }, [onSelectFriend]);
+  }, [onSelectFriend, getConversationForFriend]); // ✅ Stable dependencies
 
   // ============================================
   // MANUAL RETRY HANDLER

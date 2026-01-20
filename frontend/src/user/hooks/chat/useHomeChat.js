@@ -4,24 +4,6 @@ import { AuthContext } from "../../context/AuthContext";
 import useChatStore from "../../store/chat/chatStore";
 import * as chatApi from "../../services/chatApi";
 
-/**
- * 🔥 useHomeChat Hook - CHUẨN HÓA
- * 
- * TRÁCH NHIỆM:
- * ✅ Fetch conversations once
- * ✅ Handle conversation selection
- * ✅ Mark conversations as read
- * ✅ Provide conversation list to UI
- * 
- * ❌ KHÔNG XỬ LÝ SOCKET:
- * - Socket events → useGlobalSocket
- * - Message events → useMessages
- * 
- * NGUYÊN TẮC:
- * - Pure UI/business logic hook
- * - No socket listeners (delegated to useGlobalSocket)
- * - Clean separation of concerns
- */
 export function useHomeChat() {
   const { token, user } = useContext(AuthContext);
 
@@ -52,24 +34,25 @@ export function useHomeChat() {
   }, [activeConversationId, conversationsMap]);
 
   // ============================================
-  // STORE ACTIONS
+  // STORE ACTIONS (stable references)
   // ============================================
 
   const addConversationToStore = useChatStore((state) => state.addConversation);
   const setActiveConversation = useChatStore((state) => state.setActiveConversation);
   const resetUnreadCount = useChatStore((state) => state.resetUnreadCount);
-  const fetchConversationsOnce = useChatStore((state) => state.fetchConversationsOnce);
 
   // ============================================
-  // 🔥 FETCH CONVERSATIONS (ONCE)
+  // 🔥 FETCH CONVERSATIONS (ONCE) - OPTIMIZED
   // ============================================
 
   useEffect(() => {
-    if (token && user) {
+    // ✅ Only depend on primitive values (token, user.uid)
+    // ✅ Call store method directly to avoid function identity issues
+    if (token && user?.uid) {
       console.log('🚀 [useHomeChat] Calling fetchConversationsOnce');
-      fetchConversationsOnce();
+      useChatStore.getState().fetchConversationsOnce();
     }
-  }, [token, user, fetchConversationsOnce]);
+  }, [token, user?.uid]); // ✅ No function in dependencies
 
   // ============================================
   // MARK AS READ
@@ -114,6 +97,15 @@ export function useHomeChat() {
   }, [addConversationToStore]);
 
   // ============================================
+  // RELOAD CONVERSATIONS (manual trigger)
+  // ============================================
+
+  const reloadConversations = useCallback(() => {
+    console.log('🔄 [useHomeChat] Manual reload conversations');
+    useChatStore.getState().fetchConversationsOnce();
+  }, []); // ✅ No dependencies needed - direct store access
+
+  // ============================================
   // RETURN
   // ============================================
 
@@ -127,7 +119,7 @@ export function useHomeChat() {
     // Actions
     handleSelectConversation,
     markConversationAsRead,
-    reloadConversations: fetchConversationsOnce,
+    reloadConversations,
     addConversation,
   };
 }

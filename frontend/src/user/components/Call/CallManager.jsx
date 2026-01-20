@@ -1,6 +1,6 @@
 // frontend/src/user/components/call/CallManager.jsx
 
-import { useEffect } from 'react';
+import { useEffect, memo } from 'react';
 import useCall from '../../hooks/call/useCall';
 import useCallStore from '../../store/call/callStore';
 import IncomingCallModal from './IncomingCallModal';
@@ -8,7 +8,7 @@ import OutgoingCallModal from './OutgoingCallModal';
 import CallScreen from './CallScreen';
 import { CALL_STATE } from '../../utils/call/callConstants';
 
-// ✅ DEBUG: Verify imports
+// ✅ DEBUG: Verify imports (only runs once)
 console.log('[CallManager] CALL_STATE constants:', CALL_STATE);
 console.log('[CallManager] Components loaded:', {
   IncomingCallModal: typeof IncomingCallModal,
@@ -17,38 +17,39 @@ console.log('[CallManager] Components loaded:', {
 });
 
 /**
- * 🎯 CALL MANAGER
+ * 🎯 CALL MANAGER - OPTIMIZED VERSION
+ * 
+ * ✅ Wrapped in React.memo to prevent unnecessary re-renders
+ * ✅ Only subscribes to render-critical state (callState, error)
+ * ✅ Socket connection handled internally in useCall hook
  * 
  * Orchestrates all call UI components:
  * - IncomingCallModal (INCOMING_RINGING)
  * - OutgoingCallModal (OUTGOING_RINGING)
  * - CallScreen (CONNECTING, IN_CALL)
  * 
- * Mount useCall hook để handle socket events
- * 
  * ⚠️ PHẢI mount ở App level hoặc Home level
  * ⚠️ Socket PHẢI đã connected trước khi mount
  */
-export default function CallManager() {
+const CallManager = () => {
   // ============================================
-  // ✅ ALL HOOKS MUST BE AT THE TOP
+  // ✅ OPTIMIZED: Only subscribe render state
   // ============================================
   
-  // Mount useCall hook (handles all socket events)
-  const { callState, handleEndCall, socket, isConnected } = useCall();
+  // Mount useCall hook (handles all socket events internally)
+  // ⚠️ We don't need socket/isConnected in component
+  const { handleEndCall } = useCall();
 
-  // Store state
+  // ✅ Only subscribe to data needed for rendering
+  const callState = useCallStore((state) => state.callState);
   const error = useCallStore((state) => state.error);
   
-  // ✅ DEBUG: Log state changes
-  console.log('[CallManager] 🎬 Render:', {
-    callState,
-    error,
-    hasSocket: !!socket,
-    isConnected
-  });
+  // ✅ DEBUG: Log state changes (reduced frequency)
+  console.log('[CallManager] 🎬 Render:', { callState, error });
 
+  // ============================================
   // ✅ ERROR TOAST - MOVED BEFORE ANY RETURNS
+  // ============================================
   useEffect(() => {
     if (error) {
       console.error('[CallManager] Call error:', error);
@@ -66,14 +67,11 @@ export default function CallManager() {
   }, [error]);
 
   // ============================================
-  // ✅ NOW SAFE TO EARLY RETURN
+  // ✅ EARLY RETURN - Idle state
   // ============================================
   
-  if (!socket || !isConnected) {
-    console.log('[CallManager] Waiting for socket connection...', { 
-      hasSocket: !!socket, 
-      isConnected 
-    });
+  if (callState === CALL_STATE.IDLE) {
+    // No UI to show when idle
     return null;
   }
 
@@ -129,4 +127,9 @@ export default function CallManager() {
       )}
     </>
   );
-}
+};
+
+// ============================================
+// ✅ EXPORT WITH MEMO - Prevent unnecessary re-renders
+// ============================================
+export default memo(CallManager);

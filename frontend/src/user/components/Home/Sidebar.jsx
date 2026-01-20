@@ -8,16 +8,6 @@ import GroupList from "../FriendFeature/GroupList";
 import AvatarImage from "../common/AvatarImage";
 import useFriendStore from "../../store/friendStore";
 
-/**
- * Sidebar Component - Mobile-First Optimized (Pure Tailwind)
- * 
- * ✅ Better touch targets (min 44px)
- * ✅ Improved visual hierarchy
- * ✅ Smooth scrolling
- * ✅ Premium mobile design
- * 🔥 NEW: Auto-sync unseen count from store
- * 🔥 UPDATED: Using AvatarImage component for consistent avatar rendering
- */
 export default function Sidebar({
   user,
   activeTab,
