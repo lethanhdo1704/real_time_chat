@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
 
   resolve: {
@@ -11,36 +11,34 @@ export default defineConfig({
     },
   },
 
-  server: {
-    // ✅ BẮT BUỘC để Forward Port hoạt động
-    host: true,
+  // ✅ DEV ONLY
+  server: mode === "development"
+    ? {
+        host: true,
+        port: 5173,
+        strictPort: true,
+        https: false,
+        proxy: {
+          "/api": {
+            target: "http://127.0.0.1:5000",
+            changeOrigin: true,
+          },
+          "/socket.io": {
+            target: "http://127.0.0.1:5000",
+            ws: true,
+            changeOrigin: true,
+          },
+          "/uploads": {
+            target: "http://127.0.0.1:5000",
+            changeOrigin: true,
+          },
+        },
+      }
+    : undefined,
 
-    // ✅ Port bạn forward trong VS Code
-    port: 5173,
-
-    // ✅ Nếu port bị chiếm → fail luôn (đúng cho debug)
-    strictPort: true,
-
-    // ❌ KHÔNG DÙNG HTTPS (Forward Port rất kỵ)
-    https: false,
-
-    // ✅ Proxy backend (API + Socket.IO)
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:5000",
-        changeOrigin: true,
-      },
-
-      "/socket.io": {
-        target: "http://127.0.0.1:5000",
-        ws: true,
-        changeOrigin: true,
-      },
-
-      "/uploads": {
-        target: "http://127.0.0.1:5000",
-        changeOrigin: true,
-      },
-    },
+  // ✅ BUILD OUTPUT
+  build: {
+    outDir: "dist",
+    sourcemap: false,
   },
-});
+}));

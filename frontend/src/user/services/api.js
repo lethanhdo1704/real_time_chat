@@ -1,18 +1,11 @@
 // frontend/src/services/api.js
 import axios from "axios";
 
-/**
- * ⚠️ QUAN TRỌNG
- * - KHÔNG dùng IP backend
- * - KHÔNG dùng http://localhost:5000
- * - CHỈ dùng relative path để Vite proxy xử lý
- */
 const api = axios.create({
-  baseURL: "/api", // 🔥 FIX MIXED CONTENT
+  baseURL: import.meta.env.PROD
+    ? import.meta.env.VITE_API_URL
+    : "/api",
   timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
   withCredentials: true,
 });
 
