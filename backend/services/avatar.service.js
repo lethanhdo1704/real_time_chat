@@ -1,41 +1,47 @@
 // backend/services/avatar.service.js
 import sharp from "sharp";
-import path from "path";
-import fs from "fs/promises";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 
 class AvatarService {
   constructor() {
-    this.avatarDir = path.join(__dirname, "../uploads/avatars");
-    this.ensureDir();
-  }
-
-  async ensureDir() {
-    try {
-      await fs.access(this.avatarDir);
-    } catch {
-      await fs.mkdir(this.avatarDir, { recursive: true });
-      console.log("✅ Avatar directory created");
+    this.r2Enabled = process.env.R2_ENABLED === 'true';
+    
+    if (this.r2Enabled) {
+      this.s3Client = new S3Client({
+        region: "auto",
+        endpoint: process.env.R2_ENDPOINT,
+        credentials: {
+          accessKeyId: process.env.R2_ACCESS_KEY_ID,
+          secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+        },
+      });
+      this.bucketName = process.env.R2_BUCKET;
+      this.publicUrl = process.env.R2_PUBLIC_URL;
+      console.log("✅ R2 Storage enabled for avatars");
+    } else {
+      console.warn("⚠️  R2 Storage disabled - avatars will not be saved");
     }
   }
 
   /**
-   * Process and save avatar
+   * Process and save avatar to R2
    * - Sharp validates image (throws if invalid)
    * - Resize 256x256
    * - Strip metadata
    * - Convert WebP
-   * - Save as <uid>.webp
+   * - Upload to R2 as avatars/<uid>.webp
    */
   async processAndSave(buffer, uid) {
     try {
-      const filename = `${uid}.webp`;
-      const filepath = path.join(this.avatarDir, filename);
+      if (!this.r2Enabled) {
+        throw new Error("R2 storage is not enabled");
+      }
 
-      await sharp(buffer)
+      const filename = `${uid}.webp`;
+      const key = `avatars/${filename}`;
+
+      // Process image with Sharp
+      const processedBuffer = await sharp(buffer)
         .resize(256, 256, {
           fit: "cover",
           position: "center"
@@ -44,11 +50,23 @@ class AvatarService {
           quality: 85,
           effort: 6
         })
-        .toFile(filepath);
+        .toBuffer();
 
-      console.log(`✅ [Avatar] Saved: ${filename}`);
+      // Upload to R2
+      await this.s3Client.send(
+        new PutObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
+          Body: processedBuffer,
+          ContentType: "image/webp",
+          CacheControl: "public, max-age=31536000", // 1 year cache
+        })
+      );
 
-      return `/uploads/avatars/${filename}`;
+      console.log(`✅ [Avatar] Saved to R2: ${key}`);
+
+      // Return public URL
+      return `${this.publicUrl}/${key}`;
     } catch (error) {
       console.error("❌ [Avatar] Processing error:", error);
       
@@ -60,27 +78,53 @@ class AvatarService {
     }
   }
 
+  /**
+   * Delete avatar from R2
+   */
   async delete(uid) {
     try {
-      const filename = `${uid}.webp`;
-      const filepath = path.join(this.avatarDir, filename);
-      
-      await fs.unlink(filepath);
-      console.log(`✅ [Avatar] Deleted: ${filename}`);
-      return true;
-    } catch (error) {
-      if (error.code === "ENOENT") {
-        console.log(`⚠️  [Avatar] File not found: ${uid}.webp`);
+      if (!this.r2Enabled) {
+        console.warn("⚠️  R2 storage disabled - cannot delete");
         return false;
       }
-      throw error;
+
+      const filename = `${uid}.webp`;
+      const key = `avatars/${filename}`;
+      
+      await this.s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
+        })
+      );
+
+      console.log(`✅ [Avatar] Deleted from R2: ${key}`);
+      return true;
+    } catch (error) {
+      // R2 doesn't throw error if object doesn't exist
+      console.log(`⚠️  [Avatar] Delete attempted: ${uid}.webp`);
+      return false;
     }
   }
 
+  /**
+   * Check if avatar exists in R2
+   */
   async exists(uid) {
     try {
-      const filepath = path.join(this.avatarDir, `${uid}.webp`);
-      await fs.access(filepath);
+      if (!this.r2Enabled) {
+        return false;
+      }
+
+      const key = `avatars/${uid}.webp`;
+      
+      await this.s3Client.send(
+        new HeadObjectCommand({
+          Bucket: this.bucketName,
+          Key: key,
+        })
+      );
+
       return true;
     } catch {
       return false;

@@ -22,19 +22,28 @@ class AvatarController {
         size: req.file.size
       });
 
-      // Process avatar with Sharp
-      const avatarPath = await avatarService.processAndSave(
+      // Delete old avatar if exists (to clean up R2 storage)
+      const existingUser = await User.findOne({ uid: req.user.uid });
+      if (existingUser?.avatar) {
+        try {
+          await avatarService.delete(req.user.uid);
+        } catch (error) {
+          console.warn("⚠️  Failed to delete old avatar:", error.message);
+        }
+      }
+
+      // Process and upload to R2
+      const avatarUrl = await avatarService.processAndSave(
         req.file.buffer,
         req.user.uid
       );
 
-      // Update user record with avatarUpdatedAt for cache busting
+      // Update user record
       const user = await User.findOneAndUpdate(
         { uid: req.user.uid },
         { 
-          avatar: avatarPath,
-          avatarUpdatedAt: new Date() // ⭐ For cache busting
-          // ✅ REMOVED: lastSeen update
+          avatar: avatarUrl, // Full R2 URL
+          avatarUpdatedAt: new Date()
         },
         { new: true }
       ).select("-passwordHash");
@@ -46,7 +55,7 @@ class AvatarController {
         });
       }
 
-      console.log("✅ [Avatar] Upload success");
+      console.log("✅ [Avatar] Upload success:", avatarUrl);
 
       // 🔔 Unified socket event
       const socketEmitter = req.app.get('socketEmitter');
@@ -79,6 +88,13 @@ class AvatarController {
         });
       }
 
+      if (error.message === "R2 storage is not enabled") {
+        return res.status(503).json({
+          success: false,
+          message: "Avatar upload is temporarily unavailable"
+        });
+      }
+
       res.status(500).json({ 
         success: false,
         message: "Server error" 
@@ -103,13 +119,12 @@ class AvatarController {
 
       console.log("🗑️  [Avatar] Removing:", req.user.uid);
 
-      // Delete file
+      // Delete from R2
       await avatarService.delete(req.user.uid);
 
       // Update DB
       user.avatar = "";
-      user.avatarUpdatedAt = new Date(); // ⭐ Track removal time
-      // ✅ REMOVED: lastSeen update
+      user.avatarUpdatedAt = new Date();
       await user.save();
 
       console.log("✅ [Avatar] Removed");
@@ -119,7 +134,7 @@ class AvatarController {
       if (socketEmitter) {
         socketEmitter.emitToUser(req.user.uid, 'user:update', {
           uid: user.uid,
-          avatar: null, // or empty string
+          avatar: null,
           avatarUpdatedAt: user.avatarUpdatedAt
         });
       }

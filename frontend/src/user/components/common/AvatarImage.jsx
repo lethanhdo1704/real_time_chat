@@ -1,12 +1,11 @@
-// frontend/src/user/components/common/AvatarImage.jsx
 import { useState } from "react";
-import { getAvatarUrlWithCache, getUserInitials } from "../../utils/avatarUtils";
+import { getAvatarUrlWithCache, getUserInitials, isR2Avatar } from "../../utils/avatarUtils";
 
 /**
- * AvatarImage – FINAL FIX
- * ✅ Absolutely no square background
+ * AvatarImage - R2 Storage Optimized
+ * ✅ Supports R2 URLs and local paths
  * ✅ Perfect circle on ANY background
- * ✅ Tailwind v4 safe
+ * ✅ Smart cache busting for R2
  * ✅ Production ready
  */
 export default function AvatarImage({
@@ -24,6 +23,7 @@ export default function AvatarImage({
 
   const avatarUrl = getAvatarUrlWithCache(avatar, avatarUpdatedAt);
   const initials = getUserInitials(nickname);
+  const fromR2 = isR2Avatar(avatar);
 
   const sizeClasses = {
     mini: "w-3.5 h-3.5 text-xs",
@@ -66,8 +66,8 @@ export default function AvatarImage({
           }
         `}
       >
-        {/* Skeleton */}
-        {hasImage && imageLoading && (
+        {/* Skeleton - only show for R2 images (might take longer) */}
+        {hasImage && imageLoading && fromR2 && (
           <div className="absolute inset-0 rounded-full bg-gray-200 animate-pulse" />
         )}
 
@@ -79,11 +79,14 @@ export default function AvatarImage({
             className="w-full h-full object-cover rounded-full"
             onLoad={() => setImageLoading(false)}
             onError={() => {
+              console.warn(`[Avatar] Failed to load: ${avatarUrl}`);
               setImageError(true);
               setImageLoading(false);
             }}
             loading="lazy"
             draggable={false}
+            // R2 images are already optimized WebP
+            crossOrigin={fromR2 ? "anonymous" : undefined}
           />
         ) : (
           <span className="select-none leading-none">{initials}</span>
@@ -98,8 +101,10 @@ export default function AvatarImage({
             w-3.5 h-3.5
             rounded-full
             border-2 border-white
+            transition-colors duration-200
             ${isOnline ? "bg-green-400" : "bg-gray-400"}
           `}
+          aria-label={isOnline ? "Online" : "Offline"}
         />
       )}
     </div>
