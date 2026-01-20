@@ -62,6 +62,23 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // ==========================
+// HEALTH CHECK (PING SERVER)
+// ==========================
+app.get("/health", (req, res) => {
+  const start = process.hrtime.bigint();
+
+  const latencyMs =
+    Number(process.hrtime.bigint() - start) / 1e6;
+
+  res.status(200).json({
+    status: "ok",
+    latencyMs: latencyMs.toFixed(3),
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ==========================
 // CORS CONFIGURATION (FIXED)
 // ==========================
 // 👉 Cho phép HTTPS frontend + Vite proxy
