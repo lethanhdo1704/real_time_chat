@@ -19,7 +19,7 @@ const userOrIpKey = (req) => {
 const isDev = process.env.NODE_ENV === 'development';
 
 // =========================
-// GLOBAL LIMITER - ✅ TĂNG LÊN
+// GLOBAL LIMITER
 // =========================
 export const globalLimiter = rateLimit({
   ...baseOptions,
@@ -37,7 +37,7 @@ export const globalLimiter = rateLimit({
 });
 
 // =========================
-// AUTH LIMITER - ✅ HỢP LÝ HƠN
+// AUTH LIMITER (USER)
 // =========================
 export const authLimiter = rateLimit({
   ...baseOptions,
@@ -55,7 +55,7 @@ export const authLimiter = rateLimit({
 });
 
 // =========================
-// OTP LIMITER - ✅ TĂNG NHẸ
+// OTP LIMITER
 // =========================
 export const otpLimiter = rateLimit({
   ...baseOptions,
@@ -72,7 +72,7 @@ export const otpLimiter = rateLimit({
 });
 
 // =========================
-// MESSAGE LIMITER - ✅ TĂNG ĐÁNG KỂ
+// MESSAGE LIMITER
 // =========================
 export const messageLimiter = rateLimit({
   ...baseOptions,
@@ -105,7 +105,7 @@ export const messageActionLimiter = rateLimit({
 });
 
 // =========================
-// FRIEND REQUEST LIMITER - ✅ HỢP LÝ HƠN
+// FRIEND REQUEST LIMITER
 // =========================
 export const friendRequestLimiter = rateLimit({
   ...baseOptions,
@@ -123,7 +123,7 @@ export const friendRequestLimiter = rateLimit({
 });
 
 // =========================
-// FRIEND API LIMITER - ✅ TĂNG MẠNH (cho /list, /search endpoints)
+// FRIEND API LIMITER
 // =========================
 export const friendApiLimiter = rateLimit({
   ...baseOptions,
@@ -141,7 +141,7 @@ export const friendApiLimiter = rateLimit({
 });
 
 // =========================
-// SEARCH LIMITER - ✅ TĂNG LÊN
+// SEARCH LIMITER
 // =========================
 export const searchLimiter = rateLimit({
   ...baseOptions,
@@ -159,7 +159,7 @@ export const searchLimiter = rateLimit({
 });
 
 // =========================
-// UPLOAD LIMITER - ✅ TĂNG NHẸ
+// UPLOAD LIMITER
 // =========================
 export const uploadLimiter = rateLimit({
   ...baseOptions,
@@ -175,8 +175,22 @@ export const uploadLimiter = rateLimit({
   keyGenerator: userOrIpKey
 });
 
+export const avatarUploadLimiter = rateLimit({
+  ...baseOptions,
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: isDev ? 50 : 5, // 5 requests per window
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMIT_ERROR',
+      message: 'Too many avatar uploads. Please try again later.'
+    }
+  },
+  keyGenerator: userOrIpKey
+});
+
 // =========================
-// API LIMITER - ✅ TĂNG MẠNH
+// API LIMITER
 // =========================
 export const apiLimiter = rateLimit({
   ...baseOptions,
@@ -194,12 +208,64 @@ export const apiLimiter = rateLimit({
 });
 
 // =========================
-// FACTORY - ✅ CẢI THIỆN
+// ✅ ADMIN RATE LIMITERS (NEW)
+// =========================
+
+/**
+ * Admin login rate limiter - NGHIÊM NGẶT HƠN USER
+ * - Production: 3 attempts/15min (vs user: 10 attempts)
+ * - Development: 50 attempts/15min
+ */
+export const adminLoginLimiter = rateLimit({
+  ...baseOptions,
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: isDev ? 50 : 3, // Dev: 50, Prod: CHỈ 3 LẦN
+  skipSuccessfulRequests: true, // Chỉ đếm failed attempts
+  message: {
+    success: false,
+    error: {
+      code: 'ADMIN_RATE_LIMIT_ERROR',
+      message: 'Too many admin login attempts, please try again later'
+    }
+  },
+  keyGenerator: (req) => {
+    // Track theo IP để bảo mật cao hơn
+    const ip = ipKeyGenerator(req);
+    return `admin-login:${ip}`;
+  }
+});
+
+/**
+ * Admin API rate limiter - Cho protected admin routes
+ * - Production: 200 requests/15min (cao hơn user vì admin cần query nhiều)
+ * - Development: unlimited (skip)
+ */
+export const adminApiLimiter = rateLimit({
+  ...baseOptions,
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: isDev ? 1000 : 200, // Dev: 1000, Prod: 200 requests
+  message: {
+    success: false,
+    error: {
+      code: 'ADMIN_RATE_LIMIT_ERROR',
+      message: 'Too many admin API requests, please slow down'
+    }
+  },
+  keyGenerator: (req) => {
+    // Track theo user ID nếu đã login, fallback sang IP
+    if (req.user?._id) return `admin-api:user:${req.user._id}`;
+    return `admin-api:ip:${ipKeyGenerator(req)}`;
+  },
+  skip: () => isDev // Skip trong dev để test dễ hơn
+});
+
+// =========================
+// FACTORY FUNCTION
 // =========================
 export const createRateLimiter = ({ 
   windowMs = 60000, 
   max = 60, 
-  maxDev = null, // Cho phép set riêng cho dev
+  maxDev = null,
   message, 
   useUserId = false, 
   skipDev = true 
@@ -219,15 +285,11 @@ export const createRateLimiter = ({
     skip: () => isDev && skipDev
   });
 
-export const avatarUploadLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 5, // 5 requests per window
-  message: 'Too many avatar uploads. Please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
+// =========================
+// DEFAULT EXPORT
+// =========================
 export default {
+  // User limiters
   globalLimiter,
   authLimiter,
   otpLimiter,
@@ -237,7 +299,13 @@ export default {
   friendApiLimiter,
   searchLimiter,
   uploadLimiter,
-  apiLimiter,
   avatarUploadLimiter,
+  apiLimiter,
+  
+  // ✅ Admin limiters (NEW)
+  adminLoginLimiter,
+  adminApiLimiter,
+  
+  // Factory
   createRateLimiter
 };

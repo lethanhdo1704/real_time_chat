@@ -2,62 +2,95 @@
 import mongoose from "mongoose";
 import crypto from "crypto";
 
-const userSchema = new mongoose.Schema({
-  uid: {
-    type: String,
-    unique: true,
-    default: () => crypto.randomUUID(),
-    index: true,
-  },
+const { Schema } = mongoose;
 
-  nickname: {
-    type: String,
-    required: true, 
-  },
+const userSchema = new Schema(
+  {
+    uid: {
+      type: String,
+      unique: true,
+      default: () => crypto.randomUUID(),
+      index: true,
+    },
 
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    index: true,
-  },
+    nickname: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-  passwordHash: {
-    type: String,
-    required: true,
-  },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      index: true,
+    },
 
-  avatar: {
-    type: String,
-    default: "",
-  },
+    passwordHash: {
+      type: String,
+      required: true,
+    },
 
-  avatarUpdatedAt: { 
-    type: Date,
-    default: null,
-  },
+    avatar: {
+      type: String,
+      default: "",
+    },
 
-  role: {
-    type: String,
-    enum: ["user", "admin"],
-    default: "user",
-  },
+    avatarUpdatedAt: {
+      type: Date,
+      default: null,
+    },
 
-  isOnline: {
-    type: Boolean,
-    default: false,
-  },
+    role: {
+      type: String,
+      enum: ["user", "admin", "super_admin"],
+      default: "user",
+    },
 
-  lastSeen: {
-    type: Date,
-    default: null,
-  },
+    status: {
+      type: String,
+      enum: ["active", "banned", "deleted"],
+      default: "active",
+      index: true,
+    },
 
-  createdAt: {
-    type: Date,
-    default: Date.now,
+    // ===== Ban info (chỉ dùng khi status = banned)
+    banStartAt: {
+      type: Date,
+      default: null,
+    },
+
+    banEndAt: {
+      type: Date,
+      default: null, // ban tạm, hết hạn thì cho hoạt động lại
+    },
+
+    bannedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    // ===== Presence
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+
+    lastSeen: {
+      type: Date,
+      default: null,
+    },
   },
-});
+  {
+    timestamps: true, // createdAt / updatedAt
+  }
+);
+
+// Index hỗ trợ admin
+userSchema.index({ status: 1 });
+userSchema.index({ role: 1 });
 
 const User = mongoose.model("User", userSchema);
 export default User;

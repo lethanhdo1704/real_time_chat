@@ -24,6 +24,7 @@ displayEnvConfig();
 // MIDDLEWARE IMPORTS
 // ==========================
 import auth from "./middleware/auth.js";
+import adminAuth from "./middleware/admin/admin.Auth.js"; // ✅ ADMIN AUTH
 import { sanitizeInput } from "./middleware/sanitize.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import {
@@ -31,11 +32,14 @@ import {
   authLimiter,
   otpLimiter,
   friendRequestLimiter,
+  adminLoginLimiter, // ✅ ADMIN LOGIN LIMITER
+  adminApiLimiter,   // ✅ ADMIN API LIMITER
 } from "./middleware/rateLimit.js";
 
 // ==========================
 // ROUTES
 // ==========================
+// User routes
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/users.routes.js";
 import otpForgotRoutes from "./routes/otp/forgot.routes.js";
@@ -45,8 +49,11 @@ import conversationRoutes from "./routes/conversation.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 import reactionRoutes from "./routes/reaction.routes.js";
 import callRoutes from "./routes/call.routes.js";
-import uploadRoutes from "./routes/upload.routes.js"; // 🔥 NEW
-import groupRoutes from "./routes/group.routes.js"; // 🔥 MUST HAVE THIS
+import uploadRoutes from "./routes/upload.routes.js";
+import groupRoutes from "./routes/group.routes.js";
+
+// ✅ Admin routes
+import adminAuthRoutes from "./routes/admin/auth.routes.js";
 
 // ==========================
 // SOCKET
@@ -62,26 +69,14 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // ==========================
-// HEALTH CHECK (PING SERVER)
+// TRUST PROXY (QUAN TRỌNG cho IP whitelist)
 // ==========================
-app.get("/health", (req, res) => {
-  const start = process.hrtime.bigint();
-
-  const latencyMs =
-    Number(process.hrtime.bigint() - start) / 1e6;
-
-  res.status(200).json({
-    status: "ok",
-    latencyMs: latencyMs.toFixed(3),
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-  });
-});
+// ✅ Bật trust proxy để lấy IP thật từ reverse proxy (nginx, cloudflare...)
+app.set("trust proxy", true);
 
 // ==========================
-// CORS CONFIGURATION (FIXED)
+// CORS CONFIGURATION
 // ==========================
-// 👉 Cho phép HTTPS frontend + Vite proxy
 app.use(
   cors({
     origin: true, // allow all origins (DEV)
@@ -132,8 +127,13 @@ console.log("✅ Static avatar serving configured");
 // HEALTH CHECK
 // ==========================
 app.get("/health", (req, res) => {
-  res.json({
+  const start = process.hrtime.bigint();
+  const latencyMs = Number(process.hrtime.bigint() - start) / 1e6;
+
+  res.status(200).json({
     status: "ok",
+    latencyMs: latencyMs.toFixed(3),
+    uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
     features: config.features,
@@ -141,25 +141,38 @@ app.get("/health", (req, res) => {
 });
 
 // ==========================
-// API ROUTES
+// API ROUTES - USER
 // ==========================
 
-// Public routes
+// Public user routes
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/otp/forgot", otpLimiter, otpForgotRoutes);
 app.use("/api/otp/register", otpLimiter, otpRegisterRoutes);
 
-// Protected routes
+// Protected user routes
 app.use("/api/users", auth, userRoutes);
 app.use("/api/friends", auth, friendRequestLimiter, friendsRoutes);
 app.use("/api/conversations", auth, conversationRoutes);
 app.use("/api/messages", auth, messageRoutes);
 app.use("/api/reactions", auth, reactionRoutes);
 app.use("/api/calls", auth, callRoutes);
-app.use("/api/upload", uploadRoutes); // 🔥 NEW - Upload routes (auth inside route)
+app.use("/api/upload", uploadRoutes);
 app.use("/api/groups", groupRoutes);
 
-console.log("✅ All routes registered");
+console.log("✅ User routes registered");
+
+// ==========================
+// API ROUTES - ADMIN
+// ==========================
+
+// ✅ Admin auth routes (public, có IP whitelist + rate limit riêng)
+app.use("/api/admin/auth", adminAuthRoutes);
+
+// ✅ Admin protected routes (sẽ thêm sau)
+// app.use("/api/admin/users", adminAuth, adminApiLimiter, adminUserRoutes);
+// app.use("/api/admin/reports", adminAuth, adminApiLimiter, adminReportRoutes);
+
+console.log("✅ Admin routes registered");
 
 // ==========================
 // ERROR HANDLING
@@ -172,10 +185,9 @@ app.use(errorHandler);
 // ==========================
 const PORT = config.port || 5000;
 
-// 👉 HTTP server (KHÔNG HTTPS – dùng proxy)
 const server = createServer(app);
 
-// 👉 Init Socket.IO (WebRTC signaling)
+// Init Socket.IO (WebRTC signaling)
 const { io, socketEmitter } = initSocket(server);
 
 app.set("io", io);
@@ -188,7 +200,7 @@ console.log("✅ Call signaling ready");
 // START SERVER
 // ==========================
 server.listen(PORT, "0.0.0.0", () => {
-  console.log("\n" + "=".repeat(50));
+  console.log("\n" + "=".repeat(60));
   console.log(`🚀 Server running`);
   console.log(`➡️  Local:   http://localhost:${PORT}`);
   console.log(`➡️  Network: http://0.0.0.0:${PORT}`);
@@ -196,8 +208,10 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`🔌 Socket.IO ready`);
   console.log(`📞 WebRTC signaling ready`);
   console.log(`📁 Avatars: /uploads/avatars`);
-  console.log(`📤 Upload: R2 ${config.r2.enabled ? 'Enabled ✅' : 'Disabled ❌'}`); // 🔥 NEW
-  console.log("=".repeat(50) + "\n");
+  console.log(`📤 Upload: R2 ${config.r2.enabled ? "✅" : "❌"}`);
+  console.log(`🔐 Trust Proxy: ✅ (IP whitelist enabled)`); // ✅ NEW
+  console.log(`🛡️  Admin IP Whitelist: ${process.env.ADMIN_IP_WHITELIST ? "✅ Configured" : "⚠️  NOT configured"}`); // ✅ NEW
+  console.log("=".repeat(60) + "\n");
 });
 
 // ==========================
