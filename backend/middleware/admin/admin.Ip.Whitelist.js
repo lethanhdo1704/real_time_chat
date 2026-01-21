@@ -48,7 +48,6 @@ const adminIpWhitelist = (req, res, next) => {
     }
 
     // IP hợp lệ, tiếp tục
-    console.log(`✅ Admin access allowed from IP: ${clientIP}`);
     next();
 
   } catch (error) {

@@ -54,7 +54,7 @@ import groupRoutes from "./routes/group.routes.js";
 
 // ✅ Admin routes
 import adminAuthRoutes from "./routes/admin/auth.routes.js";
-
+import adminUserRoutes from "./routes/admin/users.routes.js"; 
 // ==========================
 // SOCKET
 // ==========================
@@ -167,13 +167,14 @@ console.log("✅ User routes registered");
 
 // ✅ Admin auth routes (public, có IP whitelist + rate limit riêng)
 app.use("/api/admin/auth", adminAuthRoutes);
-
+// ✅ Admin user management routes (protected)
+app.use("/api/admin/users", adminAuth, adminApiLimiter, adminUserRoutes);
 // ✅ Admin protected routes (sẽ thêm sau)
 // app.use("/api/admin/users", adminAuth, adminApiLimiter, adminUserRoutes);
 // app.use("/api/admin/reports", adminAuth, adminApiLimiter, adminReportRoutes);
 
 console.log("✅ Admin routes registered");
-
+console.log("✅ Admin routes registered");
 // ==========================
 // ERROR HANDLING
 // ==========================

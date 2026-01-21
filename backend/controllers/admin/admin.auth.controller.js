@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../../models/User.js';
 import { getRealIP } from '../../utils/ip.js';
+import { checkAndUnbanUser } from '../../services/admin/userAdmin.service.js';
 
 /**
  * Admin login
@@ -32,6 +33,9 @@ export const adminLogin = async (req, res) => {
         message: 'Invalid email or password'
       });
     }
+
+    // ✅ AUTO UNBAN NẾU HẾT HẠN
+    await checkAndUnbanUser(user);
 
     // Kiểm tra password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
@@ -131,13 +135,17 @@ export const adminLogin = async (req, res) => {
 };
 
 /**
- * Verify admin token (để check token còn hợp lệ không)
+ * Verify admin token
  * GET /api/admin/auth/verify
  * Header: Authorization: Bearer <token>
  */
 export const verifyAdminToken = async (req, res) => {
   try {
     // req.user đã được gắn bởi adminAuth middleware
+    
+    // ✅ AUTO UNBAN NẾU HẾT HẠN
+    await checkAndUnbanUser(req.user);
+
     return res.status(200).json({
       success: true,
       message: 'Token is valid',
