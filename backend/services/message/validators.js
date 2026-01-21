@@ -111,9 +111,6 @@ validationCache.startCleanup();
 if (isDev) {
   setInterval(() => {
     const stats = validationCache.getStats();
-    if (stats.hitCount + stats.missCount > 0) {
-      console.log('📊 [Cache Stats]', stats);
-    }
   }, 60000); // Every minute
 }
 
