@@ -100,7 +100,7 @@ export default function GroupList({ currentUser }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           <span className="hidden sm:inline">{t("groupList.createButton")}</span>
-          <span className="sm:hidden">{t("groupList.create")}</span>
+          <span className="sm:hidden">{t("groupList.createButton")}</span>
         </button>
 
         {/* 🔥 NEW: Join Group Button */}
@@ -112,7 +112,7 @@ export default function GroupList({ currentUser }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
           <span className="hidden sm:inline">{t("groupList.joinButton")}</span>
-          <span className="sm:hidden">{t("groupList.join")}</span>
+          <span className="sm:hidden">{t("groupList.joinButton")}</span>
         </button>
       </div>
 
