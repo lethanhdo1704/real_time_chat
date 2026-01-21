@@ -1,20 +1,51 @@
-// frontend/src/hooks/useInitFriends.js
+// frontend/src/hooks/friends/useInitFriends.js - FIXED VERSION
+import { useEffect, useRef } from 'react';
 import useFriendSocket from '../socket/useFriendSocket';
+import useFriendActions from './useFriendActions';
+import useFriendStore from '../../store/friendStore';
 
 /**
- * Hook để khởi tạo friend system
+ * Hook to initialize friend system
  * 
- * 🔥 SIMPLIFIED:
- * - CHỈ setup socket listeners
- * - Fetching được handle BỞI useFriendSocket khi socket connected
- * - KHÔNG có logic fetch riêng
+ * 🔥 FIXED APPROACH:
+ * 1. Fetch friends IMMEDIATELY on mount (don't wait for socket)
+ * 2. Setup socket listeners for realtime updates
+ * 3. Use cache to avoid redundant fetches
  */
 export default function useInitFriends(user) {
-  // 🔥 CHỈ setup socket listeners - fetching tự động xảy ra trong useFriendSocket
-  useFriendSocket();
+  const hasInitialized = useRef(false);
+  const { loadFriendsData, loading } = useFriendActions();
+  const isCacheValid = useFriendStore((state) => state.isCacheValid);
   
-  // That's it! Mọi thứ khác được handle tự động:
-  // 1. useFriendSocket chờ socket connected
-  // 2. Khi connected → tự động fetch friends
-  // 3. Register socket listeners cho realtime updates
+  // ============================================
+  // 🔥 FIX: FETCH IMMEDIATELY ON MOUNT
+  // ============================================
+  useEffect(() => {
+    if (!user?.uid) {
+      console.log('⏭️ [useInitFriends] No user, skipping init');
+      return;
+    }
+
+    // ✅ Skip if already initialized OR cache is valid
+    if (hasInitialized.current || isCacheValid()) {
+      console.log('✅ [useInitFriends] Already initialized or cache valid, skipping');
+      return;
+    }
+
+    console.log('🚀 [useInitFriends] Fetching friends immediately...');
+    hasInitialized.current = true;
+    
+    // 🔥 Fetch friends ASAP - don't wait for socket
+    loadFriendsData().catch((error) => {
+      console.error('❌ [useInitFriends] Failed to fetch friends:', error);
+      hasInitialized.current = false; // Allow retry
+    });
+  }, [user?.uid, isCacheValid, loadFriendsData]);
+
+  // ============================================
+  // Setup socket listeners (runs in parallel)
+  // ============================================
+  useFriendSocket();
+
+  return { loading };
 }
