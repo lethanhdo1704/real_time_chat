@@ -1,4 +1,6 @@
-// backend/models/Message.js
+// backend/models/Message.js - FIXED VERSION
+// 🔧 FIX: Prevent "Cannot overwrite model" error in ES modules
+
 import mongoose from "mongoose";
 
 const { Schema } = mongoose;
@@ -39,7 +41,6 @@ const messageSchema = new Schema(
       default: null,
     },
 
-    // ✅ FIX: Chuẩn hóa attachments
     attachments: [
       {
         url: {
@@ -56,7 +57,7 @@ const messageSchema = new Schema(
         },
         mime: {
           type: String,
-          required: true, 
+          required: true,
         },
         mediaType: {
           type: String,
@@ -129,15 +130,18 @@ const messageSchema = new Schema(
 );
 
 // ============================================
-// INDEXES
+// 🔥 OPTIMIZED INDEXES
 // ============================================
 
-messageSchema.index({ conversation: 1, _id: -1 });
-messageSchema.index({ sender: 1, createdAt: -1 });
-messageSchema.index({ clientMessageId: 1 }, { sparse: true });
 messageSchema.index({ conversation: 1, createdAt: -1 });
-
-// ✅ NO index on reactions.user - not needed for current queries
+messageSchema.index({ clientMessageId: 1 }, { sparse: true });
+messageSchema.index({ 
+  conversation: 1, 
+  "attachments.mediaType": 1, 
+  createdAt: -1 
+});
+messageSchema.index({ sender: 1, createdAt: -1 });
+messageSchema.index({ conversation: 1, sender: 1, createdAt: -1 });
 
 // ============================================
 // VIRTUAL FIELDS
@@ -170,7 +174,7 @@ messageSchema.methods.getState = function () {
 };
 
 // ============================================
-// STATIC METHODS - EXISTING
+// STATIC METHODS
 // ============================================
 
 messageSchema.statics.getConversationMessages = async function (
@@ -237,7 +241,7 @@ messageSchema.statics.recallMessage = async function (
     isRecalled: true,
     recalledAt: new Date(),
     content: "",
-    reactions: [], // Clear reactions when recalled
+    reactions: [],
   };
 
   if (clearHidden) {
@@ -257,7 +261,7 @@ messageSchema.statics.adminDelete = async function (messageId, adminId) {
       deletedBy: adminId,
       hiddenFor: [],
       isRecalled: false,
-      reactions: [], // Clear reactions when admin deleted
+      reactions: [],
     },
     { new: true }
   );
@@ -265,24 +269,6 @@ messageSchema.statics.adminDelete = async function (messageId, adminId) {
   return result;
 };
 
-// ============================================
-// 🆕 STATIC METHODS - REACTIONS (FINAL)
-// ============================================
-
-/**
- * Toggle reaction (add or remove)
- * Returns updated message with populated reactions
- *
- * ✅ PRODUCTION READY:
- * - No emoji validation (trust FE)
- * - No max limit per user
- * - Simple toggle logic
- *
- * @param {string} messageId - Message ID
- * @param {string} userId - User ID (MongoDB _id)
- * @param {string} emoji - Unicode emoji from emoji-picker-react
- * @returns {Promise<Document>} Updated message document
- */
 messageSchema.statics.toggleReaction = async function (
   messageId,
   userId,
@@ -294,7 +280,6 @@ messageSchema.statics.toggleReaction = async function (
     throw new Error("Message not found");
   }
 
-  // Check if message can receive reactions
   if (message.deletedAt) {
     throw new Error("Cannot react to deleted message");
   }
@@ -303,16 +288,13 @@ messageSchema.statics.toggleReaction = async function (
     throw new Error("Cannot react to recalled message");
   }
 
-  // Find existing reaction
   const existingIndex = message.reactions.findIndex(
     (r) => r.user.toString() === userId.toString() && r.emoji === emoji
   );
 
   if (existingIndex !== -1) {
-    // Remove reaction (toggle off)
     message.reactions.splice(existingIndex, 1);
   } else {
-    // Add reaction (toggle on)
     message.reactions.push({
       user: userId,
       emoji: emoji,
@@ -322,7 +304,6 @@ messageSchema.statics.toggleReaction = async function (
 
   await message.save();
 
-  // Populate user info before returning
   await message.populate({
     path: "reactions.user",
     select: "uid nickname avatar",
@@ -331,4 +312,16 @@ messageSchema.statics.toggleReaction = async function (
   return message;
 };
 
-export default mongoose.model("Message", messageSchema);
+// ==================== 🔧 FIX: Prevent model overwrite error ====================
+
+let Message;
+
+try {
+  // Try to get existing model
+  Message = mongoose.model('Message');
+} catch (error) {
+  // Model doesn't exist yet, create it
+  Message = mongoose.model('Message', messageSchema);
+}
+
+export default Message;
