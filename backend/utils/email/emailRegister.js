@@ -1,24 +1,10 @@
 // backend/utils/emailRegister.js
-import nodemailer from "nodemailer";
-import path from "path";
-import { fileURLToPath } from "url";
+import { Resend } from "resend";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const sendRegisterOTP = async (to, otp) => {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    connectionTimeout: 10000,
-  });
-
-  const mailOptions = {
+  await resend.emails.send({
     from: `"REAL TIME CHAT" <${process.env.EMAIL_USER}>`,
     to,
     subject: "🔐 Mã Xác Thực OTP - Đăng Nhập Tài Khoản",
@@ -196,15 +182,13 @@ export const sendRegisterOTP = async (to, otp) => {
             <p>Email này được gửi tự động từ hệ thống bảo mật của chúng tôi.</p>
             <p>
               © 2025 Real Time Chat App. All rights reserved.<br>
-              <a href="https://realtimechat.com">realtimechat.com</a> | 
-              <a href="https://realtimechat.com/support">Trung tâm hỗ trợ</a>
+              <a href="https://realtimechat.online">realtimechat.com</a> | 
+              <a href="https://realtimechat.online/support">Trung tâm hỗ trợ</a>
             </p>
           </div>
         </div>
       </body>
       </html>
     `,
-  };
-
-  await transporter.sendMail(mailOptions);
+  });
 };
