@@ -1,6 +1,6 @@
 // frontend/src/App.jsx
 import { useEffect, lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./user/context/AuthContext";
 import { SocketProvider } from "./user/context/SocketContext";
 import { setViewportHeight } from "./user/utils/setViewportHeight";
@@ -40,14 +40,25 @@ const JoinViaLink = lazy(() => import("./user/pages/JoinViaLink"));
 // ============================================
 // LAZY LOAD - POLICY PAGES (RARELY ACCESSED)
 // ============================================
-const PrivacyPolicy = lazy(() => import("./user/pages/LegalPolicies/PrivacyPolicy"));
-const CookiesPolicy = lazy(() => import("./user/pages/LegalPolicies/CookiesPolicy"));
-const TermsOfService = lazy(() => import("./user/pages/LegalPolicies/TermsOfService"));
+const PrivacyPolicy = lazy(
+  () => import("./user/pages/LegalPolicies/PrivacyPolicy"),
+);
+const CookiesPolicy = lazy(
+  () => import("./user/pages/LegalPolicies/CookiesPolicy"),
+);
+const TermsOfService = lazy(
+  () => import("./user/pages/LegalPolicies/TermsOfService"),
+);
 
 // ============================================
 // LAZY LOAD - ERROR PAGES
 // ============================================
 const NotFound = lazy(() => import("./user/pages/NotFound"));
+
+// ============================================
+// LAZY LOAD - ADMIN (ISOLATED)
+// ============================================
+const AdminApp = lazy(() => import("./admin/AppAdmin"));
 
 function App() {
   // ============================================
@@ -73,7 +84,7 @@ function App() {
     // → 90% user vào site lần đầu sẽ cần Login/Register
     import("./user/pages/Login");
     import("./user/pages/Register");
-    
+
     // Optional: Preload ForgotPassword sau 2s (ít urgent hơn)
     const timer = setTimeout(() => {
       import("./user/pages/ForgotPassword");
@@ -84,76 +95,78 @@ function App() {
 
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <SocketProvider>
-          <div
-            className="
+      <SocketProvider>
+        <div
+          className="
             h-[calc(var(--vh,1vh)*100)]
             supports-[height:100dvh]:h-dvh
             w-screen
           "
-          >
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                {/* ========================================== */}
-                {/* PUBLIC ROUTES - Auth Pages                 */}
-                {/* ========================================== */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/forgotpassword" element={<ForgotPassword />} />
+        >
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* ========================================== */}
+              {/* ADMIN ROUTES (ISOLATED)                   */}
+              {/* ========================================== */}
+              <Route path="/admin/*" element={<AdminApp />} />
+              {/* ========================================== */}
+              {/* PUBLIC ROUTES - Auth Pages                 */}
+              {/* ========================================== */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgotpassword" element={<ForgotPassword />} />
 
-                {/* ========================================== */}
-                {/* PUBLIC ROUTES - Policy Pages (Standalone) */}
-                {/* ========================================== */}
-                <Route path="/policy/privacy" element={<PrivacyPolicy />} />
-                <Route path="/policy/cookies" element={<CookiesPolicy />} />
-                <Route path="/policy/terms" element={<TermsOfService />} />
+              {/* ========================================== */}
+              {/* PUBLIC ROUTES - Policy Pages (Standalone) */}
+              {/* ========================================== */}
+              <Route path="/policy/privacy" element={<PrivacyPolicy />} />
+              <Route path="/policy/cookies" element={<CookiesPolicy />} />
+              <Route path="/policy/terms" element={<TermsOfService />} />
 
-                {/* ========================================== */}
-                {/* PUBLIC ROUTES - Join Via Link             */}
-                {/* ========================================== */}
-                <Route path="/join/:code" element={<JoinViaLink />} />
+              {/* ========================================== */}
+              {/* PUBLIC ROUTES - Join Via Link             */}
+              {/* ========================================== */}
+              <Route path="/join/:code" element={<JoinViaLink />} />
 
-                {/* ========================================== */}
-                {/* PROTECTED ROUTES - Home (Main Chat)       */}
-                {/* ========================================== */}
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <Home />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="friends" element={null} />
-                  <Route path="friends/:conversationId" element={null} />
-                  <Route path="groups" element={null} />
-                  <Route path="groups/:conversationId" element={null} />
-                  <Route path="requests" element={null} />
-                  <Route path="add" element={null} />
-                </Route>
+              {/* ========================================== */}
+              {/* PROTECTED ROUTES - Home (Main Chat)       */}
+              {/* ========================================== */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Home />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="friends" element={null} />
+                <Route path="friends/:conversationId" element={null} />
+                <Route path="groups" element={null} />
+                <Route path="groups/:conversationId" element={null} />
+                <Route path="requests" element={null} />
+                <Route path="add" element={null} />
+              </Route>
 
-                {/* ========================================== */}
-                {/* PROTECTED ROUTES - Settings (Full Page)   */}
-                {/* ========================================== */}
-                <Route
-                  path="/settings"
-                  element={
-                    <ProtectedRoute>
-                      <Settings />
-                    </ProtectedRoute>
-                  }
-                />
+              {/* ========================================== */}
+              {/* PROTECTED ROUTES - Settings (Full Page)   */}
+              {/* ========================================== */}
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
 
-                {/* ========================================== */}
-                {/* 404 NOT FOUND                             */}
-                {/* ========================================== */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </div>
-        </SocketProvider>
-      </BrowserRouter>
+              {/* ========================================== */}
+              {/* 404 NOT FOUND                             */}
+              {/* ========================================== */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </div>
+      </SocketProvider>
     </AuthProvider>
   );
 }
