@@ -1,13 +1,15 @@
 // admin/components/Login/EmailInput.jsx
-
 import React from 'react';
 import { Mail } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const EmailInput = ({ value, error, onChange }) => {
+  const { t } = useTranslation('adminlogin');
+
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        Email Address
+        {t('form.email.label')}
       </label>
       
       <div className="relative">
@@ -23,7 +25,7 @@ const EmailInput = ({ value, error, onChange }) => {
               ? 'border-red-300 focus:ring-red-200' 
               : 'border-gray-300 focus:ring-blue-200'
           }`}
-          placeholder="admin@example.com"
+          placeholder={t('form.email.placeholder')}
         />
       </div>
       

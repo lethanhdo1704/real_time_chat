@@ -2,31 +2,23 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLogin from "../pages/AdminLogin";
 import AdminProtectedRoute from "./AdminProtectedRoute";
-
-function DashboardPlaceholder() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-      <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-        Admin Dashboard (coming soon)
-      </h1>
-    </div>
-  );
-}
+import AdminDashboard from "../pages/AdminDashboard";
 
 export default function AdminRoutes() {
   return (
     <Routes>
-      {/* PUBLIC - path tương đối (KHÔNG có /) */}
+      {/* PUBLIC */}
       <Route path="login" element={<AdminLogin />} />
 
       {/* PROTECTED */}
       <Route element={<AdminProtectedRoute />}>
-        <Route index element={<DashboardPlaceholder />} />
-        {/* index = path="/" trong nested route */}
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+        {/* Khi vào / sẽ redirect sang /dashboard */}
       </Route>
 
       {/* Catch-all */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }

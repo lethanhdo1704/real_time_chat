@@ -1,9 +1,11 @@
 // admin/components/Login/LoginButton.jsx
-
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 const LoginButton = ({ loading, onClick }) => {
+  const { t } = useTranslation('adminlogin');
+
   return (
     <button
       onClick={onClick}
@@ -13,10 +15,10 @@ const LoginButton = ({ loading, onClick }) => {
       {loading ? (
         <div className="flex items-center justify-center gap-2">
           <LoadingSpinner size="sm" />
-          <span>Signing in...</span>
+          <span>{t('form.button.signingIn')}</span>
         </div>
       ) : (
-        'Sign In'
+        t('form.button.signIn')
       )}
     </button>
   );

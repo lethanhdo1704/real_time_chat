@@ -1,21 +1,19 @@
-// admin/services/adminApi.js
+// frontend/src/admin/services/adminApi.js
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const adminApi = {
-  baseURL: '/api/admin',
-  
   /**
    * Admin login
-   * @param {string} email 
-   * @param {string} password 
-   * @returns {Promise<Object>}
    */
   async login(email, password) {
     try {
-      const response = await fetch(`${this.baseURL}/auth/login`, {
+      const response = await fetch(`${API_URL}/admin/auth/login`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json' 
         },
+        credentials: 'include',
         body: JSON.stringify({ email, password })
       });
       
@@ -34,16 +32,16 @@ const adminApi = {
   
   /**
    * Verify admin token
-   * @param {string} token 
-   * @returns {Promise<Object>}
    */
   async verifyToken(token) {
     try {
-      const response = await fetch(`${this.baseURL}/auth/verify`, {
+      const response = await fetch(`${API_URL}/admin/auth/verify`, {
         method: 'GET',
         headers: { 
-          'Authorization': `Bearer ${token}` 
-        }
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
       });
       
       const data = await response.json();
@@ -55,6 +53,129 @@ const adminApi = {
       return data;
     } catch (error) {
       console.error('❌ Token verification error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Admin logout
+   */
+  async logout() {
+    try {
+      await fetch(`${API_URL}/admin/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+    }
+  },
+
+  // ==================== USER MANAGEMENT ====================
+
+  /**
+   * Get user statistics
+   */
+  async getUserStatistics() {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/admin/users/statistics`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ Get stats error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * List users with filters
+   */
+  async listUsers(filters = {}) {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const params = new URLSearchParams(filters).toString();
+      
+      const response = await fetch(`${API_URL}/admin/users?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ List users error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Ban user
+   */
+  async banUser(userId, banData) {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/admin/users/${userId}/ban`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify(banData)
+      });
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ Ban user error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Unban user
+   */
+  async unbanUser(userId) {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/admin/users/${userId}/unban`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ Unban user error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete user
+   */
+  async deleteUser(userId) {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ Delete user error:', error);
       throw error;
     }
   }

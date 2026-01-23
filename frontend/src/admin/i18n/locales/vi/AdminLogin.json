@@ -1,0 +1,32 @@
+{
+  "header": {
+    "title": "Trang Quản Trị",
+    "subtitle": "Đăng nhập để truy cập bảng điều khiển"
+  },
+  "form": {
+    "email": {
+      "label": "Địa chỉ Email",
+      "placeholder": "admin@example.com",
+      "required": "Vui lòng nhập email",
+      "invalid": "Email không hợp lệ"
+    },
+    "password": {
+      "label": "Mật khẩu",
+      "placeholder": "••••••••",
+      "required": "Vui lòng nhập mật khẩu",
+      "minLength": "Mật khẩu phải có ít nhất 6 ký tự"
+    },
+    "button": {
+      "signIn": "Đăng nhập",
+      "signingIn": "Đang đăng nhập..."
+    }
+  },
+  "messages": {
+    "loginFailed": "Đăng nhập thất bại. Vui lòng thử lại.",
+    "invalidCredentials": "Email hoặc mật khẩu không đúng",
+    "networkError": "Lỗi mạng. Vui lòng kiểm tra kết nối."
+  },
+  "footer": {
+    "text": "Khu vực Quản trị • Chỉ dành cho người được ủy quyền"
+  }
+}

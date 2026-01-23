@@ -1,6 +1,6 @@
-// admin/context/AdminAuthContext.jsx
-
+// frontend/src/admin/context/AdminAuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import adminApi from '../services/adminApi';
 
 const AdminAuthContext = createContext();
@@ -18,7 +18,6 @@ export const AdminAuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Verify stored token on mount
   useEffect(() => {
     verifyStoredToken();
   }, []);
@@ -33,7 +32,10 @@ export const AdminAuthProvider = ({ children }) => {
       }
 
       const response = await adminApi.verifyToken(token);
-      setAdmin(response.data.user);
+      
+      if (response.success && response.data) {
+        setAdmin(response.data.user);
+      }
       
     } catch (err) {
       console.error('Token verification failed:', err);
@@ -49,18 +51,31 @@ export const AdminAuthProvider = ({ children }) => {
     setError(null);
     
     try {
+      console.log('📝 Login called with:', email);
+      
       const response = await adminApi.login(email, password);
       
-      // Save token to localStorage
-      localStorage.setItem('adminToken', response.data.token);
+      console.log('📊 Login response:', response);
       
-      // Set admin user
-      setAdmin(response.data.user);
+      if (response.success && response.data) {
+        localStorage.setItem('adminToken', response.data.token);
+        setAdmin(response.data.user);
+        
+        return { 
+          success: true,
+          shouldRedirect: true // ✅ Flag để redirect
+        };
+      }
       
-      return { success: true };
+      return { 
+        success: false, 
+        error: response.message || 'Login failed' 
+      };
       
     } catch (err) {
+      console.error('❌ Login error:', err);
       setError(err.message);
+      
       return { 
         success: false, 
         error: err.message 
@@ -71,6 +86,7 @@ export const AdminAuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('adminToken');
     setAdmin(null);
+    adminApi.logout();
   };
 
   const value = {

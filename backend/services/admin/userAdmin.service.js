@@ -4,7 +4,7 @@ import User from '../../models/User.js';
 /**
  * 📋 LIST USERS WITH FILTERS & PAGINATION
  */
-export const listUsers = async (filters = {}) => {
+export const listUsers = async (filters = {}, adminRole) => {
   const {
     page = 1,
     limit = 20,
@@ -18,11 +18,20 @@ export const listUsers = async (filters = {}) => {
   // Build query
   const query = {};
   
+  // ✅ FIX: Admin thường không được xem super_admin
+  if (adminRole !== 'super_admin') {
+    query.role = { $ne: 'super_admin' };
+  }
+  
   if (status) {
     query.status = status;
   }
   
   if (role) {
+    // Nếu admin thường cố tình filter role=super_admin
+    if (adminRole !== 'super_admin' && role === 'super_admin') {
+      throw new Error('Permission denied: Cannot view super_admin users');
+    }
     query.role = role;
   }
   
@@ -63,7 +72,7 @@ export const listUsers = async (filters = {}) => {
 /**
  * 👤 GET USER DETAIL
  */
-export const getUserDetail = async (userId) => {
+export const getUserDetail = async (userId, adminRole) => {
   const user = await User.findById(userId)
     .select('-passwordHash')
     .lean();
@@ -72,13 +81,18 @@ export const getUserDetail = async (userId) => {
     throw new Error('User not found');
   }
 
+  // ✅ FIX: Admin thường không được xem chi tiết super_admin
+  if (adminRole !== 'super_admin' && user.role === 'super_admin') {
+    throw new Error('Permission denied: Cannot view super_admin details');
+  }
+
   return user;
 };
 
 /**
  * 🚫 BAN USER
  */
-export const banUser = async (userId, adminId, banData) => {
+export const banUser = async (userId, adminId, banData, adminRole) => {
   const { reason, banEndAt } = banData;
 
   const user = await User.findById(userId);
@@ -90,7 +104,7 @@ export const banUser = async (userId, adminId, banData) => {
     throw new Error('User is already banned');
   }
 
-  // Không thể ban admin khác (trừ super_admin)
+  // ✅ FIX: Không thể ban admin khác (bao gồm cả super_admin)
   if (user.role === 'admin' || user.role === 'super_admin') {
     throw new Error('Cannot ban admin users');
   }
@@ -116,7 +130,7 @@ export const banUser = async (userId, adminId, banData) => {
 /**
  * ✅ UNBAN USER
  */
-export const unbanUser = async (userId) => {
+export const unbanUser = async (userId, adminRole) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new Error('User not found');
@@ -124,6 +138,11 @@ export const unbanUser = async (userId) => {
 
   if (user.status !== 'banned') {
     throw new Error('User is not banned');
+  }
+
+  // ✅ FIX: Đảm bảo không thể unban super_admin
+  if (adminRole !== 'super_admin' && user.role === 'super_admin') {
+    throw new Error('Permission denied: Cannot unban super_admin');
   }
 
   user.status = 'active';
@@ -144,7 +163,7 @@ export const unbanUser = async (userId) => {
 /**
  * 🗑️ SOFT DELETE USER
  */
-export const deleteUser = async (userId, adminId) => {
+export const deleteUser = async (userId, adminId, adminRole) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new Error('User not found');
@@ -154,7 +173,7 @@ export const deleteUser = async (userId, adminId) => {
     throw new Error('User is already deleted');
   }
 
-  // Không thể xóa admin khác
+  // ✅ FIX: Không thể xóa admin khác (bao gồm cả super_admin)
   if (user.role === 'admin' || user.role === 'super_admin') {
     throw new Error('Cannot delete admin users');
   }
@@ -173,7 +192,7 @@ export const deleteUser = async (userId, adminId) => {
 /**
  * ♻️ RESTORE USER
  */
-export const restoreUser = async (userId) => {
+export const restoreUser = async (userId, adminRole) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new Error('User not found');
@@ -181,6 +200,11 @@ export const restoreUser = async (userId) => {
 
   if (user.status !== 'deleted') {
     throw new Error('User is not deleted');
+  }
+
+  // ✅ FIX: Đảm bảo không thể restore super_admin
+  if (adminRole !== 'super_admin' && user.role === 'super_admin') {
+    throw new Error('Permission denied: Cannot restore super_admin');
   }
 
   user.status = 'active';
@@ -230,7 +254,12 @@ export const updateUserRole = async (userId, newRole, adminRole) => {
 /**
  * 📊 GET USER STATISTICS
  */
-export const getUserStatistics = async () => {
+export const getUserStatistics = async (adminRole) => {
+  // ✅ FIX: Điều chỉnh query dựa trên role của admin
+  const baseQuery = adminRole !== 'super_admin' 
+    ? { role: { $ne: 'super_admin' } } 
+    : {};
+
   const [
     totalUsers,
     activeUsers,
@@ -239,12 +268,17 @@ export const getUserStatistics = async () => {
     adminUsers,
     onlineUsers
   ] = await Promise.all([
-    User.countDocuments(),
-    User.countDocuments({ status: 'active' }),
-    User.countDocuments({ status: 'banned' }),
-    User.countDocuments({ status: 'deleted' }),
-    User.countDocuments({ role: { $in: ['admin', 'super_admin'] } }),
-    User.countDocuments({ isOnline: true })
+    User.countDocuments(baseQuery),
+    User.countDocuments({ ...baseQuery, status: 'active' }),
+    User.countDocuments({ ...baseQuery, status: 'banned' }),
+    User.countDocuments({ ...baseQuery, status: 'deleted' }),
+    User.countDocuments({ 
+      ...baseQuery, 
+      role: adminRole === 'super_admin' 
+        ? { $in: ['admin', 'super_admin'] } 
+        : 'admin' 
+    }),
+    User.countDocuments({ ...baseQuery, isOnline: true })
   ]);
 
   return {

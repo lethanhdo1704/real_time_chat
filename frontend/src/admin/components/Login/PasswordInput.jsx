@@ -1,13 +1,15 @@
 // admin/components/Login/PasswordInput.jsx
-
 import React from 'react';
 import { Lock, Eye, EyeOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const PasswordInput = ({ value, error, showPassword, onChange, onToggle }) => {
+  const { t } = useTranslation('adminlogin');
+
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        Password
+        {t('form.password.label')}
       </label>
       
       <div className="relative">
@@ -23,7 +25,7 @@ const PasswordInput = ({ value, error, showPassword, onChange, onToggle }) => {
               ? 'border-red-300 focus:ring-red-200' 
               : 'border-gray-300 focus:ring-blue-200'
           }`}
-          placeholder="••••••••"
+          placeholder={t('form.password.placeholder')}
         />
         
         <button
@@ -46,4 +48,4 @@ const PasswordInput = ({ value, error, showPassword, onChange, onToggle }) => {
   );
 };
 
-export default PasswordInput;   
+export default PasswordInput;

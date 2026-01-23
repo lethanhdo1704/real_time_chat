@@ -8,8 +8,7 @@ export default function AdminProtectedRoute() {
   if (loading) return null;
 
   if (!admin) {
-    // Path tương đối (KHÔNG có /)
-    return <Navigate to="login" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <Outlet />;

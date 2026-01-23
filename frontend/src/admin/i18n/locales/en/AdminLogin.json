@@ -1,0 +1,32 @@
+{
+  "header": {
+    "title": "Admin Portal",
+    "subtitle": "Sign in to access the admin dashboard"
+  },
+  "form": {
+    "email": {
+      "label": "Email Address",
+      "placeholder": "admin@example.com",
+      "required": "Email is required",
+      "invalid": "Please enter a valid email address"
+    },
+    "password": {
+      "label": "Password",
+      "placeholder": "••••••••",
+      "required": "Password is required",
+      "minLength": "Password must be at least 6 characters"
+    },
+    "button": {
+      "signIn": "Sign In",
+      "signingIn": "Signing in..."
+    }
+  },
+  "messages": {
+    "loginFailed": "Login failed. Please try again.",
+    "invalidCredentials": "Invalid email or password",
+    "networkError": "Network error. Please check your connection."
+  },
+  "footer": {
+    "text": "Protected Admin Area • Authorized Access Only"
+  }
+}

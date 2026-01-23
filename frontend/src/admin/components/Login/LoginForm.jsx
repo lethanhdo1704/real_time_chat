@@ -1,6 +1,6 @@
 // admin/components/Login/LoginForm.jsx
-
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import useLoginForm from '../../hooks/auth/useLoginForm';
 import ErrorMessage from '../common/ErrorMessage';
@@ -11,6 +11,7 @@ import LoginButton from './LoginButton';
 
 const LoginForm = () => {
   const { login } = useAdminAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   
@@ -26,7 +27,6 @@ const LoginForm = () => {
   const handleSubmit = async () => {
     setMessage({ type: '', text: '' });
 
-    // Validate form
     if (!validateForm()) {
       return;
     }
@@ -37,7 +37,10 @@ const LoginForm = () => {
     
     setLoading(false);
 
-    if (!result.success) {
+    if (result.success) {
+      // ✅ Redirect to dashboard
+      navigate('/dashboard');
+    } else {
       setMessage({ 
         type: 'error', 
         text: result.error 
