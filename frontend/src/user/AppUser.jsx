@@ -1,84 +1,99 @@
-// frontend/src/App.jsx
-import { useEffect, lazy, Suspense } from "react";
+// frontend/src/user/AppUser.jsx
+import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./user/context/AuthContext";
-import { SocketProvider } from "./user/context/SocketContext";
-import { setViewportHeight } from "./user/utils/setViewportHeight";
+import ProtectedRoute from "./components/common/ProtectedRoute";
 
 // ============================================
-// LAZY LOAD - MAIN APPS
+// EAGER LOAD - CRITICAL PAGES (HIGH PRIORITY)
 // ============================================
-const AppUser = lazy(() => import("./user/AppUser"));
-const AdminApp = lazy(() => import("./admin/AppAdmin"));
+import Home from "./pages/Home";
 
-function App() {
-  // ============================================
-  // CHECK SUBDOMAIN OR PATH
-  // ============================================
-  const hostname = window.location.hostname;
-  const pathname = window.location.pathname;
-  
-  const isAdminDomain = 
-    hostname === "admin.realtimechat.online" || 
-    hostname === "www.admin.realtimechat.online" ||
-    pathname.startsWith("/admin");
+// ============================================
+// LAZY LOAD - AUTH PAGES
+// ============================================
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 
-  // ============================================
-  // SETUP VIEWPORT HEIGHT
-  // ============================================
-  useEffect(() => {
-    setViewportHeight();
+// ============================================
+// LAZY LOAD - SECONDARY PAGES
+// ============================================
+const Settings = lazy(() => import("./pages/Settings"));
+const JoinViaLink = lazy(() => import("./pages/JoinViaLink"));
 
-    window.addEventListener("resize", setViewportHeight);
-    window.addEventListener("orientationchange", setViewportHeight);
+// ============================================
+// LAZY LOAD - POLICY PAGES
+// ============================================
+const PrivacyPolicy = lazy(() => import("./pages/LegalPolicies/PrivacyPolicy"));
+const CookiesPolicy = lazy(() => import("./pages/LegalPolicies/CookiesPolicy"));
+const TermsOfService = lazy(() => import("./pages/LegalPolicies/TermsOfService"));
 
-    return () => {
-      window.removeEventListener("resize", setViewportHeight);
-      window.removeEventListener("orientationchange", setViewportHeight);
-    };
-  }, []);
+// ============================================
+// LAZY LOAD - ERROR PAGES
+// ============================================
+const NotFound = lazy(() => import("./pages/NotFound"));
 
-  // ============================================
-  // PRELOAD AUTH PAGES (CHỈ CHO USER)
-  // ============================================
-  useEffect(() => {
-    if (!isAdminDomain) {
-      import("./user/pages/Login");
-      import("./user/pages/Register");
-
-      const timer = setTimeout(() => {
-        import("./user/pages/ForgotPassword");
-      }, 2000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [isAdminDomain]);
-
+function AppUser() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <div
-          className="
-            h-[calc(var(--vh,1vh)*100)]
-            supports-[height:100dvh]:h-dvh
-            w-screen
-          "
+    <Suspense fallback={null}>
+      <Routes>
+        {/* ========================================== */}
+        {/* PUBLIC ROUTES - Auth Pages                 */}
+        {/* ========================================== */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgotpassword" element={<ForgotPassword />} />
+
+        {/* ========================================== */}
+        {/* PUBLIC ROUTES - Policy Pages (Standalone) */}
+        {/* ========================================== */}
+        <Route path="/policy/privacy" element={<PrivacyPolicy />} />
+        <Route path="/policy/cookies" element={<CookiesPolicy />} />
+        <Route path="/policy/terms" element={<TermsOfService />} />
+
+        {/* ========================================== */}
+        {/* PUBLIC ROUTES - Join Via Link             */}
+        {/* ========================================== */}
+        <Route path="/join/:code" element={<JoinViaLink />} />
+
+        {/* ========================================== */}
+        {/* PROTECTED ROUTES - Home (Main Chat)       */}
+        {/* ========================================== */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
         >
-          <Suspense fallback={null}>
-            <Routes>
-              {isAdminDomain ? (
-                // ADMIN DOMAIN hoặc /admin path
-                <Route path="/*" element={<AdminApp />} />
-              ) : (
-                // USER DOMAIN
-                <Route path="/*" element={<AppUser />} />
-              )}
-            </Routes>
-          </Suspense>
-        </div>
-      </SocketProvider>
-    </AuthProvider>
+          <Route path="friends" element={null} />
+          <Route path="friends/:conversationId" element={null} />
+          <Route path="groups" element={null} />
+          <Route path="groups/:conversationId" element={null} />
+          <Route path="requests" element={null} />
+          <Route path="add" element={null} />
+        </Route>
+
+        {/* ========================================== */}
+        {/* PROTECTED ROUTES - Settings (Full Page)   */}
+        {/* ========================================== */}
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ========================================== */}
+        {/* 404 NOT FOUND                             */}
+        {/* ========================================== */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   );
 }
 
-export default App;
+export default AppUser;
