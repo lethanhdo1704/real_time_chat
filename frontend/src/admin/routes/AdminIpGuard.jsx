@@ -10,7 +10,7 @@ export default function AdminIpGuard({ children }) {
 
   useEffect(() => {
     axios
-      .get(`${API_URL}/api/admin/auth/ip-check`, {
+      .get(`${API_URL}/admin/auth/ip-check`, {
         withCredentials: true,
       })
       .then(() => setStatus("allowed"))
