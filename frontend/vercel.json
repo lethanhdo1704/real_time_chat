@@ -4,6 +4,7 @@
       "src": "/(.*\\.(js|css|png|jpg|jpeg|svg|ico|json|woff2?))",
       "dest": "/$1"
     },
+
     {
       "src": "/(.*)",
       "has": [
@@ -11,6 +12,15 @@
       ],
       "dest": "/index.html"
     },
+
+    {
+      "src": "/(.*)",
+      "has": [
+        { "type": "host", "value": "www.admin.realtimechat.online" }
+      ],
+      "dest": "/index.html"
+    },
+
     {
       "src": "/(.*)",
       "dest": "/index.html"
