@@ -5,14 +5,14 @@
       "has": [
         { "type": "host", "value": "admin.realtimechat.online" }
       ],
-      "dest": "/admin/login"
+      "dest": "/index.html"
     },
     {
       "src": "/(.*)",
       "has": [
         { "type": "host", "value": "admin.realtimechat.online" }
       ],
-      "dest": "/admin/$1"
+      "dest": "/index.html"
     }
   ]
 }
