@@ -1,4 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+// frontend/src/admin/routes/AdminRoutes.jsx
+import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLogin from "../pages/AdminLogin";
 import AdminProtectedRoute from "./AdminProtectedRoute";
 
@@ -13,14 +14,16 @@ function DashboardPlaceholder() {
 export default function AdminRoutes() {
   return (
     <Routes>
-      {/* PUBLIC */}
-      <Route path="login" element={<AdminLogin />} />
+      {/* PUBLIC - Nhưng đã qua IP Guard */}
+      <Route path="/login" element={<AdminLogin />} />
 
-      {/* PROTECTED */}
+      {/* PROTECTED - Cần auth */}
       <Route element={<AdminProtectedRoute />}>
-        <Route index element={<DashboardPlaceholder />} />
-        {/* tương đương /admin */}
+        <Route path="/" element={<DashboardPlaceholder />} />
       </Route>
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

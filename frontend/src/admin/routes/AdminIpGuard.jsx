@@ -1,10 +1,9 @@
-// admin/routes/AdminIpGuard.jsx
+// frontend/src/admin/routes/AdminIpGuard.jsx
 import { useEffect, useState } from "react";
 import axios from "axios";
 import NotFound from "../../user/pages/NotFound";
 
-const API_URL = import.meta.env.VITE_API_URL; 
-// ví dụ: https://realtimechat-production.up.railway.app
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function AdminIpGuard({ children }) {
   const [status, setStatus] = useState("loading");
@@ -18,11 +17,16 @@ export default function AdminIpGuard({ children }) {
       .catch(() => setStatus("denied"));
   }, []);
 
-  if (status === "loading") return null;
+  // KHÔNG hiển thị gì khi đang check
+  if (status === "loading") {
+    return null;
+  }
 
+  // IP sai → 404 ngay lập tức
   if (status === "denied") {
     return <NotFound />;
   }
 
+  // IP đúng → vào admin
   return children;
 }

@@ -1,50 +1,93 @@
 // frontend/src/App.jsx
 import { useEffect, lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./user/context/AuthContext";
 import { SocketProvider } from "./user/context/SocketContext";
 import { setViewportHeight } from "./user/utils/setViewportHeight";
 
+// ============================================
+// LOADING COMPONENT
+// ============================================
 const PageLoader = () => (
-  <div className="h-screen w-screen flex items-center justify-center">
-    Loading...
+  <div className="h-screen w-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <p className="text-sm text-gray-600 dark:text-gray-400">Loading...</p>
+    </div>
   </div>
 );
 
+// ============================================
+// LAZY LOAD - MAIN APPS
+// ============================================
 const AppUser = lazy(() => import("./user/AppUser"));
-const AppAdmin = lazy(() => import("./admin/AppAdmin"));
+const AdminApp = lazy(() => import("./admin/AppAdmin"));
 
 function App() {
-  const isAdminSubdomain =
-    window.location.hostname === "admin.realtimechat.online";
+  // ============================================
+  // CHECK SUBDOMAIN
+  // ============================================
+  const isAdminDomain = window.location.hostname === "admin.realtimechat.online" || window.location.hostname === "www.admin.realtimechat.online";
 
+  // ============================================
+  // SETUP VIEWPORT HEIGHT
+  // ============================================
   useEffect(() => {
     setViewportHeight();
+
     window.addEventListener("resize", setViewportHeight);
     window.addEventListener("orientationchange", setViewportHeight);
+
     return () => {
       window.removeEventListener("resize", setViewportHeight);
       window.removeEventListener("orientationchange", setViewportHeight);
     };
   }, []);
 
+  // ============================================
+  // PRELOAD AUTH PAGES (CHỈ CHO USER)
+  // ============================================
+  useEffect(() => {
+    if (!isAdminDomain) {
+      import("./user/pages/Login");
+      import("./user/pages/Register");
+
+      const timer = setTimeout(() => {
+        import("./user/pages/ForgotPassword");
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isAdminDomain]);
+
   return (
     <AuthProvider>
       <SocketProvider>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {isAdminSubdomain ? (
-              // ADMIN DOMAIN
-              <Route path="/*" element={<AppAdmin />} />
-            ) : (
-              // MAIN DOMAIN
-              <>
-                <Route path="/admin/*" element={<AppAdmin />} />
-                <Route path="/*" element={<AppUser />} />
-              </>
-            )}
-          </Routes>
-        </Suspense>
+        <div
+          className="
+            h-[calc(var(--vh,1vh)*100)]
+            supports-[height:100dvh]:h-dvh
+            w-screen
+          "
+        >
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {isAdminDomain ? (
+                // CHỈ ADMIN DOMAIN → ADMIN APP
+                <>
+                  <Route path="/*" element={<AdminApp />} />
+                </>
+              ) : (
+                // MAIN DOMAIN → USER APP
+                <>
+                  <Route path="/*" element={<AppUser />} />
+                  {/* Block /admin trên main domain */}
+                  <Route path="/admin/*" element={<Navigate to="/" replace />} />
+                </>
+              )}
+            </Routes>
+          </Suspense>
+        </div>
       </SocketProvider>
     </AuthProvider>
   );
