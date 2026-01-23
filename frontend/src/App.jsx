@@ -18,10 +18,23 @@ function App() {
   const hostname = window.location.hostname;
   const pathname = window.location.pathname;
   
+  // ✅ FIX: Admin paths detection
+  const adminPaths = ['/dashboard', '/login'];
+  const isAdminPath = adminPaths.some(path => pathname.startsWith(path));
+  
   const isAdminDomain = 
     hostname === "admin.realtimechat.online" || 
     hostname === "www.admin.realtimechat.online" ||
+    (hostname === "localhost" && isAdminPath) || // ✅ localhost + admin paths
     pathname.startsWith("/admin");
+
+  console.log('🔍 App routing:', {
+    hostname,
+    pathname,
+    isAdminPath,
+    isAdminDomain,
+    willRender: isAdminDomain ? 'AdminApp' : 'AppUser'
+  });
 
   // ============================================
   // SETUP VIEWPORT HEIGHT

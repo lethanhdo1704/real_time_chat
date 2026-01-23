@@ -1,0 +1,76 @@
+{
+  "title": "Admin Dashboard",
+  "subtitle": "User Management",
+  "admin": "Admin",
+  "logout": "Logout",
+  "changeLanguage": "Change Language",
+  "refresh": "Refresh",
+  "loading": "Loading...",
+  "noUsers": "No users found",
+  "banExpires": "Expires in {{days}} days",
+  "permanent": "Permanent",
+
+  "stats": {
+    "totalUsers": "Total Users",
+    "activeUsers": "Active Users",
+    "bannedUsers": "Banned Users",
+    "onlineNow": "Online Now"
+  },
+
+  "searchPlaceholder": "Search by email, nickname, or UID...",
+
+  "filters": {
+    "active": "Active",
+    "banned": "Banned",
+    "deleted": "Deleted"
+  },
+
+  "table": {
+    "user": "User",
+    "uid": "UID",
+    "status": "Status",
+    "role": "Role",
+    "created": "Created",
+    "actions": "Actions"
+  },
+
+  "status": {
+    "active": "Active",
+    "banned": "Banned",
+    "deleted": "Deleted"
+  },
+
+  "actions": {
+    "ban": "Ban user",
+    "unban": "Unban",
+    "delete": "Delete user"
+  },
+
+  "confirmDelete": "Are you sure you want to delete this user?",
+  "banFailed": "Failed to ban user",
+  "unbanFailed": "Failed to unban user",
+  "deleteFailed": "Failed to delete user",
+
+  "banModal": {
+    "title": "Ban User",
+    "banType": "Ban Type",
+    "permanent": "Permanent Ban",
+    "permanentDesc": "User will be banned indefinitely",
+    "temporary": "Temporary Ban",
+    "temporaryDesc": "User will be banned for a specific duration",
+    "duration": "Ban Duration",
+    "days": "days",
+    "customDays": "Custom days...",
+    "reason": "Reason (Optional)",
+    "reasonPlaceholder": "Enter reason for ban...",
+    "warning": "⚠️ This action will immediately suspend the user's account access.",
+    "cancel": "Cancel",
+    "confirm": "Ban User"
+  },
+
+  "pagination": {
+    "page": "Page {{current}} of {{total}}",
+    "previous": "Previous",
+    "next": "Next"
+  }
+}

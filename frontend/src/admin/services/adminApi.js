@@ -119,6 +119,9 @@ const adminApi = {
    * Ban user
    */
   async banUser(userId, banData) {
+    console.log('🌐 adminApi.banUser called:', { userId, banData });
+    console.log('📍 Request URL:', `${API_URL}/admin/users/${userId}/ban`);
+    
     try {
       const token = localStorage.getItem('adminToken');
       const response = await fetch(`${API_URL}/admin/users/${userId}/ban`, {
@@ -131,7 +134,14 @@ const adminApi = {
         body: JSON.stringify(banData)
       });
       
-      return await response.json();
+      const data = await response.json();
+      console.log('📥 API Response:', data);
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Ban user failed');
+      }
+      
+      return data;
     } catch (error) {
       console.error('❌ Ban user error:', error);
       throw error;

@@ -1,5 +1,19 @@
 // backend/services/admin/userAdmin.service.js
 import User from '../../models/User.js';
+import mongoose from 'mongoose';
+
+/**
+ * 🔧 HELPER: Convert UID to ObjectId
+ */
+const getUserByUidOrId = async (identifier) => {
+  if (mongoose.Types.ObjectId.isValid(identifier) && identifier.length === 24) {
+    // Nếu là ObjectId hợp lệ, tìm theo _id
+    return await User.findById(identifier);
+  } else {
+    // Nếu không phải ObjectId, tìm theo uid
+    return await User.findOne({ uid: identifier });
+  }
+};
 
 /**
  * 📋 LIST USERS WITH FILTERS & PAGINATION
@@ -72,10 +86,8 @@ export const listUsers = async (filters = {}, adminRole) => {
 /**
  * 👤 GET USER DETAIL
  */
-export const getUserDetail = async (userId, adminRole) => {
-  const user = await User.findById(userId)
-    .select('-passwordHash')
-    .lean();
+export const getUserDetail = async (userIdentifier, adminRole) => {
+  const user = await getUserByUidOrId(userIdentifier);
 
   if (!user) {
     throw new Error('User not found');
@@ -86,16 +98,26 @@ export const getUserDetail = async (userId, adminRole) => {
     throw new Error('Permission denied: Cannot view super_admin details');
   }
 
-  return user;
+  // Loại bỏ passwordHash trước khi return
+  const userObj = user.toObject();
+  delete userObj.passwordHash;
+  
+  return userObj;
 };
 
 /**
  * 🚫 BAN USER
  */
-export const banUser = async (userId, adminId, banData, adminRole) => {
+export const banUser = async (userIdentifier, adminId, banData, adminRole) => {
+  // ✅ Validate adminId
+  if (!mongoose.Types.ObjectId.isValid(adminId)) {
+    throw new Error('Invalid admin ID');
+  }
+
   const { reason, banEndAt } = banData;
 
-  const user = await User.findById(userId);
+  const user = await getUserByUidOrId(userIdentifier);
+
   if (!user) {
     throw new Error('User not found');
   }
@@ -113,6 +135,7 @@ export const banUser = async (userId, adminId, banData, adminRole) => {
   user.banStartAt = new Date();
   user.banEndAt = banEndAt ? new Date(banEndAt) : null;
   user.bannedBy = adminId;
+  user.banReason = reason || null;
 
   await user.save();
 
@@ -123,15 +146,16 @@ export const banUser = async (userId, adminId, banData, adminRole) => {
     status: user.status,
     banStartAt: user.banStartAt,
     banEndAt: user.banEndAt,
-    banReason: reason || null
+    banReason: user.banReason
   };
 };
 
 /**
  * ✅ UNBAN USER
  */
-export const unbanUser = async (userId, adminRole) => {
-  const user = await User.findById(userId);
+export const unbanUser = async (userIdentifier, adminRole) => {
+  const user = await getUserByUidOrId(userIdentifier);
+
   if (!user) {
     throw new Error('User not found');
   }
@@ -149,6 +173,7 @@ export const unbanUser = async (userId, adminRole) => {
   user.banStartAt = null;
   user.banEndAt = null;
   user.bannedBy = null;
+  user.banReason = null;
 
   await user.save();
 
@@ -163,8 +188,14 @@ export const unbanUser = async (userId, adminRole) => {
 /**
  * 🗑️ SOFT DELETE USER
  */
-export const deleteUser = async (userId, adminId, adminRole) => {
-  const user = await User.findById(userId);
+export const deleteUser = async (userIdentifier, adminId, adminRole) => {
+  // ✅ Validate adminId
+  if (!mongoose.Types.ObjectId.isValid(adminId)) {
+    throw new Error('Invalid admin ID');
+  }
+
+  const user = await getUserByUidOrId(userIdentifier);
+
   if (!user) {
     throw new Error('User not found');
   }
@@ -179,6 +210,9 @@ export const deleteUser = async (userId, adminId, adminRole) => {
   }
 
   user.status = 'deleted';
+  user.deletedAt = new Date();
+  user.deletedBy = adminId;
+
   await user.save();
 
   return {
@@ -192,8 +226,9 @@ export const deleteUser = async (userId, adminId, adminRole) => {
 /**
  * ♻️ RESTORE USER
  */
-export const restoreUser = async (userId, adminRole) => {
-  const user = await User.findById(userId);
+export const restoreUser = async (userIdentifier, adminRole) => {
+  const user = await getUserByUidOrId(userIdentifier);
+
   if (!user) {
     throw new Error('User not found');
   }
@@ -208,6 +243,9 @@ export const restoreUser = async (userId, adminRole) => {
   }
 
   user.status = 'active';
+  user.deletedAt = null;
+  user.deletedBy = null;
+
   await user.save();
 
   return {
@@ -221,23 +259,31 @@ export const restoreUser = async (userId, adminRole) => {
 /**
  * 🔄 UPDATE USER ROLE (SUPER_ADMIN ONLY)
  */
-export const updateUserRole = async (userId, newRole, adminRole) => {
+export const updateUserRole = async (userIdentifier, newRole, adminRole) => {
+  // ✅ Validate permissions first
   if (adminRole !== 'super_admin') {
     throw new Error('Only super_admin can change user roles');
   }
 
-  const user = await User.findById(userId);
+  const user = await getUserByUidOrId(userIdentifier);
+
   if (!user) {
     throw new Error('User not found');
   }
 
+  // ✅ Validate role value
   if (!['user', 'admin', 'super_admin'].includes(newRole)) {
     throw new Error('Invalid role');
   }
 
-  // Ngăn chặn nâng quyền admin khác lên super_admin
-  if (newRole === 'super_admin' && (user.role === 'admin' || user.role === 'user')) {
+  // ✅ Ngăn chặn nâng quyền lên super_admin
+  if (newRole === 'super_admin' && user.role !== 'super_admin') {
     throw new Error('Cannot promote users to super_admin role');
+  }
+
+  // ✅ Ngăn chặn hạ quyền super_admin xuống
+  if (user.role === 'super_admin' && newRole !== 'super_admin') {
+    throw new Error('Cannot demote super_admin to lower roles');
   }
 
   user.role = newRole;
@@ -300,6 +346,7 @@ export const checkAndUnbanUser = async (user) => {
     user.banStartAt = null;
     user.banEndAt = null;
     user.bannedBy = null;
+    user.banReason = null;
     await user.save();
     return true;
   }

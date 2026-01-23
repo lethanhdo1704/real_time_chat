@@ -1,0 +1,76 @@
+{
+  "title": "Bảng Điều Khiển Admin",
+  "subtitle": "Quản Lý Người Dùng",
+  "admin": "Quản Trị Viên",
+  "logout": "Đăng Xuất",
+  "changeLanguage": "Đổi Ngôn Ngữ",
+  "refresh": "Làm Mới",
+  "loading": "Đang tải...",
+  "noUsers": "Không tìm thấy người dùng",
+  "banExpires": "Còn {{days}} ngày",
+  "permanent": "Vĩnh viễn",
+
+  "stats": {
+    "totalUsers": "Tổng Người Dùng",
+    "activeUsers": "Người Dùng Hoạt Động",
+    "bannedUsers": "Người Dùng Bị Cấm",
+    "onlineNow": "Đang Trực Tuyến"
+  },
+
+  "searchPlaceholder": "Tìm kiếm theo email, tên hoặc UID...",
+
+  "filters": {
+    "active": "Hoạt Động",
+    "banned": "Bị Cấm",
+    "deleted": "Đã Xóa"
+  },
+
+  "table": {
+    "user": "Người Dùng",
+    "uid": "UID",
+    "status": "Trạng Thái",
+    "role": "Vai Trò",
+    "created": "Ngày Tạo",
+    "actions": "Hành Động"
+  },
+
+  "status": {
+    "active": "Hoạt động",
+    "banned": "Bị cấm",
+    "deleted": "Đã xóa"
+  },
+
+  "actions": {
+    "ban": "Cấm người dùng",
+    "unban": "Bỏ Cấm",
+    "delete": "Xóa người dùng"
+  },
+
+  "confirmDelete": "Bạn có chắc chắn muốn xóa người dùng này?",
+  "banFailed": "Không thể cấm người dùng",
+  "unbanFailed": "Không thể bỏ cấm người dùng",
+  "deleteFailed": "Không thể xóa người dùng",
+
+  "banModal": {
+    "title": "Cấm Người Dùng",
+    "banType": "Loại Cấm",
+    "permanent": "Cấm Vĩnh Viễn",
+    "permanentDesc": "Người dùng sẽ bị cấm vô thời hạn",
+    "temporary": "Cấm Tạm Thời",
+    "temporaryDesc": "Người dùng sẽ bị cấm trong khoảng thời gian cụ thể",
+    "duration": "Thời Gian Cấm",
+    "days": "ngày",
+    "customDays": "Số ngày tùy chỉnh...",
+    "reason": "Lý Do (Tùy chọn)",
+    "reasonPlaceholder": "Nhập lý do cấm...",
+    "warning": "⚠️ Hành động này sẽ ngay lập tức tạm ngưng quyền truy cập tài khoản của người dùng.",
+    "cancel": "Hủy",
+    "confirm": "Cấm Người Dùng"
+  },
+
+  "pagination": {
+    "page": "Trang {{current}} / {{total}}",
+    "previous": "Trước",
+    "next": "Sau"
+  }
+}
