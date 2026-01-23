@@ -1,6 +1,13 @@
 {
   "routes": [
     {
+      "src": "/login",
+      "has": [
+        { "type": "host", "value": "admin.realtimechat.online" }
+      ],
+      "dest": "/admin/login"
+    },
+    {
       "src": "/(.*)",
       "has": [
         { "type": "host", "value": "admin.realtimechat.online" }
