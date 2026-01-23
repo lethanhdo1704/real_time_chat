@@ -6,6 +6,13 @@ import { adminLoginLimiter } from '../../middleware/rateLimit.js'; // ✅ Named 
 
 const router = express.Router();
 
+router.get('/ip-check',
+  adminIpWhitelist,
+  (req, res) => {
+    res.json({ success: true });
+  }
+);
+
 router.post('/login',
   adminIpWhitelist,
   adminLoginLimiter,  // ✅ Correct usage

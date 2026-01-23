@@ -16,7 +16,7 @@ const adminIpWhitelist = (req, res, next) => {
       req.ip;
 
     if (!clientIP) {
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
         message: 'Unable to determine IP address'
       });
@@ -27,7 +27,7 @@ const adminIpWhitelist = (req, res, next) => {
     
     if (!whitelist) {
       console.error('⚠️ ADMIN_IP_WHITELIST not configured');
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
         message: 'Admin access not configured'
       });
@@ -41,7 +41,7 @@ const adminIpWhitelist = (req, res, next) => {
 
     if (!isAllowed) {
       console.warn(`🚫 Admin access denied from IP: ${clientIP}`);
-      return res.status(403).json({
+      return res.status(404).json({
         success: false,
         message: 'IP address not authorized for admin access'
       });

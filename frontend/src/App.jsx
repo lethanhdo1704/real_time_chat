@@ -59,6 +59,7 @@ const NotFound = lazy(() => import("./user/pages/NotFound"));
 // LAZY LOAD - ADMIN (ISOLATED)
 // ============================================
 const AdminApp = lazy(() => import("./admin/AppAdmin"));
+const AdminIpGuard = lazy(() => import("./admin/routes/AdminIpGuard"));
 
 function App() {
   // ============================================
@@ -108,7 +109,15 @@ function App() {
               {/* ========================================== */}
               {/* ADMIN ROUTES (ISOLATED)                   */}
               {/* ========================================== */}
-              <Route path="/admin/*" element={<AdminApp />} />
+              <Route
+                path="/admin/*"
+                element={
+                  <AdminIpGuard>
+                    <AdminApp />
+                  </AdminIpGuard>
+                }
+              />
+
               {/* ========================================== */}
               {/* PUBLIC ROUTES - Auth Pages                 */}
               {/* ========================================== */}
