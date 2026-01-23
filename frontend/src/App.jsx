@@ -1,6 +1,6 @@
 // frontend/src/App.jsx
 import { useEffect, lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./user/context/AuthContext";
 import { SocketProvider } from "./user/context/SocketContext";
 import { setViewportHeight } from "./user/utils/setViewportHeight";
@@ -25,9 +25,15 @@ const AdminApp = lazy(() => import("./admin/AppAdmin"));
 
 function App() {
   // ============================================
-  // CHECK SUBDOMAIN
+  // CHECK SUBDOMAIN OR PATH
   // ============================================
-  const isAdminDomain = window.location.hostname === "admin.realtimechat.online" || window.location.hostname === "www.admin.realtimechat.online";
+  const hostname = window.location.hostname;
+  const pathname = window.location.pathname;
+  
+  const isAdminDomain = 
+    hostname === "admin.realtimechat.online" || 
+    hostname === "www.admin.realtimechat.online" ||
+    pathname.startsWith("/admin");
 
   // ============================================
   // SETUP VIEWPORT HEIGHT
@@ -73,17 +79,11 @@ function App() {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {isAdminDomain ? (
-                // CHỈ ADMIN DOMAIN → ADMIN APP
-                <>
-                  <Route path="/*" element={<AdminApp />} />
-                </>
+                // ADMIN DOMAIN hoặc /admin path
+                <Route path="/*" element={<AdminApp />} />
               ) : (
-                // MAIN DOMAIN → USER APP
-                <>
-                  <Route path="/*" element={<AppUser />} />
-                  {/* Block /admin trên main domain */}
-                  <Route path="/admin/*" element={<Navigate to="/" replace />} />
-                </>
+                // USER DOMAIN
+                <Route path="/*" element={<AppUser />} />
               )}
             </Routes>
           </Suspense>
