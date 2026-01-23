@@ -6,18 +6,6 @@ import { SocketProvider } from "./user/context/SocketContext";
 import { setViewportHeight } from "./user/utils/setViewportHeight";
 
 // ============================================
-// LOADING COMPONENT
-// ============================================
-const PageLoader = () => (
-  <div className="h-screen w-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-    <div className="flex flex-col items-center gap-3">
-      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-      <p className="text-sm text-gray-600 dark:text-gray-400">Loading...</p>
-    </div>
-  </div>
-);
-
-// ============================================
 // LAZY LOAD - MAIN APPS
 // ============================================
 const AppUser = lazy(() => import("./user/AppUser"));
@@ -76,7 +64,7 @@ function App() {
             w-screen
           "
         >
-          <Suspense fallback={<PageLoader />}>
+          <Suspense fallback={null}>
             <Routes>
               {isAdminDomain ? (
                 // ADMIN DOMAIN hoặc /admin path
