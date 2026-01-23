@@ -1,7 +1,11 @@
 {
   "routes": [
     {
-      "src": "/login",
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|svg|ico|json|woff2?))",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*)",
       "has": [
         { "type": "host", "value": "admin.realtimechat.online" }
       ],
@@ -9,9 +13,6 @@
     },
     {
       "src": "/(.*)",
-      "has": [
-        { "type": "host", "value": "admin.realtimechat.online" }
-      ],
       "dest": "/index.html"
     }
   ]

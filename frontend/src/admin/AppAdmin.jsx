@@ -1,14 +1,14 @@
-// admin/App.jsx
-import React from "react";
+// admin/AppAdmin.jsx
 import { AdminAuthProvider } from "./context/AdminAuthContext";
 import AdminRoutes from "./routes/AdminRoutes";
+import AdminIpGuard from "./routes/AdminIpGuard";
 
-const AppAdmin = () => {
+export default function AppAdmin() {
   return (
-    <AdminAuthProvider>
+    <AdminIpGuard>
+      <AdminAuthProvider>
         <AdminRoutes />
-    </AdminAuthProvider>
+      </AdminAuthProvider>
+    </AdminIpGuard>
   );
-};
-
-export default AppAdmin;
+}
