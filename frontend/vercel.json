@@ -1,8 +1,11 @@
 {
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "has": [
+        { "type": "host", "value": "admin.realtimechat.online" }
+      ],
+      "dest": "/admin/$1"
     }
   ]
 }
