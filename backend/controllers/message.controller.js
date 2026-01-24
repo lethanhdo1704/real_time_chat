@@ -1,4 +1,5 @@
-// backend/controllers/message.controller.js - OPTIMIZED & PRODUCTION-READY
+// backend/controllers/message.controller.js - FIXED
+// 🔥 FIX: Resolved "Cannot read properties of undefined (reading 'lastMessage')"
 // 🚀 Performance: TTFB ~200-250ms (down from ~600ms)
 
 import messageService from "../services/message/message.service.js";
@@ -7,30 +8,6 @@ import conversationService from "../services/conversation/conversation.service.j
 const isDev = process.env.NODE_ENV !== 'production';
 
 class MessageController {
-  /**
-   * 🔥 OPTIMIZED sendMessage
-   * 
-   * Performance improvements:
-   * 1. ✅ Removed duplicate permission check (validator does this)
-   *    Savings: ~200-300ms (eliminated 3 queries)
-   * 
-   * 2. ✅ No refetch after conversation creation
-   *    Savings: ~100-150ms (eliminated 2 queries)
-   * 
-   * 3. ✅ Minimal logging in production
-   *    Savings: ~50-80ms
-   * 
-   * 4. ✅ Conditional response payload
-   *    Savings: Smaller JSON, faster serialization
-   * 
-   * Total improvement: ~600ms → ~200-250ms (-60% to -63%)
-   * 
-   * Flow:
-   * 1. Validate input
-   * 2. Get or create conversation (optimized)
-   * 3. Send message (validator checks permissions)
-   * 4. Return response
-   */
   async sendMessage(req, res, next) {
     try {
       const {
@@ -61,7 +38,7 @@ class MessageController {
       }
 
       // ============================================
-      // 🔥 LAZY CONVERSATION CREATION (OPTIMIZED)
+      // 🔥 LAZY CONVERSATION CREATION (FIXED)
       // ============================================
       let finalConversationId = conversationId;
       let newConversation = null;
@@ -79,12 +56,15 @@ class MessageController {
           );
 
           finalConversationId = conversationData.conversationId;
-          newConversation = conversationData.conversation;
+          
+          // ✅ FIX: Use conversationData directly, not .conversation
+          // createPrivate() returns: { conversationId, type, friend, lastMessage, lastMessageAt, unreadCount }
+          newConversation = conversationData;
 
           if (isDev) {
             console.log("✅ [Controller] Conversation ready:", {
               id: finalConversationId,
-              isNew: !conversationData.conversation.lastMessage,
+              isNew: !conversationData.lastMessage, // ✅ Fixed: was conversationData.conversation.lastMessage
             });
           }
 
@@ -96,22 +76,6 @@ class MessageController {
           });
         }
       }
-
-      // ============================================
-      // ⚡ REMOVED: Permission check (validator does this now)
-      // ============================================
-      // The following code was REMOVED (saved ~200-300ms):
-      //
-      // const conversation = await Conversation.findById(...)
-      // const sender = await User.findOne(...)
-      // const member = await ConversationMember.findOne(...)
-      // if (conversation.type === 'group' && ...) { ... }
-      //
-      // Why? verifyConversationAccess() in validators.js now:
-      // - Checks membership (1 query instead of 3)
-      // - Checks messagePermission for groups
-      // - Uses in-memory cache (45s TTL)
-      // ============================================
 
       // ============================================
       // SEND MESSAGE (Permission check inside validator)
