@@ -5,28 +5,20 @@ import { AuthProvider } from "./user/context/AuthContext";
 import { SocketProvider } from "./user/context/SocketContext";
 import { setViewportHeight } from "./user/utils/setViewportHeight";
 
-// ============================================
-// LAZY LOAD - MAIN APPS
-// ============================================
 const AppUser = lazy(() => import("./user/AppUser"));
 const AdminApp = lazy(() => import("./admin/AppAdmin"));
 
 function App() {
-  // ============================================
-  // CHECK SUBDOMAIN OR PATH
-  // ============================================
   const hostname = window.location.hostname;
   const pathname = window.location.pathname;
   
-  // ✅ FIX: Admin paths detection
   const adminPaths = ['/dashboard', '/login'];
   const isAdminPath = adminPaths.some(path => pathname.startsWith(path));
   
   const isAdminDomain = 
     hostname === "admin.realtimechat.online" || 
     hostname === "www.admin.realtimechat.online" ||
-    // (hostname === "localhost" && isAdminPath) || // ✅ localhost + admin paths
-    // pathname.startsWith("/admin");
+    (hostname === "localhost" && isAdminPath); // ✅ CHỈ cho localhost
 
   console.log('🔍 App routing:', {
     hostname,
@@ -36,33 +28,23 @@ function App() {
     willRender: isAdminDomain ? 'AdminApp' : 'AppUser'
   });
 
-  // ============================================
-  // SETUP VIEWPORT HEIGHT
-  // ============================================
   useEffect(() => {
     setViewportHeight();
-
     window.addEventListener("resize", setViewportHeight);
     window.addEventListener("orientationchange", setViewportHeight);
-
     return () => {
       window.removeEventListener("resize", setViewportHeight);
       window.removeEventListener("orientationchange", setViewportHeight);
     };
   }, []);
 
-  // ============================================
-  // PRELOAD AUTH PAGES (CHỈ CHO USER)
-  // ============================================
   useEffect(() => {
     if (!isAdminDomain) {
       import("./user/pages/Login");
       import("./user/pages/Register");
-
       const timer = setTimeout(() => {
         import("./user/pages/ForgotPassword");
       }, 2000);
-
       return () => clearTimeout(timer);
     }
   }, [isAdminDomain]);
@@ -70,22 +52,10 @@ function App() {
   return (
     <AuthProvider>
       <SocketProvider>
-        <div
-          className="
-            h-[calc(var(--vh,1vh)*100)]
-            supports-[height:100dvh]:h-dvh
-            w-screen
-          "
-        >
+        <div className="h-[calc(var(--vh,1vh)*100)] supports-[height:100dvh]:h-dvh w-screen">
           <Suspense fallback={null}>
             <Routes>
-              {isAdminDomain ? (
-                // ADMIN DOMAIN hoặc /admin path
-                <Route path="/*" element={<AdminApp />} />
-              ) : (
-                // USER DOMAIN
-                <Route path="/*" element={<AppUser />} />
-              )}
+              <Route path="/*" element={isAdminDomain ? <AdminApp /> : <AppUser />} />
             </Routes>
           </Suspense>
         </div>
