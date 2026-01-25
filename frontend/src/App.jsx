@@ -25,8 +25,8 @@ function App() {
   const isAdminDomain = 
     hostname === "admin.realtimechat.online" || 
     hostname === "www.admin.realtimechat.online" ||
-    (hostname === "localhost" && isAdminPath) || // ✅ localhost + admin paths
-    pathname.startsWith("/admin");
+    // (hostname === "localhost" && isAdminPath) || // ✅ localhost + admin paths
+    // pathname.startsWith("/admin");
 
   console.log('🔍 App routing:', {
     hostname,

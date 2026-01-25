@@ -1,7 +1,7 @@
 // frontend/src/admin/routes/AdminIpGuard.jsx
 import { useEffect, useState } from "react";
 import axios from "axios";
-import NotFound from "../../user/pages/NotFound";
+import NotFound from "../pages/AdminNotFound";
 
 const API_URL = import.meta.env.VITE_API_URL;
 

@@ -1,0 +1,9 @@
+{
+    "errorCode": "404",
+    "title": "Không Tìm Thấy Trang",
+    "description": "Rất tiếc! Trang bạn đang tìm kiếm không tồn tại hoặc đã bị gỡ.",
+    "button": {
+      "text": "Về Trang Chủ",
+      "ariaLabel": "Quay về trang chủ"
+    }
+}
