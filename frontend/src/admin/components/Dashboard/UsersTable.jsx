@@ -8,7 +8,7 @@ const UsersTable = ({ users, loading, onBanClick, onUnban, onDelete }) => {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[640px]">
+      <table className="w-full min-w-120 sm:min-w-0">
         <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
           <tr>
             <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">

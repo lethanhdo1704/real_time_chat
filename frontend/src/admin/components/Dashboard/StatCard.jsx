@@ -20,7 +20,7 @@ const StatCard = ({ title, value, icon: Icon, color }) => {
             {value.toLocaleString()}
           </p>
         </div>
-        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${colors[color]}`}>
+        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center shrink-0 ${colors[color]}`}>
           <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
       </div>

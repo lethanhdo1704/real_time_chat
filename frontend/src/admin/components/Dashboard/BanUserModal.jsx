@@ -4,20 +4,37 @@ import { useTranslation } from "react-i18next";
 import { X, AlertTriangle } from "lucide-react";
 
 const BanUserModal = ({ user, onClose, onConfirm }) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation("admindashboard");
   const [banData, setBanData] = useState({
     reason: "",
     banType: "permanent", // 'permanent' | 'temporary'
-    duration: "1", // days
+    durationType: "hours", // 'hours' | 'days'
+    duration: "1",
     banEndAt: "",
   });
 
-  const handleDurationChange = (days) => {
+  const handleDurationChange = (value, type = banData.durationType) => {
+    const parsedValue = parseInt(value);
+    
+    // Validate the parsed value
+    if (isNaN(parsedValue) || parsedValue < 1) {
+      console.error("Invalid duration:", value);
+      return;
+    }
+    
     const endDate = new Date();
-    endDate.setDate(endDate.getDate() + parseInt(days));
+    
+    // Calculate end date based on duration type
+    if (type === "hours") {
+      endDate.setHours(endDate.getHours() + parsedValue);
+    } else {
+      endDate.setDate(endDate.getDate() + parsedValue);
+    }
+    
     setBanData((prev) => ({
       ...prev,
-      duration: days,
+      duration: value,
+      durationType: type,
       banEndAt: endDate.toISOString(),
     }));
   };
@@ -53,8 +70,8 @@ const BanUserModal = ({ user, onClose, onConfirm }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
@@ -74,7 +91,7 @@ const BanUserModal = ({ user, onClose, onConfirm }) => {
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-4">
           {/* User Info */}
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             <div className="flex items-center gap-3">
@@ -153,29 +170,84 @@ const BanUserModal = ({ user, onClose, onConfirm }) => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t("banModal.duration")}
               </label>
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                {["1", "7", "30"].map((days) => (
-                  <button
-                    key={days}
-                    type="button"
-                    onClick={() => handleDurationChange(days)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      banData.duration === days
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
-                    }`}
-                  >
-                    {days} {t("banModal.days")}
-                  </button>
-                ))}
+              
+              {/* Duration Type Selector */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => handleDurationChange(banData.duration, "hours")}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    banData.durationType === "hours"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
+                  }`}
+                >
+                  {t("banModal.hours") || "Giờ"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDurationChange(banData.duration, "days")}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    banData.durationType === "days"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
+                  }`}
+                >
+                  {t("banModal.days") || "Ngày"}
+                </button>
               </div>
+              
+              {/* Quick Duration Buttons */}
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                {banData.durationType === "hours" ? (
+                  <>
+                    {["1", "6", "12", "24"].map((hours) => (
+                      <button
+                        key={hours}
+                        type="button"
+                        onClick={() => handleDurationChange(hours, "hours")}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          banData.duration === hours && banData.durationType === "hours"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
+                        }`}
+                      >
+                        {hours}h
+                      </button>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {["1", "7", "30"].map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => handleDurationChange(days, "days")}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          banData.duration === days && banData.durationType === "days"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
+                        }`}
+                      >
+                        {days}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+              
+              {/* Custom Duration Input */}
               <input
                 type="number"
                 min="1"
-                max="365"
+                max={banData.durationType === "hours" ? "720" : "365"}
                 value={banData.duration}
                 onChange={(e) => handleDurationChange(e.target.value)}
-                placeholder={t("banModal.customDays")}
+                placeholder={
+                  banData.durationType === "hours"
+                    ? t("banModal.customHours") || "Số giờ tùy chỉnh"
+                    : t("banModal.customDays") || "Số ngày tùy chỉnh"
+                }
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               />
             </div>
@@ -214,13 +286,14 @@ const BanUserModal = ({ user, onClose, onConfirm }) => {
               {t("banModal.cancel")}
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
             >
               {t("banModal.confirm")}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

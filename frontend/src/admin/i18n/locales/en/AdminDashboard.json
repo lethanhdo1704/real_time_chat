@@ -9,6 +9,7 @@
   "noUsers": "No users found",
   "banExpires": "Expires in {{days}} days",
   "permanent": "Permanent",
+  "banExpired": "Expired",
 
   "stats": {
     "totalUsers": "Total Users",

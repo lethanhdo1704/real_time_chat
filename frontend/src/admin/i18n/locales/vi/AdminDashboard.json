@@ -9,6 +9,7 @@
   "noUsers": "Không tìm thấy người dùng",
   "banExpires": "Còn {{days}} ngày",
   "permanent": "Vĩnh viễn",
+  "banExpired": "Hết hạn",
 
   "stats": {
     "totalUsers": "Tổng Người Dùng",
@@ -60,6 +61,7 @@
     "temporaryDesc": "Người dùng sẽ bị cấm trong khoảng thời gian cụ thể",
     "duration": "Thời Gian Cấm",
     "days": "ngày",
+    "hours":"giờ",
     "customDays": "Số ngày tùy chỉnh...",
     "reason": "Lý Do (Tùy chọn)",
     "reasonPlaceholder": "Nhập lý do cấm...",
