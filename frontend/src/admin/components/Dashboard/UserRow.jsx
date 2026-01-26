@@ -1,9 +1,9 @@
 // frontend/src/admin/components/Dashboard/UserRow.jsx
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { UserX, Trash2, Clock } from 'lucide-react';
+import { UserX, Clock } from 'lucide-react';
 
-const UserRow = ({ user, onBan, onUnban, onDelete }) => {
+const UserRow = ({ user, onBan, onUnban }) => {
   const { t } = useTranslation("admindashboard");
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -42,8 +42,7 @@ const UserRow = ({ user, onBan, onUnban, onDelete }) => {
 
   const statusColors = {
     active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    banned: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-    deleted: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+    banned: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
   };
 
   return (
@@ -115,22 +114,13 @@ const UserRow = ({ user, onBan, onUnban, onDelete }) => {
       <td className="px-4 sm:px-6 py-4">
         <div className="flex items-center justify-end gap-1 sm:gap-2 shrink-0">
           {user.status === 'active' && (
-            <>
-              <button
-                onClick={() => onBan(user)}
-                className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
-                title={t('actions.ban')}
-              >
-                <UserX className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onDelete(user.uid || user._id)}
-                className="p-1.5 sm:p-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                title={t('actions.delete')}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </>
+            <button
+              onClick={() => onBan(user)}
+              className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
+              title={t('actions.ban')}
+            >
+              <UserX className="w-4 h-4" />
+            </button>
           )}
           {user.status === 'banned' && (
             <button

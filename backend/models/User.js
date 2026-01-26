@@ -50,12 +50,11 @@ const userSchema = new Schema(
 
     status: {
       type: String,
-      enum: ["active", "banned", "deleted"],
+      enum: ["active", "banned"],
       default: "active",
       index: true,
     },
 
-    // ===== Ban info (chỉ dùng khi status = banned)
     banStartAt: {
       type: Date,
       default: null,
@@ -63,12 +62,17 @@ const userSchema = new Schema(
 
     banEndAt: {
       type: Date,
-      default: null, // ban tạm, hết hạn thì cho hoạt động lại
+      default: null, 
     },
 
     bannedBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      default: null,
+    },
+
+    banReason: {
+      type: String,
       default: null,
     },
 

@@ -3,6 +3,7 @@ import express from 'express';
 import * as usersController from '../../controllers/admin/users.controller.js';
 
 const router = express.Router();
+
 // 📊 Statistics (đặt trước :id để tránh conflict)
 router.get('/statistics', usersController.getUserStatistics);
 
@@ -13,10 +14,6 @@ router.get('/:id', usersController.getUserDetail);
 // 🚫 Ban & Unban
 router.post('/:id/ban', usersController.banUser);
 router.post('/:id/unban', usersController.unbanUser);
-
-// 🗑️ Delete & Restore
-router.delete('/:id', usersController.deleteUser);
-router.post('/:id/restore', usersController.restoreUser);
 
 // 🔄 Update Role (SUPER_ADMIN ONLY - checked in controller)
 router.patch('/:id/role', usersController.updateUserRole);

@@ -14,7 +14,7 @@ const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
       {/* Language Switcher */}
       <div className="absolute top-4 right-4">
         <div className="flex items-center gap-2 bg-white rounded-lg shadow-md p-2">

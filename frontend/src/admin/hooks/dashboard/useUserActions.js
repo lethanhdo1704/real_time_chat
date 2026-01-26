@@ -31,22 +31,10 @@ export const useUserActions = (refreshData) => {
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (!confirm(t('confirmDelete'))) return;
-    
-    try {
-      await adminApi.deleteUser(userId);
-      refreshData();
-    } catch (error) {
-      alert(t('deleteFailed'));
-    }
-  };
-
   return {
     banModalUser,
     setBanModalUser,
     handleBanUser,
-    handleUnbanUser,
-    handleDeleteUser
+    handleUnbanUser
   };
 };

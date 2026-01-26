@@ -193,77 +193,6 @@ export const unbanUser = async (userIdentifier, adminRole) => {
 };
 
 /**
- * 🗑️ SOFT DELETE USER
- */
-export const deleteUser = async (userIdentifier, adminId, adminRole) => {
-  // ✅ Validate adminId
-  if (!mongoose.Types.ObjectId.isValid(adminId)) {
-    throw new Error('Invalid admin ID');
-  }
-
-  const user = await getUserByUidOrId(userIdentifier);
-
-  if (!user) {
-    throw new Error('User not found');
-  }
-
-  if (user.status === 'deleted') {
-    throw new Error('User is already deleted');
-  }
-
-  // ✅ FIX: Không thể xóa admin khác (bao gồm cả super_admin)
-  if (user.role === 'admin' || user.role === 'super_admin') {
-    throw new Error('Cannot delete admin users');
-  }
-
-  user.status = 'deleted';
-  user.deletedAt = new Date();
-  user.deletedBy = adminId;
-
-  await user.save();
-
-  return {
-    uid: user.uid,
-    email: user.email,
-    nickname: user.nickname,
-    status: user.status
-  };
-};
-
-/**
- * ♻️ RESTORE USER
- */
-export const restoreUser = async (userIdentifier, adminRole) => {
-  const user = await getUserByUidOrId(userIdentifier);
-
-  if (!user) {
-    throw new Error('User not found');
-  }
-
-  if (user.status !== 'deleted') {
-    throw new Error('User is not deleted');
-  }
-
-  // ✅ FIX: Đảm bảo không thể restore super_admin
-  if (adminRole !== 'super_admin' && user.role === 'super_admin') {
-    throw new Error('Permission denied: Cannot restore super_admin');
-  }
-
-  user.status = 'active';
-  user.deletedAt = null;
-  user.deletedBy = null;
-
-  await user.save();
-
-  return {
-    uid: user.uid,
-    email: user.email,
-    nickname: user.nickname,
-    status: user.status
-  };
-};
-
-/**
  * 🔄 UPDATE USER ROLE (SUPER_ADMIN ONLY)
  */
 export const updateUserRole = async (userIdentifier, newRole, adminRole) => {
@@ -317,14 +246,12 @@ export const getUserStatistics = async (adminRole) => {
     totalUsers,
     activeUsers,
     bannedUsers,
-    deletedUsers,
     adminUsers,
     onlineUsers
   ] = await Promise.all([
     User.countDocuments(baseQuery),
     User.countDocuments({ ...baseQuery, status: 'active' }),
     User.countDocuments({ ...baseQuery, status: 'banned' }),
-    User.countDocuments({ ...baseQuery, status: 'deleted' }),
     User.countDocuments({ 
       ...baseQuery, 
       role: adminRole === 'super_admin' 
@@ -338,7 +265,6 @@ export const getUserStatistics = async (adminRole) => {
     totalUsers,
     activeUsers,
     bannedUsers,
-    deletedUsers,
     adminUsers,
     onlineUsers
   };

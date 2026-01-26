@@ -21,12 +21,6 @@ const StatusFilters = ({ activeStatus, onStatusChange, onRefresh }) => {
       >
         {t('filters.banned')}
       </FilterButton>
-      <FilterButton
-        active={activeStatus === 'deleted'}
-        onClick={() => onStatusChange('deleted')}
-      >
-        {t('filters.deleted')}
-      </FilterButton>
       
       {/* Refresh */}
       <button

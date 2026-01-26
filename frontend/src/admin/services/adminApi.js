@@ -167,27 +167,6 @@ const adminApi = {
       console.error('❌ Unban user error:', error);
       throw error;
     }
-  },
-
-  /**
-   * Delete user
-   */
-  async deleteUser(userId) {
-    try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_URL}/admin/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        credentials: 'include'
-      });
-      
-      return await response.json();
-    } catch (error) {
-      console.error('❌ Delete user error:', error);
-      throw error;
-    }
   }
 };
 
