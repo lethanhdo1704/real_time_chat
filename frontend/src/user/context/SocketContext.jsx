@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AuthContext } from './AuthContext';
 import { connectSocket, disconnectSocket } from '../services/socketService';
 import useChatStore from '../store/chat/chatStore';
-import { handleBanned } from '../utils/handleBanned'; // 🔥 THÊM IMPORT
+import BanModal from '../components/common/BanModal'; // 🔥 THÊM IMPORT
 
 export const SocketContext = createContext(null);
 
@@ -12,6 +12,10 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const hasInitialized = useRef(false);
+  
+  // 🔥 THÊM STATE CHO BAN MODAL
+  const [banInfo, setBanInfo] = useState(null);
+  const [showBanModal, setShowBanModal] = useState(false);
 
   // ============================================
   // 🔥 STABLE CALLBACK REFS - Prevent re-registration
@@ -75,16 +79,9 @@ export const SocketProvider = ({ children }) => {
 
       // 🔥 XỬ LÝ SỰ KIỆN BAN
       const handleBannedEvent = (data) => {
-        console.log('🚨 [SocketContext] User banned via socket:', data);
-        handleBanned(data);
-      };
-
-      // 🔥 XỬ LÝ LỖI KẾT NỐI
-      const handleConnectError = (err) => {
-        if (err.message === "BANNED") {
-          console.log('🚨 [SocketContext] User banned during handshake');
-          handleBanned({ reason: "Tài khoản của bạn đã bị cấm" });
-        }
+        console.log('🚨 [SocketContext] User banned:', data);
+        setBanInfo(data);
+        setShowBanModal(true);
       };
 
       // Register listeners
@@ -92,7 +89,6 @@ export const SocketProvider = ({ children }) => {
       socketInstance.on('disconnect', handleDisconnect);
       socketInstance.io.on('reconnect', handleReconnect);
       socketInstance.on('banned', handleBannedEvent); // 🔥 THÊM LISTENER
-      socketInstance.on('connect_error', handleConnectError); // 🔥 THÊM LISTENER
 
       // Initial state check
       if (socketInstance.connected) {
@@ -107,7 +103,6 @@ export const SocketProvider = ({ children }) => {
         socketInstance.off('disconnect', handleDisconnect);
         socketInstance.io.off('reconnect', handleReconnect);
         socketInstance.off('banned', handleBannedEvent); // 🔥 THÊM CLEANUP
-        socketInstance.off('connect_error', handleConnectError); // 🔥 THÊM CLEANUP
       };
     }
 
@@ -163,9 +158,30 @@ export const SocketProvider = ({ children }) => {
     });
   }, [socket, isConnected]);
 
+  // 🔥 XỬ LÝ CONFIRM TỪ MODAL
+  const handleBanConfirm = () => {
+    // Clear tokens
+    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
+    localStorage.removeItem('friend-storage');
+    
+    // Reset states
+    setBanInfo(null);
+    setShowBanModal(false);
+    
+    // Redirect
+    window.location.href = "/login";
+  };
+
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>
       {children}
+      {/* 🔥 HIỂN THỊ MODAL */}
+      <BanModal 
+        isOpen={showBanModal}
+        banInfo={banInfo}
+        onConfirm={handleBanConfirm}
+      />
     </SocketContext.Provider>
   );
 };

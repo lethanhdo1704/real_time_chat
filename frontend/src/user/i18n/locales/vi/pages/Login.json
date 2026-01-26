@@ -30,6 +30,7 @@
     "invalidCredentials": "Email hoặc mật khẩu không đúng",
     "missingFields": "Thiếu email hoặc mật khẩu",
     "invalidEmail": "Email không hợp lệ",
+    "accountBanned": "Tài khoản của bạn đã bị cấm",
     "accountBannedTemporary": "Tài khoản của bạn bị cấm cho đến {{date}}",
     "accountBannedPermanent": "Tài khoản của bạn đã bị cấm vĩnh viễn"
   },
@@ -39,5 +40,9 @@
     "terms": "Điều khoản sử dụng",
     "language": "Ngôn ngữ", 
     "selectLanguage": "Chọn ngôn ngữ"
+  },
+  "ban": {
+    "title": "Tài khoản bị cấm",
+    "action": "Quay lại trang đăng nhập"
   }
 }

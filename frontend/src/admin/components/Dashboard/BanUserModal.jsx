@@ -1,60 +1,76 @@
 // frontend/src/admin/components/Dashboard/BanUserModal.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { X, AlertTriangle } from "lucide-react";
 
 const BanUserModal = ({ user, onClose, onConfirm }) => {
   const { t } = useTranslation("admindashboard");
+
+  // Tính toán banEndAt mặc định (1 giờ) khi khởi tạo
+  const getDefaultBanEndAt = () => {
+    const now = new Date();
+    now.setHours(now.getHours() + 1); // Mặc định 1 giờ
+    return now.toISOString();
+  };
+
   const [banData, setBanData] = useState({
     reason: "",
-    banType: "permanent", // 'permanent' | 'temporary'
-    durationType: "hours", // 'hours' | 'days'
+    banType: "permanent",
+    durationType: "hours",
     duration: "1",
-    banEndAt: "",
+    banEndAt: getDefaultBanEndAt(), // 🔥 KHỞI TẠO VỚI GIÁ TRỊ MẶC ĐỊNH
   });
+
+  // 🔥 TÍNH TOÁN LẠI banEndAt KHI THAY ĐỔI DURATION HOẶC TYPE
+  useEffect(() => {
+    const calculateBanEndAt = () => {
+      const now = new Date();
+      const durationValue = parseInt(banData.duration) || 1;
+
+      if (banData.durationType === "hours") {
+        now.setHours(now.getHours() + durationValue);
+      } else {
+        now.setDate(now.getDate() + durationValue);
+      }
+
+      return now.toISOString();
+    };
+
+    // Chỉ tính toán khi banType là temporary
+    if (banData.banType === "temporary") {
+      setBanData((prev) => ({
+        ...prev,
+        banEndAt: calculateBanEndAt(),
+      }));
+    }
+  }, [banData.duration, banData.durationType, banData.banType]);
 
   const handleDurationChange = (value, type = banData.durationType) => {
     const parsedValue = parseInt(value);
-    
-    // Validate the parsed value
-    if (isNaN(parsedValue) || parsedValue < 1) {
-      console.error("Invalid duration:", value);
-      return;
-    }
-    
-    const endDate = new Date();
-    
-    // Calculate end date based on duration type
-    if (type === "hours") {
-      endDate.setHours(endDate.getHours() + parsedValue);
-    } else {
-      endDate.setDate(endDate.getDate() + parsedValue);
-    }
-    
+    if (isNaN(parsedValue) || parsedValue < 1) return;
+
     setBanData((prev) => ({
       ...prev,
       duration: value,
       durationType: type,
-      banEndAt: endDate.toISOString(),
+      // ❌ KHÔNG CẦN TÍNH TOÁN banEndAt Ở ĐÂY - useEffect sẽ xử lý
+    }));
+  };
+
+  const handleBanTypeChange = (type) => {
+    setBanData((prev) => ({
+      ...prev,
+      banType: type,
+      // ❌ KHÔNG CẦN THIẾT LẬP banEndAt - useEffect sẽ xử lý
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // ✅ Extract userId from user object
     const userId = user?.uid || user?._id;
-
-    console.log('🔍 BanUserModal - Submitting:', {
-      user,
-      extractedUserId: userId
-    });
-
-    // Validation
     if (!userId) {
-      console.error("❌ No user ID found");
-      console.error("User object:", user);
-      alert("Invalid user data - Cannot find user ID");
+      alert("Invalid user data");
       return;
     }
 
@@ -63,9 +79,6 @@ const BanUserModal = ({ user, onClose, onConfirm }) => {
       banEndAt: banData.banType === "temporary" ? banData.banEndAt : null,
     };
 
-    console.log('✅ Calling onConfirm with:', { userId, submitData });
-
-    // Pass userId and banData
     onConfirm(userId, submitData);
   };
 
@@ -126,9 +139,7 @@ const BanUserModal = ({ user, onClose, onConfirm }) => {
                   name="banType"
                   value="permanent"
                   checked={banData.banType === "permanent"}
-                  onChange={(e) =>
-                    setBanData((prev) => ({ ...prev, banType: e.target.value }))
-                  }
+                  onChange={(e) => handleBanTypeChange(e.target.value)}
                   className="w-4 h-4 text-blue-600"
                 />
                 <div className="flex-1">
@@ -147,9 +158,7 @@ const BanUserModal = ({ user, onClose, onConfirm }) => {
                   name="banType"
                   value="temporary"
                   checked={banData.banType === "temporary"}
-                  onChange={(e) =>
-                    setBanData((prev) => ({ ...prev, banType: e.target.value }))
-                  }
+                  onChange={(e) => handleBanTypeChange(e.target.value)}
                   className="w-4 h-4 text-blue-600"
                 />
                 <div className="flex-1">
@@ -170,12 +179,14 @@ const BanUserModal = ({ user, onClose, onConfirm }) => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t("banModal.duration")}
               </label>
-              
+
               {/* Duration Type Selector */}
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <button
                   type="button"
-                  onClick={() => handleDurationChange(banData.duration, "hours")}
+                  onClick={() =>
+                    handleDurationChange(banData.duration, "hours")
+                  }
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     banData.durationType === "hours"
                       ? "bg-blue-600 text-white"
@@ -196,7 +207,7 @@ const BanUserModal = ({ user, onClose, onConfirm }) => {
                   {t("banModal.days") || "Ngày"}
                 </button>
               </div>
-              
+
               {/* Quick Duration Buttons */}
               <div className="grid grid-cols-4 gap-2 mb-3">
                 {banData.durationType === "hours" ? (
@@ -207,7 +218,8 @@ const BanUserModal = ({ user, onClose, onConfirm }) => {
                         type="button"
                         onClick={() => handleDurationChange(hours, "hours")}
                         className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          banData.duration === hours && banData.durationType === "hours"
+                          banData.duration === hours &&
+                          banData.durationType === "hours"
                             ? "bg-blue-600 text-white"
                             : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
                         }`}
@@ -224,7 +236,8 @@ const BanUserModal = ({ user, onClose, onConfirm }) => {
                         type="button"
                         onClick={() => handleDurationChange(days, "days")}
                         className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          banData.duration === days && banData.durationType === "days"
+                          banData.duration === days &&
+                          banData.durationType === "days"
                             ? "bg-blue-600 text-white"
                             : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
                         }`}
@@ -235,7 +248,7 @@ const BanUserModal = ({ user, onClose, onConfirm }) => {
                   </>
                 )}
               </div>
-              
+
               {/* Custom Duration Input */}
               <input
                 type="number"
