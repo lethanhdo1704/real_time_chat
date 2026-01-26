@@ -1,5 +1,6 @@
 // frontend/src/services/api.js
 import axios from "axios";
+import { handleBanned } from "../utils/handleBanned"; // 🔥 THÊM IMPORT
 
 const api = axios.create({
   baseURL: import.meta.env.PROD
@@ -68,7 +69,13 @@ api.interceptors.response.use(
           break;
 
         case 403:
-          console.error("❌ [API] 403 Forbidden");
+          // 🔥 XỬ LÝ BAN QUA API
+          if (data?.code === 'ACCOUNT_BANNED') {
+            console.error("❌ [API] Account banned:", data);
+            handleBanned(data);
+          } else {
+            console.error("❌ [API] 403 Forbidden");
+          }
           break;
 
         case 404:

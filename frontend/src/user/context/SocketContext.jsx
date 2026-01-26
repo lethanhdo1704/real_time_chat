@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AuthContext } from './AuthContext';
 import { connectSocket, disconnectSocket } from '../services/socketService';
 import useChatStore from '../store/chat/chatStore';
+import { handleBanned } from '../utils/handleBanned'; // 🔥 THÊM IMPORT
 
 export const SocketContext = createContext(null);
 
@@ -72,10 +73,26 @@ export const SocketProvider = ({ children }) => {
         setIsConnected(true);
       };
 
+      // 🔥 XỬ LÝ SỰ KIỆN BAN
+      const handleBannedEvent = (data) => {
+        console.log('🚨 [SocketContext] User banned via socket:', data);
+        handleBanned(data);
+      };
+
+      // 🔥 XỬ LÝ LỖI KẾT NỐI
+      const handleConnectError = (err) => {
+        if (err.message === "BANNED") {
+          console.log('🚨 [SocketContext] User banned during handshake');
+          handleBanned({ reason: "Tài khoản của bạn đã bị cấm" });
+        }
+      };
+
       // Register listeners
       socketInstance.on('connect', handleConnect);
       socketInstance.on('disconnect', handleDisconnect);
       socketInstance.io.on('reconnect', handleReconnect);
+      socketInstance.on('banned', handleBannedEvent); // 🔥 THÊM LISTENER
+      socketInstance.on('connect_error', handleConnectError); // 🔥 THÊM LISTENER
 
       // Initial state check
       if (socketInstance.connected) {
@@ -89,6 +106,8 @@ export const SocketProvider = ({ children }) => {
         socketInstance.off('connect', handleConnect);
         socketInstance.off('disconnect', handleDisconnect);
         socketInstance.io.off('reconnect', handleReconnect);
+        socketInstance.off('banned', handleBannedEvent); // 🔥 THÊM CLEANUP
+        socketInstance.off('connect_error', handleConnectError); // 🔥 THÊM CLEANUP
       };
     }
 
