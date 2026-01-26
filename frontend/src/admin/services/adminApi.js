@@ -167,6 +167,39 @@ const adminApi = {
       console.error('❌ Unban user error:', error);
       throw error;
     }
+  },
+
+  /**
+   * Update user role (SUPER_ADMIN ONLY)
+   */
+  async updateUserRole(userId, newRole) {
+    console.log('🌐 adminApi.updateUserRole called:', { userId, newRole });
+    console.log('📍 Request URL:', `${API_URL}/admin/users/${userId}/role`);
+    
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/admin/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ role: newRole })
+      });
+      
+      const data = await response.json();
+      console.log('📥 API Response:', data);
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Update role failed');
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('❌ Update user role error:', error);
+      throw error;
+    }
   }
 };
 

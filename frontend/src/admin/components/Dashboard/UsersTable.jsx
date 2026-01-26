@@ -3,7 +3,15 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import UserRow from './UserRow';
 
-const UsersTable = ({ users, loading, onBanClick, onUnban, onDelete }) => {
+const UsersTable = ({ 
+  users, 
+  loading, 
+  onBanClick, 
+  onUnban, 
+  onDelete,
+  onChangeRole,
+  currentAdminRole 
+}) => {
   const { t } = useTranslation();
 
   return (
@@ -52,6 +60,8 @@ const UsersTable = ({ users, loading, onBanClick, onUnban, onDelete }) => {
                 onBan={onBanClick}
                 onUnban={onUnban}
                 onDelete={onDelete}
+                onChangeRole={onChangeRole}
+                currentAdminRole={currentAdminRole}
               />
             ))
           )}

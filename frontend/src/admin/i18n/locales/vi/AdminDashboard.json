@@ -1,38 +1,38 @@
 {
-  "title": "Bảng Điều Khiển Admin",
-  "subtitle": "Quản Lý Người Dùng",
-  "admin": "Quản Trị Viên",
-  "logout": "Đăng Xuất",
-  "changeLanguage": "Đổi Ngôn Ngữ",
-  "refresh": "Làm Mới",
+  "title": "Bảng điều khiển quản trị",
+  "subtitle": "Quản lý người dùng",
+  "admin": "Quản trị viên",
+  "logout": "Đăng xuất",
+  "changeLanguage": "Đổi ngôn ngữ",
+  "refresh": "Làm mới",
   "loading": "Đang tải...",
   "noUsers": "Không tìm thấy người dùng",
-  "banExpires": "Còn {{days}} ngày",
+  "banExpires": "Hết hạn sau {{days}} ngày",
   "permanent": "Vĩnh viễn",
-  "banExpired": "Hết hạn",
+  "banExpired": "Đã hết hạn",
 
   "stats": {
-    "totalUsers": "Tổng Người Dùng",
-    "activeUsers": "Người Dùng Hoạt Động",
-    "bannedUsers": "Người Dùng Bị Cấm",
-    "onlineNow": "Đang Trực Tuyến"
+    "totalUsers": "Tổng người dùng",
+    "activeUsers": "Đang hoạt động",
+    "bannedUsers": "Bị cấm",
+    "onlineNow": "Đang online"
   },
 
-  "searchPlaceholder": "Tìm kiếm theo email, tên hoặc UID...",
+  "searchPlaceholder": "Tìm theo email, nickname hoặc UID...",
 
   "filters": {
-    "active": "Hoạt Động",
-    "banned": "Bị Cấm",
-    "deleted": "Đã Xóa"
+    "active": "Hoạt động",
+    "banned": "Bị cấm",
+    "deleted": "Đã xóa"
   },
 
   "table": {
-    "user": "Người Dùng",
+    "user": "Người dùng",
     "uid": "UID",
-    "status": "Trạng Thái",
-    "role": "Vai Trò",
-    "created": "Ngày Tạo",
-    "actions": "Hành Động"
+    "status": "Trạng thái",
+    "role": "Vai trò",
+    "created": "Ngày tạo",
+    "actions": "Hành động"
   },
 
   "status": {
@@ -43,36 +43,58 @@
 
   "actions": {
     "ban": "Cấm người dùng",
-    "unban": "Bỏ Cấm",
-    "delete": "Xóa người dùng"
+    "unban": "Gỡ cấm",
+    "delete": "Xóa người dùng",
+    "changeRole": "Thay đổi vai trò"
   },
 
-  "confirmDelete": "Bạn có chắc chắn muốn xóa người dùng này?",
-  "banFailed": "Không thể cấm người dùng",
-  "unbanFailed": "Không thể bỏ cấm người dùng",
-  "deleteFailed": "Không thể xóa người dùng",
+  "roles": {
+    "user": "Người dùng",
+    "admin": "Quản trị viên",
+    "userDesc": "Người dùng thông thường với quyền cơ bản",
+    "adminDesc": "Quản trị viên với quyền quản lý hệ thống"
+  },
+
+  "updateRole": {
+    "title": "Cập nhật vai trò người dùng",
+    "currentRole": "Vai trò hiện tại",
+    "selectNewRole": "Chọn vai trò mới",
+    "cancel": "Hủy",
+    "confirm": "Cập nhật vai trò",
+    "updating": "Đang cập nhật..."
+  },
+
+  "roleWarnings": {
+    "promoteToAdmin": "Người dùng này sẽ có quyền quản trị",
+    "demoteToUser": "Người dùng này sẽ mất quyền quản trị"
+  },
+
+  "roleUpdateSuccess": "Cập nhật vai trò thành công",
+  "roleUpdateFailed": "Cập nhật vai trò thất bại",
+  "banFailed": "Cấm người dùng thất bại",
+  "unbanFailed": "Gỡ cấm thất bại",
+  "deleteFailed": "Xóa người dùng thất bại",
 
   "banModal": {
-    "title": "Cấm Người Dùng",
-    "banType": "Loại Cấm",
-    "permanent": "Cấm Vĩnh Viễn",
+    "title": "Cấm người dùng",
+    "banType": "Hình thức cấm",
+    "permanent": "Cấm vĩnh viễn",
     "permanentDesc": "Người dùng sẽ bị cấm vô thời hạn",
-    "temporary": "Cấm Tạm Thời",
-    "temporaryDesc": "Người dùng sẽ bị cấm trong khoảng thời gian cụ thể",
-    "duration": "Thời Gian Cấm",
+    "temporary": "Cấm tạm thời",
+    "temporaryDesc": "Người dùng sẽ bị cấm trong một khoảng thời gian",
+    "duration": "Thời gian cấm",
     "days": "ngày",
-    "hours":"giờ",
-    "customDays": "Số ngày tùy chỉnh...",
-    "reason": "Lý Do (Tùy chọn)",
+    "customDays": "Nhập số ngày...",
+    "reason": "Lý do (không bắt buộc)",
     "reasonPlaceholder": "Nhập lý do cấm...",
-    "warning": "⚠️ Hành động này sẽ ngay lập tức tạm ngưng quyền truy cập tài khoản của người dùng.",
+    "warning": "⚠️ Hành động này sẽ ngay lập tức khóa quyền truy cập của người dùng.",
     "cancel": "Hủy",
-    "confirm": "Cấm Người Dùng"
+    "confirm": "Xác nhận cấm"
   },
 
   "pagination": {
     "page": "Trang {{current}} / {{total}}",
-    "previous": "Trước",
-    "next": "Sau"
+    "previous": "Trang trước",
+    "next": "Trang sau"
   }
 }

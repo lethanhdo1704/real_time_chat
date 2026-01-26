@@ -11,11 +11,15 @@ import {
   Pagination,
   BanUserModal
 } from '../components/Dashboard';
+import UpdateRoleModal from '../components/Dashboard/UpdateRoleModal';
 import { useDashboardData } from '../hooks/dashboard/useDashboardData';
 import { useUserActions } from '../hooks/dashboard/useUserActions';
+import { useAdminAuth } from '../context/AdminAuthContext';
 
 const AdminDashboard = () => {
   const { t } = useTranslation();
+  const { admin } = useAdminAuth(); // Lấy thông tin admin hiện tại
+  
   const {
     stats,
     users,
@@ -31,9 +35,11 @@ const AdminDashboard = () => {
   const { 
     banModalUser, 
     setBanModalUser, 
+    roleModalUser,
+    setRoleModalUser,
     handleBanUser, 
-    handleUnbanUser, 
-    handleDeleteUser 
+    handleUnbanUser,
+    handleUpdateRole
   } = useUserActions(refreshData);
 
   return (
@@ -90,7 +96,8 @@ const AdminDashboard = () => {
             loading={loading}
             onBanClick={setBanModalUser}
             onUnban={handleUnbanUser}
-            onDelete={handleDeleteUser}
+            onChangeRole={setRoleModalUser}
+            currentAdminRole={admin?.role}
           />
 
           {/* Pagination */}
@@ -114,6 +121,19 @@ const AdminDashboard = () => {
           onConfirm={(userId, banData) => {
             console.log('🎯 AdminDashboard - onConfirm called:', { userId, banData });
             handleBanUser(userId, banData);
+          }}
+        />
+      )}
+
+      {/* Update Role Modal */}
+      {roleModalUser && (
+        <UpdateRoleModal
+          user={roleModalUser}
+          currentAdminRole={admin?.role}
+          onClose={() => setRoleModalUser(null)}
+          onConfirm={(userId, newRole) => {
+            console.log('🎯 AdminDashboard - Update Role:', { userId, newRole });
+            handleUpdateRole(userId, newRole);
           }}
         />
       )}

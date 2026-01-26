@@ -1,9 +1,9 @@
 // frontend/src/admin/components/Dashboard/UserRow.jsx
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { UserX, Clock } from 'lucide-react';
+import { UserX, Clock, Settings } from 'lucide-react';
 
-const UserRow = ({ user, onBan, onUnban }) => {
+const UserRow = ({ user, onBan, onUnban, onChangeRole, currentAdminRole }) => {
   const { t } = useTranslation("admindashboard");
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -11,7 +11,7 @@ const UserRow = ({ user, onBan, onUnban }) => {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000); // Cập nhật mỗi 1 giây
+    }, 1000);
 
     return () => clearInterval(interval);
   }, []);
@@ -21,7 +21,6 @@ const UserRow = ({ user, onBan, onUnban }) => {
     const endDate = new Date(user.banEndAt);
     const timeDiff = endDate - currentTime;
     
-    // Tính toán thời gian còn lại
     const daysLeft = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
     const hoursLeft = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutesLeft = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
@@ -45,9 +44,32 @@ const UserRow = ({ user, onBan, onUnban }) => {
     banned: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
   };
 
+  // Xác định màu sắc cho role badge
+  const getRoleColor = (role) => {
+    switch(role) {
+      case 'super_admin':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
+      case 'admin':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+    }
+  };
+
+  // Kiểm tra xem có thể thay đổi role không
+  const canChangeRole = () => {
+    // Chỉ super_admin mới có thể thay đổi role
+    if (currentAdminRole !== 'super_admin') return false;
+    
+    // Không thể thay đổi role của chính mình (nếu cần)
+    // if (user._id === currentAdminId) return false;
+    
+    return true;
+  };
+
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
-      {/* User info - có truncate để không tràn */}
+      {/* User info */}
       <td className="px-4 sm:px-6 py-4">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <img
@@ -66,14 +88,14 @@ const UserRow = ({ user, onBan, onUnban }) => {
         </div>
       </td>
 
-      {/* UID - thêm max-w để tránh quá dài */}
+      {/* UID */}
       <td className="px-4 sm:px-6 py-4">
         <span className="text-xs sm:text-sm text-gray-900 dark:text-white block truncate max-w-20 sm:max-w-none">
           {user.uid}
         </span>
       </td>
 
-      {/* Status - hiển thị thời gian chi tiết real-time */}
+      {/* Status */}
       <td className="px-4 sm:px-6 py-4">
         <div className="flex flex-col gap-1 min-w-0">
           <span className={`px-2 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1 w-fit ${statusColors[user.status]}`}>
@@ -101,8 +123,10 @@ const UserRow = ({ user, onBan, onUnban }) => {
       </td>
 
       {/* Role */}
-      <td className="px-4 sm:px-6 py-4 text-xs sm:text-sm text-gray-900 dark:text-white hidden lg:table-cell">
-        {user.role}
+      <td className="px-4 sm:px-6 py-4 hidden lg:table-cell">
+        <span className={`px-2 py-1 text-xs font-medium rounded-full inline-block ${getRoleColor(user.role)}`}>
+          {user.role.replace('_', ' ')}
+        </span>
       </td>
 
       {/* Created date */}
@@ -110,9 +134,21 @@ const UserRow = ({ user, onBan, onUnban }) => {
         {new Date(user.createdAt).toLocaleDateString()}
       </td>
 
-      {/* Actions - compact hơn trên mobile */}
+      {/* Actions */}
       <td className="px-4 sm:px-6 py-4">
         <div className="flex items-center justify-end gap-1 sm:gap-2 shrink-0">
+          {/* Change Role Button - Only for super_admin */}
+          {canChangeRole() && onChangeRole && (
+            <button
+              onClick={() => onChangeRole(user)}
+              className="p-1.5 sm:p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900 rounded-lg transition-colors"
+              title={t('actions.changeRole') || 'Change Role'}
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Ban Button */}
           {user.status === 'active' && (
             <button
               onClick={() => onBan(user)}
@@ -122,6 +158,8 @@ const UserRow = ({ user, onBan, onUnban }) => {
               <UserX className="w-4 h-4" />
             </button>
           )}
+
+          {/* Unban Button */}
           {user.status === 'banned' && (
             <button
               onClick={() => onUnban(user.uid || user._id)}
