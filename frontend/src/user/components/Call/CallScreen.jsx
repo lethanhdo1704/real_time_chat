@@ -106,7 +106,7 @@ export default function CallScreen({ onEndCall }) {
 
   if (!isVideoCall) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
+      <div className="fixed inset-0 z-50 flex flex-col bg-linear-to-br from-indigo-900 via-purple-900 to-pink-900">
         {/* Hidden audio element */}
         <audio
           ref={remoteAudioRef}
@@ -164,7 +164,7 @@ export default function CallScreen({ onEndCall }) {
               {[...Array(7)].map((_, i) => (
                 <div
                   key={i}
-                  className="w-1.5 bg-gradient-to-t from-purple-300 to-pink-300 rounded-full"
+                  className="w-1.5 bg-linear-to-t from-purple-300 to-pink-300 rounded-full"
                   style={{
                     height: `${Math.random() * 50 + 20}px`,
                     animation: `pulse 1s ${i * 0.12}s infinite alternate`
