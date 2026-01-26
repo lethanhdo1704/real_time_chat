@@ -1,15 +1,6 @@
-// frontend/src/user/hooks/chat/usechatScroll.js
+// frontend/src/user/hooks/chat/useChatScroll.js
 import { useEffect, useRef, useCallback } from "react";
 
-/**
- * useChatScroll - Chat Scroll Management Hook (CURSOR-BASED PAGINATION)
- * 
- * ✅ FIXED: No auto-scroll during prepend
- * ✅ FIXED: Conversation change effect separated from messages update
- * ✅ FIXED: Smooth scroll on first load (50 messages)
- * ✅ Track LAST message (bottom) to detect append vs prepend
- * ✅ Unlock with RAF instead of timeout
- */
 export default function useChatScroll({
   messages,
   typingUsers = [],
@@ -20,305 +11,204 @@ export default function useChatScroll({
 }) {
   const messagesContainerRef = useRef(null);
   const typingIndicatorRef = useRef(null);
-  const isUserScrollingRef = useRef(false);
-  const isFirstLoadRef = useRef(true);
-  const prevConversationIdRef = useRef(null);
-  
-  // 🔥 CRITICAL: Lock for load more operations
-  const isLoadingMoreRef = useRef(false);
-  const isPrependingRef = useRef(false);
-  
-  // 🔥 Track LAST message (bottom) to detect append
-  const lastBottomMessageIdRef = useRef(null);
-  
-  // 🔥 FIX: Prevent loadMore during initial auto-scroll
-  const hasReachedBottomOnceRef = useRef(false);
-  
-  // Debounce timers
   const scrollTimeoutRef = useRef(null);
   const loadMoreDebounceRef = useRef(null);
+  
+  // State tracking refs
+  const isUserScrollingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const isInitialLoadRef = useRef(true);
+  const prevConversationIdRef = useRef(null);
+  const lastBottomMessageIdRef = useRef(null);
+  const scrollRestorationRef = useRef({ scrollTop: 0, scrollHeight: 0 });
 
   // ============================================
-  // SCROLL TO BOTTOM FUNCTION
+  // CORE SCROLL UTILITIES
   // ============================================
   const scrollToBottom = useCallback((behavior = "smooth") => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
+    // Cancel pending scrolls
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
 
-    // 🔥 FIX: Always use RAF to ensure DOM is ready
-    scrollTimeoutRef.current = setTimeout(
-      () => {
-        requestAnimationFrame(() => {
-          container.scrollTo({
-            top: container.scrollHeight,
-            behavior: behavior === "smooth" ? "smooth" : "auto",
-          });
-          console.log('🎬 [useChatScroll] Scroll animation started:', {
-            scrollHeight: container.scrollHeight,
-            behavior
-          });
+    scrollTimeoutRef.current = setTimeout(() => {
+      requestAnimationFrame(() => {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: behavior === "smooth" && !isInitialLoadRef.current 
+            ? "smooth" 
+            : "auto",
         });
-      },
-      behavior === "smooth" ? 200 : 0 // Tăng delay lên 200ms
-    );
+      });
+    }, behavior === "smooth" ? 100 : 0);
+  }, []);
+
+  const checkIfNearBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return false;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    return scrollHeight - scrollTop - clientHeight < 100;
   }, []);
 
   // ============================================
-  // 🔥 LOAD MORE WITH SCROLL RESTORATION
+  // MESSAGE LOADING & SCROLL RESTORATION
   // ============================================
-  const handleLoadMore = useCallback(async () => {
-    if (isLoadingMoreRef.current || isPrependingRef.current || loading || !hasMore) {
+  const safeLoadMore = useCallback(async () => {
+    if (
+      isLoadingMoreRef.current ||
+      loading ||
+      !hasMore ||
+      !messagesContainerRef.current
+    ) return;
+
+    const container = messagesContainerRef.current;
+    const initialScrollTop = container.scrollTop;
+    const initialScrollHeight = container.scrollHeight;
+
+    try {
+      isLoadingMoreRef.current = true;
+      
+      // Capture position before loading
+      scrollRestorationRef.current = {
+        scrollTop: initialScrollTop,
+        scrollHeight: initialScrollHeight,
+        timestamp: Date.now(),
+      };
+
+      await loadMore();
+    } catch (error) {
+      console.error("❌ Load more failed:", error);
+    } finally {
+      // Delayed unlock to allow DOM updates
+      setTimeout(() => {
+        isLoadingMoreRef.current = false;
+        
+        // Restore scroll position after DOM updates
+        requestAnimationFrame(() => {
+          const newScrollHeight = container.scrollHeight;
+          const { scrollTop: prevTop, scrollHeight: prevHeight } = scrollRestorationRef.current;
+          
+          // Calculate new position based on added content height
+          const heightDifference = newScrollHeight - prevHeight;
+          container.scrollTop = prevTop + heightDifference;
+        });
+      }, 50);
+    }
+  }, [hasMore, loading, loadMore]);
+
+  // ============================================
+  // EFFECTS
+  // ============================================
+  // Handle conversation changes
+  useEffect(() => {
+    if (activeConversationId !== prevConversationIdRef.current) {
+      // Reset all states
+      isUserScrollingRef.current = false;
+      isLoadingMoreRef.current = false;
+      isInitialLoadRef.current = true;
+      lastBottomMessageIdRef.current = null;
+      prevConversationIdRef.current = activeConversationId;
+      
+      // Schedule instant scroll to bottom
+      requestAnimationFrame(() => {
+        scrollToBottom("auto");
+      });
+    }
+  }, [activeConversationId, scrollToBottom]);
+
+  // Auto-scroll for new messages
+  useEffect(() => {
+    if (messages.length === 0 || isLoadingMoreRef.current) return;
+
+    const lastMessage = messages[messages.length - 1];
+    const lastMessageId = lastMessage?.messageId || lastMessage?._id;
+    
+    // Skip if same message or during initial load
+    if (
+      !lastMessageId || 
+      (lastBottomMessageIdRef.current === lastMessageId && !isInitialLoadRef.current)
+    ) return;
+
+    lastBottomMessageIdRef.current = lastMessageId;
+    
+    // Handle initial load instantly
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false;
+      scrollToBottom("auto");
       return;
     }
 
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    try {
-      // 🔥 SET LOCKS
-      isLoadingMoreRef.current = true;
-      isPrependingRef.current = true;
-      
-      // 🔥 CAPTURE STATE BEFORE LOAD
-      const prevScrollHeight = container.scrollHeight;
-      const prevScrollTop = container.scrollTop;
-
-      console.log('📥 [useChatScroll] Loading more messages...', {
-        prevScrollHeight,
-        prevScrollTop
-      });
-      
-      // 🔥 LOAD MORE MESSAGES
-      await loadMore();
-
-      // 🔥 WAIT FOR DOM UPDATE - Poll until scrollHeight changes
-      let attempts = 0;
-      const maxAttempts = 30; // 30 * 50ms = 1.5s max wait
-      
-      const waitForDomUpdate = () => {
-        attempts++;
-        const newScrollHeight = container.scrollHeight;
-        const heightDiff = newScrollHeight - prevScrollHeight;
-        
-        console.log(`🔍 [useChatScroll] Attempt ${attempts}: heightDiff=${heightDiff}`);
-        
-        // Check if DOM has updated (height increased significantly)
-        if (heightDiff > 50 || attempts >= maxAttempts) {
-          // 🔥 RESTORE SCROLL POSITION
-          container.scrollTop = prevScrollTop + heightDiff;
-          
-          console.log('✅ [useChatScroll] Scroll restored', {
-            heightDiff,
-            newScrollTop: container.scrollTop,
-            attempts
-          });
-          
-          // 🔥 UNLOCK WITH DELAY to ensure effect has run
-          setTimeout(() => {
-            isPrependingRef.current = false;
-            isLoadingMoreRef.current = false;
-            console.log('🔓 [useChatScroll] Locks released');
-          }, 100);
-        } else {
-          // DOM not ready yet, wait more
-          requestAnimationFrame(waitForDomUpdate);
-        }
-      };
-      
-      // Start polling after small delay
-      setTimeout(() => {
-        requestAnimationFrame(waitForDomUpdate);
-      }, 50);
-      
-    } catch (error) {
-      console.error('❌ [useChatScroll] Load more error:', error);
-      isPrependingRef.current = false;
-      isLoadingMoreRef.current = false;
+    // Auto-scroll if at bottom
+    if (!isUserScrollingRef.current) {
+      scrollToBottom("smooth");
     }
-  }, [loading, hasMore, loadMore]);
+  }, [messages, scrollToBottom]);
 
-  // ============================================
-  // 🔥 SCROLL LISTENER
-  // ============================================
+  // Auto-scroll for typing indicators
+  useEffect(() => {
+    if (
+      typingUsers.length > 0 && 
+      !isUserScrollingRef.current && 
+      !isLoadingMoreRef.current
+    ) {
+      const id = setTimeout(() => scrollToBottom("smooth"), 50);
+      return () => clearTimeout(id);
+    }
+  }, [typingUsers, scrollToBottom]);
+
+  // Scroll listener setup
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
-    let scrollDebounceTimeout;
+    let scrollDebounceTimer;
+    let loadMoreDebounceTimer;
 
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isNearBottom = checkIfNearBottom();
+      isUserScrollingRef.current = !isNearBottom;
       
-      // 1. Detect if user is at bottom
-      const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
-      isUserScrollingRef.current = !isAtBottom;
+      // Clear existing debounces
+      clearTimeout(scrollDebounceTimer);
+      clearTimeout(loadMoreDebounceTimer);
 
-      // 🔥 FIX: Mark as reached bottom (for first load)
-      if (isAtBottom && !hasReachedBottomOnceRef.current) {
-        hasReachedBottomOnceRef.current = true;
-        console.log('✅ [useChatScroll] Reached bottom for first time');
-      }
-
-      // 2. Mark first load as complete
-      if (isFirstLoadRef.current && scrollTop > 0) {
-        isFirstLoadRef.current = false;
-      }
-
-      // 3. 🔥 INFINITE SCROLL - ONLY after reached bottom once
-      const isNearTop = scrollTop < 200;
-      
-      if (
-        isNearTop && 
-        hasMore && 
-        !loading && 
-        !isLoadingMoreRef.current && 
-        !isPrependingRef.current &&
-        hasReachedBottomOnceRef.current // 🔥 KEY FIX
-      ) {
-        clearTimeout(loadMoreDebounceRef.current);
-        loadMoreDebounceRef.current = setTimeout(() => {
-          handleLoadMore();
-        }, 300);
-      }
-
-      // 4. Reset user scrolling flag (debounced)
-      clearTimeout(scrollDebounceTimeout);
-      scrollDebounceTimeout = setTimeout(() => {
-        if (isAtBottom) {
+      // Reset scrolling flag when settled at bottom
+      scrollDebounceTimer = setTimeout(() => {
+        if (checkIfNearBottom()) {
           isUserScrollingRef.current = false;
         }
-      }, 150);
+      }, 200);
+
+      // Load more when near top (with safeguards)
+      if (
+        container.scrollTop < 300 &&
+        hasMore &&
+        !loading &&
+        !isLoadingMoreRef.current &&
+        !isInitialLoadRef.current
+      ) {
+        loadMoreDebounceTimer = setTimeout(safeLoadMore, 200);
+      }
     };
 
     container.addEventListener("scroll", handleScroll, { passive: true });
     
     return () => {
       container.removeEventListener("scroll", handleScroll);
-      clearTimeout(scrollDebounceTimeout);
-      clearTimeout(loadMoreDebounceRef.current);
+      clearTimeout(scrollDebounceTimer);
+      clearTimeout(loadMoreDebounceTimer);
     };
-  }, [hasMore, loading, handleLoadMore]);
+  }, [hasMore, loading, safeLoadMore, checkIfNearBottom]);
 
-  // ============================================
-  // 🔥 FIX: CONVERSATION CHANGE - SEPARATED EFFECT
-  // ============================================
-  useEffect(() => {
-    // Only trigger on conversation ID change
-    if (activeConversationId !== prevConversationIdRef.current) {
-      console.log('🔄 [useChatScroll] Conversation changed');
-      
-      // Reset all flags
-      isFirstLoadRef.current = true;
-      isUserScrollingRef.current = false;
-      isLoadingMoreRef.current = false;
-      isPrependingRef.current = false;
-      lastBottomMessageIdRef.current = null;
-      hasReachedBottomOnceRef.current = false;
-      
-      prevConversationIdRef.current = activeConversationId;
-      
-      // ✅ DON'T scroll here - let AUTO SCROLL effect handle it with smooth animation
-      console.log('✅ [useChatScroll] Conversation switched - waiting for messages');
-    }
-  }, [activeConversationId]);
-
-  // ============================================
-  // 🔥 AUTO SCROLL - Only on NEW message at bottom
-  // ============================================
-  useEffect(() => {
-    if (!messages.length) return;
-
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    // 🔥 CRITICAL: Skip during prepend (load more)
-    if (isPrependingRef.current || isLoadingMoreRef.current) {
-      console.log('⏭️ [useChatScroll] Skipping auto-scroll (loading more)', {
-        isPrepending: isPrependingRef.current,
-        isLoadingMore: isLoadingMoreRef.current
-      });
-      return;
-    }
-
-    // 🔥 Check if LAST message changed (append detection)
-    const lastMsg = messages[messages.length - 1];
-    const lastMsgId = lastMsg?.messageId || lastMsg?._id;
-
-    console.log('🔍 [useChatScroll] Check last message:', {
-      currentLastId: lastMsgId,
-      savedLastId: lastBottomMessageIdRef.current,
-      isSame: lastBottomMessageIdRef.current === lastMsgId,
-      messagesCount: messages.length
-    });
-
-    if (lastBottomMessageIdRef.current === lastMsgId) {
-      // Same last message → no new append → skip scroll
-      console.log('⏭️ [useChatScroll] Same last message, skip scroll');
-      return;
-    }
-
-    // New message at bottom detected
-    console.log('🆕 [useChatScroll] New bottom message detected:', lastMsgId);
-    lastBottomMessageIdRef.current = lastMsgId;
-
-    // First load → INSTANT scroll (no animation - UX standard)
-    if (isFirstLoadRef.current) {
-      console.log('📍 [useChatScroll] First load - instant scroll');
-      
-      // ✅ Poll để đợi messages render xong
-      const waitForRender = () => {
-        const container = messagesContainerRef.current;
-        if (!container) return;
-        
-        // Đợi scrollHeight > clientHeight (có nội dung để scroll)
-        if (container.scrollHeight > container.clientHeight) {
-          // 🔥 INSTANT scroll - KHÔNG smooth (UX chuẩn)
-          container.scrollTop = container.scrollHeight;
-          console.log('✅ [useChatScroll] Instant scrolled to bottom');
-        } else {
-          // Chưa render xong, đợi thêm
-          requestAnimationFrame(waitForRender);
-        }
-      };
-      
-      // Delay nhỏ để messages bắt đầu render
-      setTimeout(() => {
-        requestAnimationFrame(waitForRender);
-      }, 50);
-      
-      isFirstLoadRef.current = false;
-      return;
-    }
-
-    // Normal scroll behavior - only if user is at bottom
-    if (!isUserScrollingRef.current) {
-      console.log('📍 [useChatScroll] New message - auto scroll');
-      scrollToBottom("smooth");
-    }
-  }, [messages.length, scrollToBottom]);
-
-  // ============================================
-  // SCROLL WHEN TYPING INDICATOR APPEARS
-  // ============================================
-  useEffect(() => {
-    if (typingUsers.length > 0 && !isUserScrollingRef.current && !isPrependingRef.current) {
-      setTimeout(() => {
-        scrollToBottom("smooth");
-      }, 100);
-    }
-  }, [typingUsers.length, scrollToBottom]);
-
-  // ============================================
-  // CLEANUP
-  // ============================================
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-      if (loadMoreDebounceRef.current) clearTimeout(loadMoreDebounceRef.current);
+      clearTimeout(scrollTimeoutRef.current);
+      clearTimeout(loadMoreDebounceRef.current);
     };
   }, []);
 

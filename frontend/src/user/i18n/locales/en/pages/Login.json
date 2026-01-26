@@ -29,7 +29,9 @@
     "networkError": "Network connection error",
     "invalidCredentials": "Invalid email or password",
     "missingFields": "Missing email or password",
-    "invalidEmail": "Invalid email"
+    "invalidEmail": "Invalid email",
+    "accountBannedTemporary": "Your account is banned until {{date}}",
+    "accountBannedPermanent": "Your account has been permanently banned"
   },
   "footer": {
     "privacy": "Privacy Policy",

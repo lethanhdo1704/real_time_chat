@@ -1,15 +1,11 @@
-// frontend/src/hooks/auth/useLogin.js - FIXED WITH REDIRECT HANDLING
+// frontend/src/hooks/auth/useLogin.js
 import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AuthContext } from "../../context/AuthContext";
 
-/**
- * Custom hook để quản lý toàn bộ logic login
- * 🔥 UPDATED: Xử lý redirect sau login (invite links, return URLs)
- */
 export function useLogin() {
-  const { t } = useTranslation("login");
+  const { t, i18n } = useTranslation("login");
   const { login, user } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -22,78 +18,90 @@ export function useLogin() {
   // UI states
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loginSuccess, setLoginSuccess] = useState(false); // 🔥 NEW
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
-  // 🔥 UPDATED: Handle redirect after login
+  // Handle redirect after login
   useEffect(() => {
     if (user && loginSuccess) {
       console.log('✅ [useLogin] User logged in, processing redirect...');
       
-      // Priority 1: Check for pending invite code (from /join/:code)
       const pendingInviteCode = sessionStorage.getItem('pendingInviteCode');
-      
       if (pendingInviteCode) {
-        console.log('🔗 [useLogin] Found pending invite code:', pendingInviteCode);
-        // Don't clear sessionStorage here - let JoinViaLink handle it
         navigate(`/join/${pendingInviteCode}`);
-        setLoginSuccess(false); // Reset flag
+        setLoginSuccess(false);
         return;
       }
       
-      // Priority 2: Check URL redirect param
       const urlParams = new URLSearchParams(window.location.search);
       const redirectPath = urlParams.get('redirect');
-      
       if (redirectPath) {
-        console.log('🔗 [useLogin] Redirecting to URL param:', redirectPath);
         navigate(redirectPath);
-        setLoginSuccess(false); // Reset flag
+        setLoginSuccess(false);
         return;
       }
       
-      // Priority 3: Default to home
-      console.log('🏠 [useLogin] Redirecting to home');
       navigate('/');
-      setLoginSuccess(false); // Reset flag
+      setLoginSuccess(false);
     }
   }, [user, loginSuccess, navigate]);
+
+  // Format date according to user's locale
+  const formatBanDate = (isoDate) => {
+    try {
+      const date = new Date(isoDate);
+      return date.toLocaleString(i18n.language, {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.error('Failed to format ban date:', e);
+      return isoDate;
+    }
+  };
 
   // Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-    setLoginSuccess(false); // Reset before login
+    setLoginSuccess(false);
 
     try {
       console.log('🔐 [useLogin] Attempting login...');
       await login(email, password, rememberMe);
-      
-      // 🔥 Set success flag to trigger redirect
       setLoginSuccess(true);
       console.log('✅ [useLogin] Login successful');
     } catch (err) {
       console.error('❌ [useLogin] Login failed:', err);
       
-      // Xử lý error message dựa trên response từ server
-      if (err.response?.data?.error) {
-        const backendError = err.response.data.error;
+      if (err.response?.data?.code === 'ACCOUNT_BANNED') {
+        const { banEndAt, isPermanent } = err.response.data;
         
-        // Map backend error sang translation key
+        let errorMessage = t("errors.accountBanned");
+        
+        if (isPermanent) {
+          errorMessage = t("errors.accountBannedPermanent");
+        } else if (banEndAt) {
+          const formattedDate = formatBanDate(banEndAt);
+          errorMessage = t("errors.accountBannedTemporary", { date: formattedDate });
+        }
+        
+        setError(errorMessage);
+      } else if (err.response?.data?.error) {
+        const backendError = err.response.data.error;
         const errorMap = {
           "Invalid credentials": t("errors.invalidCredentials"),
           "Missing email or password": t("errors.missingFields"),
           "Email không hợp lệ": t("errors.invalidEmail"),
           "Server error": t("errors.serverError"),
         };
-        
-        // Nếu có trong map thì dùng translation, không thì hiển thị message gốc
         setError(errorMap[backendError] || backendError);
       } else if (err.request) {
-        // Request được gửi nhưng không nhận được response
         setError(t("errors.networkError"));
       } else {
-        // Lỗi khác
         setError(t("errors.serverError"));
       }
     } finally {
@@ -101,18 +109,15 @@ export function useLogin() {
     }
   };
 
-  // Toggle password visibility
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
   };
 
-  // Clear error when user types
   const clearError = () => {
     setError("");
   };
 
   return {
-    // Form values
     email,
     setEmail,
     password,
@@ -121,14 +126,10 @@ export function useLogin() {
     togglePasswordVisibility,
     rememberMe,
     setRememberMe,
-    
-    // UI states
     error,
     loading,
-    loginSuccess, // 🔥 NEW: Export success state
+    loginSuccess,
     clearError,
-    
-    // Handlers
     handleSubmit,
   };
 }

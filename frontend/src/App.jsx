@@ -5,84 +5,74 @@ import { AuthProvider } from "./user/context/AuthContext";
 import { SocketProvider } from "./user/context/SocketContext";
 import { setViewportHeight } from "./user/utils/setViewportHeight";
 
-// ============================================
-// LAZY LOAD - MAIN APPS
-// ============================================
 const AppUser = lazy(() => import("./user/AppUser"));
 const AdminApp = lazy(() => import("./admin/AppAdmin"));
 
 function App() {
-  // ============================================
-  // CHECK SUBDOMAIN OR PATH
-  // ============================================
   const hostname = window.location.hostname;
   const pathname = window.location.pathname;
   
-  // ✅ FIX: Admin paths detection
-  const adminPaths = ['/dashboard', '/login'];
-  const isAdminPath = adminPaths.some(path => pathname.startsWith(path));
+  // ✅ PHÂN BIỆT RÕ RÀNG THEO ĐƯỜNG DẪN
+  const isProduction = hostname !== "localhost";
   
+  // Production: dựa vào subdomain
   const isAdminDomain = 
-    hostname === "admin.realtimechat.online" || 
-    hostname === "www.admin.realtimechat.online" ||
-    (hostname === "localhost" && isAdminPath) //|| pathname.startsWith("/admin");
+    isProduction && (
+      hostname === "admin.realtimechat.online" || 
+      hostname === "www.admin.realtimechat.online"
+    );
+  
+  // Development: DỰA VÀO /admin PATH
+  const isAdminPath = pathname.startsWith('/admin');
+  
+  // ✅ USER LOGIN PATH (luôn luôn là /login)
+  const isUserLoginPath = pathname === '/login';
 
   console.log('🔍 App routing:', {
     hostname,
     pathname,
-    isAdminPath,
+    isProduction,
     isAdminDomain,
-    willRender: isAdminDomain ? 'AdminApp' : 'AppUser'
+    isAdminPath,
+    isUserLoginPath
   });
 
-  // ============================================
-  // SETUP VIEWPORT HEIGHT
-  // ============================================
   useEffect(() => {
     setViewportHeight();
-
     window.addEventListener("resize", setViewportHeight);
     window.addEventListener("orientationchange", setViewportHeight);
-
     return () => {
       window.removeEventListener("resize", setViewportHeight);
       window.removeEventListener("orientationchange", setViewportHeight);
     };
   }, []);
 
-  // ============================================
-  // PRELOAD AUTH PAGES (CHỈ CHO USER)
-  // ============================================
   useEffect(() => {
-    if (!isAdminDomain) {
+    if (!isAdminDomain && !isAdminPath) {
       import("./user/pages/Login");
       import("./user/pages/Register");
-
       const timer = setTimeout(() => {
         import("./user/pages/ForgotPassword");
       }, 2000);
-
       return () => clearTimeout(timer);
     }
-  }, [isAdminDomain]);
+  }, [isAdminDomain, isAdminPath]);
 
   return (
     <AuthProvider>
       <SocketProvider>
-        <div
-          className="
-            h-[calc(var(--vh,1vh)*100)]
-            supports-[height:100dvh]:h-dvh
-            w-full
-          "
-        >
+        <div className="h-[calc(var(--vh,1vh)*100)] supports-[height:100dvh]:h-dvh w-full">
           <Suspense fallback={null}>
             <Routes>
-              {isAdminDomain ? (
-                // ADMIN DOMAIN hoặc /admin path
-                <Route path="/*" element={<AdminApp />} />
+              {/* ✅ USER LOGIN - LUÔN DÙNG AppUser */}
+              {isUserLoginPath ? (
+                <Route path="/login/*" element={<AppUser />} />
+              ) : 
+              /* ✅ ADMIN PATH - DÙNG AdminApp */
+              isAdminDomain || isAdminPath ? (
+                <Route path="/admin/*" element={<AdminApp />} />
               ) : (
-                // USER DOMAIN
+                /* ✅ USER APP - MỌI THỨ KHÁC */
                 <Route path="/*" element={<AppUser />} />
               )}
             </Routes>

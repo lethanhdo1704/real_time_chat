@@ -29,7 +29,9 @@
     "networkError": "Lỗi kết nối mạng. Vui lòng kiểm tra internet",
     "invalidCredentials": "Email hoặc mật khẩu không đúng",
     "missingFields": "Thiếu email hoặc mật khẩu",
-    "invalidEmail": "Email không hợp lệ"
+    "invalidEmail": "Email không hợp lệ",
+    "accountBannedTemporary": "Tài khoản của bạn bị cấm cho đến {{date}}",
+    "accountBannedPermanent": "Tài khoản của bạn đã bị cấm vĩnh viễn"
   },
   "footer": {
     "privacy": "Chính sách quyền riêng tư",

@@ -44,6 +44,24 @@ export default function initSocket(server) {
         return next(new Error('Authentication error: User not found'));
       }
 
+      // 🔥 THÊM KIỂM TRA BAN NGAY TẠI ĐÂY
+      const now = new Date();
+      if (user.status === 'banned') {
+        // Auto-unban nếu ban tạm hết hạn
+        if (user.banEndAt && user.banEndAt < now) {
+          await User.findByIdAndUpdate(user._id, {
+            status: 'active',
+            banStartAt: null,
+            banEndAt: null,
+            bannedBy: null,
+            banReason: null
+          });
+        } else {
+          // Vẫn bị ban → từ chối kết nối
+          return next(new Error('BANNED'));
+        }
+      }
+
       // ============================================
       // 🎯 CHUẨN HÓA: uid cho realtime, _id cho DB
       // ============================================
@@ -74,6 +92,9 @@ export default function initSocket(server) {
   io.on("connection", async (socket) => {
     console.log(`✅ Client connected: ${socket.id} (${socket.user.nickname})`);
     
+    // ✅ ĐĂNG KÝ SOCKET VỚI socketEmitter
+    socketEmitter.registerUserSocket(socket.userId, socket.id);
+
     // ✅ SET USER ONLINE (dùng _id cho DB)
     await User.findByIdAndUpdate(socket.userId, {
       isOnline: true,
@@ -86,6 +107,9 @@ export default function initSocket(server) {
     socket.on("disconnect", async (reason) => {
       console.log(`❌ Client disconnected: ${socket.id} - ${reason}`);
       
+      // ✅ HỦY ĐĂNG KÝ SOCKET
+      socketEmitter.unregisterUserSocket(socket.userId, socket.id);
+
       // ✅ SET USER OFFLINE (dùng _id cho DB)
       await User.findByIdAndUpdate(socket.userId, {
         isOnline: false,

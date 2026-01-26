@@ -9,7 +9,7 @@ import {
   isValidEmail,
   isValidPassword,
   isValidNickname,
-  normalizeNickname, // ← THÊM DÒNG NÀY
+  normalizeNickname,
 } from "../utils/validate.js";
 
 const router = express.Router();
@@ -26,10 +26,10 @@ router.post("/register", async (req, res) => {
   }
 
   // 2️⃣ Normalize nickname trước khi validate
-  const normalizedNickname = normalizeNickname(nickname); // ← THÊM DÒNG NÀY
+  const normalizedNickname = normalizeNickname(nickname);
 
   // 3️⃣ Validate nickname
-  if (!isValidNickname(normalizedNickname)) { // ← ĐỔI nickname → normalizedNickname
+  if (!isValidNickname(normalizedNickname)) {
     return res.status(400).json({ 
       error: "Biệt danh phải từ 3-32 ký tự"
     });
@@ -83,7 +83,7 @@ router.post("/register", async (req, res) => {
 
     // 👤 Tạo user với normalized nickname
     const user = await User.create({
-      nickname: normalizedNickname, // ← ĐỔI nickname.trim() → normalizedNickname
+      nickname: normalizedNickname,
       email: emailLower,
       passwordHash,
     });
@@ -91,8 +91,8 @@ router.post("/register", async (req, res) => {
     // 🔑 JWT
     const token = jwt.sign(
       {
-        id: user._id, // ✅ Mongo _id cho DB, chat, socket
-        uid: user.uid, // ✅ Public uid cho friend, invite
+        id: user._id,
+        uid: user.uid,
         role: user.role,
       },
       process.env.JWT_SECRET,
@@ -136,6 +136,36 @@ router.post("/login", async (req, res) => {
 
     if (!user) {
       return res.status(400).json({ error: "Invalid credentials" });
+    }
+
+    // 🔥 THÊM KIỂM TRA BAN NGAY TẠI ĐÂY
+    const now = new Date();
+    if (user.status === 'banned') {
+      // Auto-unban nếu ban tạm hết hạn
+      if (user.banEndAt && user.banEndAt < now) {
+        await User.findByIdAndUpdate(user._id, {
+          status: 'active',
+          banStartAt: null,
+          banEndAt: null,
+          bannedBy: null,
+          banReason: null
+        });
+      } else {
+        // Vẫn bị ban → từ chối login với thông báo phù hợp
+        let message = "Tài khoản của bạn đã bị cấm";
+        if (user.banEndAt) {
+          message += ". Vui lòng thử lại sau.";
+        } else {
+          message += " vĩnh viễn";
+        }
+
+        return res.status(403).json({ 
+          error: message,
+          code: "ACCOUNT_BANNED",
+          banEndAt: user.banEndAt, // Gửi nguyên timestamp ISO
+          isPermanent: !user.banEndAt
+        });
+      }
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);

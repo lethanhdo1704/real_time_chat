@@ -14,11 +14,11 @@ export default function AdminRoutes() {
       <Route element={<AdminProtectedRoute />}>
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route index element={<Navigate to="dashboard" replace />} />
-        {/* Khi vào / sẽ redirect sang /dashboard */}
+        {/* Khi vào /admin sẽ redirect sang /admin/dashboard */}
       </Route>
 
-      {/* Catch-all */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      {/* Catch-all: redirect bất kỳ route admin không hợp lệ về dashboard */}
+      <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
     </Routes>
   );
 }

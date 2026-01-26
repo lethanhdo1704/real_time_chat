@@ -1,6 +1,7 @@
 // backend/services/admin/userAdmin.service.js
 import User from '../../models/User.js';
 import mongoose from 'mongoose';
+import socketEmitter from '../socketEmitter.service.js'; // 🔥 IMPORT socketEmitter
 
 /**
  * 🔧 HELPER: Convert UID to ObjectId
@@ -138,6 +139,12 @@ export const banUser = async (userIdentifier, adminId, banData, adminRole) => {
   user.banReason = reason || null;
 
   await user.save();
+
+  // 🔥 REALTIME KICK NGAY LẬP TỨC
+  socketEmitter.kickBannedUser(user._id.toString(), {
+    reason: reason || 'Vi phạm chính sách',
+    banEndAt: user.banEndAt
+  });
 
   return {
     uid: user.uid,

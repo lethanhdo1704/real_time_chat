@@ -3,6 +3,8 @@
 class SocketEmitter {
   constructor() {
     this.io = null;
+    // 🔥 THÊM MAPPING userId → socketId
+    this.userSockets = new Map(); // userId (string) → Set(socketId)
   }
 
   setIO(io) {
@@ -30,6 +32,52 @@ class SocketEmitter {
 
   getUserRoom(uid) {
     return `user:${uid}`;
+  }
+
+  // 🔥 THÊM HÀM ĐĂNG KÝ SOCKET
+  registerUserSocket(userId, socketId) {
+    if (!this.userSockets.has(userId)) {
+      this.userSockets.set(userId, new Set());
+    }
+    this.userSockets.get(userId).add(socketId);
+    console.log(`[SocketEmitter] Registered socket ${socketId} for user ${userId}`);
+  }
+
+  // 🔥 THÊM HÀM HỦY ĐĂNG KÝ SOCKET
+  unregisterUserSocket(userId, socketId) {
+    const sockets = this.userSockets.get(userId);
+    if (sockets) {
+      sockets.delete(socketId);
+      if (sockets.size === 0) {
+        this.userSockets.delete(userId);
+      }
+      console.log(`[SocketEmitter] Unregistered socket ${socketId} for user ${userId}`);
+    }
+  }
+
+  // 🔥 THÊM HÀM KICK USER BỊ BAN
+  kickBannedUser(userId, banDetails) {
+    const socketIds = this.userSockets.get(userId);
+    if (!socketIds || socketIds.size === 0) {
+      console.log(`[SocketEmitter] No active sockets for banned user ${userId}`);
+      return;
+    }
+
+    console.log(`[SocketEmitter] Kicking ${socketIds.size} socket(s) for banned user ${userId}`);
+    
+    socketIds.forEach(socketId => {
+      const socket = this.io.sockets.sockets.get(socketId);
+      if (socket) {
+        socket.emit('banned', {
+          reason: banDetails.reason || 'Tài khoản của bạn đã bị cấm',
+          banEndAt: banDetails.banEndAt
+        });
+        socket.disconnect(true); // Force close
+      }
+    });
+
+    // Xóa khỏi mapping
+    this.userSockets.delete(userId);
   }
 
   /**
