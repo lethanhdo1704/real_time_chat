@@ -29,6 +29,7 @@
     "connectionLost": "Connection lost",
     "userBusy": "User is busy",
     "userDeclined": "User declined the call",
-    "timeout": "Call timeout"
+    "timeout": "Call timeout",
+    "you": "You"
   }
 }

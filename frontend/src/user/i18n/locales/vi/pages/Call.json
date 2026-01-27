@@ -28,6 +28,7 @@
     "connectionLost": "Mất kết nối",
     "userBusy": "Người dùng đang bận",
     "userDeclined": "Người dùng đã từ chối cuộc gọi",
-    "timeout": "Cuộc gọi quá thời gian"
+    "timeout": "Cuộc gọi quá thời gian",
+    "you": "Bạn"
   }
 

@@ -5,15 +5,6 @@ import { Play, Download, Video as VideoIcon } from 'lucide-react';
 import { truncateFilename } from '../../../../utils/fileUtils';
 import { useTranslation } from 'react-i18next';
 
-/**
- * VideoAttachment Component - OPTIMIZED cho ConversationInfo
- * 
- * Features:
- * - Compact mode với aspect-video cố định
- * - Full mode cho chat messages
- * - Violet gradient
- * - Smooth transitions
- */
 export default function VideoAttachment({ attachment, isMe, isCompact = false }) {
   const { t } = useTranslation("chat");
   const [showPlayer, setShowPlayer] = useState(false);

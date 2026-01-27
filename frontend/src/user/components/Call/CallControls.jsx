@@ -79,7 +79,7 @@ export default function CallControls({ onEndCall }) {
             shadow-xl
             ${isMuted 
               ? 'bg-red-500 hover:bg-red-600' 
-              : 'bg-white/20 hover:bg-white/30 backdrop-blur-md'
+              : 'bg-white/20 hover:bg-white/30'
             }
           `}>
             {isMuted ? (
@@ -108,7 +108,7 @@ export default function CallControls({ onEndCall }) {
               shadow-xl
               ${isVideoOff 
                 ? 'bg-red-500 hover:bg-red-600' 
-                : 'bg-white/20 hover:bg-white/30 backdrop-blur-md'
+                : 'bg-white/20 hover:bg-white/30'
               }
             `}>
               {isVideoOff ? (
@@ -158,7 +158,7 @@ export default function CallControls({ onEndCall }) {
             shadow-xl
             ${isSpeakerOn 
               ? 'bg-blue-500 hover:bg-blue-600' 
-              : 'bg-white/20 hover:bg-white/30 backdrop-blur-md'
+              : 'bg-white/20 hover:bg-white/30'
             }
           `}>
             <Volume2 className="w-6 h-6 text-white" />
@@ -176,7 +176,7 @@ export default function CallControls({ onEndCall }) {
           >
             <div className="
               w-14 h-14 md:w-16 md:h-16 rounded-full 
-              bg-white/20 hover:bg-white/30 backdrop-blur-md
+              bg-white/20 hover:bg-white/30
               flex items-center justify-center 
               transition-all duration-300
               hover:scale-110 active:scale-95

@@ -6,15 +6,6 @@ import { truncateFilename } from '../../../../utils/fileUtils';
 import { useTranslation } from "react-i18next";
 import { useState, useRef, useEffect } from 'react';
 
-/**
- * AudioAttachment Component - OPTIMIZED cho ConversationInfo
- * 
- * Features:
- * - Compact mode khi isCompact = true
- * - Full mode cho chat messages
- * - Orange gradient
- * - Custom audio player
- */
 export default function AudioAttachment({ attachment, isMe, isCompact = false }) {
   const { url, name, size, mime } = attachment;
   const { t } = useTranslation("chat");
