@@ -24,7 +24,7 @@ displayEnvConfig();
 // MIDDLEWARE IMPORTS
 // ==========================
 import auth from "./middleware/auth.js";
-import adminAuth from "./middleware/admin/admin.Auth.js";
+import adminAuth from "./middleware/admin/admin.Auth.js"; // ✅ ADMIN AUTH
 import { sanitizeInput } from "./middleware/sanitize.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import {
@@ -32,8 +32,8 @@ import {
   authLimiter,
   otpLimiter,
   friendRequestLimiter,
-  adminLoginLimiter,
-  adminApiLimiter,
+  adminLoginLimiter, // ✅ ADMIN LOGIN LIMITER
+  adminApiLimiter,   // ✅ ADMIN API LIMITER
 } from "./middleware/rateLimit.js";
 
 // ==========================
@@ -52,10 +52,9 @@ import callRoutes from "./routes/call.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
 import groupRoutes from "./routes/group.routes.js";
 
-// Admin routes
+// ✅ Admin routes
 import adminAuthRoutes from "./routes/admin/auth.routes.js";
-import adminUserRoutes from "./routes/admin/users.routes.js";
-
+import adminUserRoutes from "./routes/admin/users.routes.js"; 
 // ==========================
 // SOCKET
 // ==========================
@@ -70,8 +69,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // ==========================
-// TRUST PROXY
+// TRUST PROXY (QUAN TRỌNG cho IP whitelist)
 // ==========================
+// ✅ Bật trust proxy để lấy IP thật từ reverse proxy (nginx, cloudflare...)
 app.set("trust proxy", true);
 
 // ==========================
@@ -81,24 +81,9 @@ app.use(
   cors({
     origin: true, // allow all origins (DEV)
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   })
 );
-
-// ✅ FIX: Handle OPTIONS preflight globally - MUST BE BEFORE ALL ROUTES
-app.use((req, res, next) => {
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Max-Age', '86400'); // 24 hours
-    return res.sendStatus(204);
-  }
-  next();
-});
 
 // ==========================
 // GLOBAL MIDDLEWARE
@@ -180,14 +165,17 @@ console.log("✅ User routes registered");
 // API ROUTES - ADMIN
 // ==========================
 
-// Admin auth routes (public, có IP whitelist + rate limit riêng)
+// ✅ Admin auth routes (public, có IP whitelist + rate limit riêng)
 app.use("/api/admin/auth", adminAuthRoutes);
 
-// Admin user management routes (protected)
+// ✅ Admin user management routes (protected)
 app.use("/api/admin/users", adminAuth, adminApiLimiter, adminUserRoutes);
+// ✅ Admin protected routes (sẽ thêm sau)
+// app.use("/api/admin/users", adminAuth, adminApiLimiter, adminUserRoutes);
+// app.use("/api/admin/reports", adminAuth, adminApiLimiter, adminReportRoutes);
 
 console.log("✅ Admin routes registered");
-
+console.log("✅ Admin routes registered");
 // ==========================
 // ERROR HANDLING
 // ==========================
@@ -223,9 +211,8 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`📞 WebRTC signaling ready`);
   console.log(`📁 Avatars: /uploads/avatars`);
   console.log(`📤 Upload: R2 ${config.r2.enabled ? "✅" : "❌"}`);
-  console.log(`🔐 Trust Proxy: ✅ (IP whitelist enabled)`);
-  console.log(`🛡️  Admin IP Whitelist: ${process.env.ADMIN_IP_WHITELIST ? "✅ Configured" : "⚠️  NOT configured"}`);
-  console.log(`✅ CORS Preflight Handler: Enabled`); // ✅ NEW
+  console.log(`🔐 Trust Proxy: ✅ (IP whitelist enabled)`); // ✅ NEW
+  console.log(`🛡️  Admin IP Whitelist: ${process.env.ADMIN_IP_WHITELIST ? "✅ Configured" : "⚠️  NOT configured"}`); // ✅ NEW
   console.log("=".repeat(60) + "\n");
 });
 

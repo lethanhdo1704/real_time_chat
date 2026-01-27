@@ -2,17 +2,10 @@
 
 import axios from 'axios';
 
-/**
- * Group API Instance
- * ✅ FIXED: Base URL changed to /api/groups (matches backend)
- * ❌ OLD: /api/conversations/group (was causing 404 errors)
- * 
- * Backend routes are split into 2 controllers:
- * 1. /api/conversations - ConversationController (create, list)
- * 2. /api/groups - GroupController (invite, kick, settings)
- */
+const API_BASE = import.meta.env.VITE_API_URL;
+
 const groupApi = axios.create({
-  baseURL: "/api/groups", // ✅ FIXED: Was /api/conversations/group
+  baseURL: `${API_BASE}/groups`,   // → https://.../api/groups
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
@@ -20,12 +13,8 @@ const groupApi = axios.create({
   withCredentials: true,
 });
 
-/**
- * Separate axios instance for conversation operations
- * Used for createGroup only (POST /api/conversations/group)
- */
 const conversationApi = axios.create({
-  baseURL: "/api/conversations",
+  baseURL: `${API_BASE}/conversations`,   // → https://.../api/conversations
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
