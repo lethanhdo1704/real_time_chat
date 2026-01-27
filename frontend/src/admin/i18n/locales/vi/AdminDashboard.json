@@ -77,17 +77,27 @@
 
   "banModal": {
     "title": "Cấm người dùng",
+
     "banType": "Hình thức cấm",
     "permanent": "Cấm vĩnh viễn",
     "permanentDesc": "Người dùng sẽ bị cấm vô thời hạn",
+
     "temporary": "Cấm tạm thời",
     "temporaryDesc": "Người dùng sẽ bị cấm trong một khoảng thời gian",
+
     "duration": "Thời gian cấm",
+
+    "hours": "giờ",
     "days": "ngày",
+
+    "customHours": "Nhập số giờ...",
     "customDays": "Nhập số ngày...",
+
     "reason": "Lý do (không bắt buộc)",
     "reasonPlaceholder": "Nhập lý do cấm...",
+
     "warning": "⚠️ Hành động này sẽ ngay lập tức khóa quyền truy cập của người dùng.",
+
     "cancel": "Hủy",
     "confirm": "Xác nhận cấm"
   },

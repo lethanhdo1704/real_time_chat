@@ -77,17 +77,27 @@
 
   "banModal": {
     "title": "Ban User",
+
     "banType": "Ban Type",
     "permanent": "Permanent Ban",
     "permanentDesc": "The user will be banned indefinitely",
+
     "temporary": "Temporary Ban",
     "temporaryDesc": "The user will be banned for a specific period",
+
     "duration": "Ban Duration",
+
+    "hours": "hours",
     "days": "days",
+
+    "customHours": "Enter number of hours...",
     "customDays": "Enter number of days...",
-    "reason": "Reason (Optional)",
+
+    "reason": "Reason (optional)",
     "reasonPlaceholder": "Enter ban reason...",
-    "warning": "⚠️ This action will immediately revoke the user's access.",
+
+    "warning": "⚠️ This action will immediately block the user's access.",
+
     "cancel": "Cancel",
     "confirm": "Confirm Ban"
   },

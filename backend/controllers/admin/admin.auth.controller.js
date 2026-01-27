@@ -9,6 +9,8 @@ import { checkAndUnbanUser } from '../../services/admin/userAdmin.service.js';
  * Admin login
  * POST /api/admin/auth/login
  * Body: { email, password }
+ * 
+ * ✅ Response: { token, admin } - Direct format (chuẩn JWT)
  */
 export const adminLogin = async (req, res) => {
   try {
@@ -17,7 +19,6 @@ export const adminLogin = async (req, res) => {
     // Validate input
     if (!email || !password) {
       return res.status(400).json({
-        success: false,
         message: 'Email and password are required'
       });
     }
@@ -29,7 +30,6 @@ export const adminLogin = async (req, res) => {
 
     if (!user) {
       return res.status(401).json({
-        success: false,
         message: 'Invalid email or password'
       });
     }
@@ -42,7 +42,6 @@ export const adminLogin = async (req, res) => {
     
     if (!isPasswordValid) {
       return res.status(401).json({
-        success: false,
         message: 'Invalid email or password'
       });
     }
@@ -50,7 +49,6 @@ export const adminLogin = async (req, res) => {
     // Kiểm tra role (phải là admin hoặc super_admin)
     if (user.role !== 'admin' && user.role !== 'super_admin') {
       return res.status(403).json({
-        success: false,
         message: 'Account does not have admin privileges'
       });
     }
@@ -62,21 +60,18 @@ export const adminLogin = async (req, res) => {
         : 'Account is permanently banned';
       
       return res.status(403).json({
-        success: false,
         message: banMessage
       });
     }
 
     if (user.status === 'deleted') {
       return res.status(403).json({
-        success: false,
         message: 'Account has been deleted'
       });
     }
 
     if (user.status !== 'active') {
       return res.status(403).json({
-        success: false,
         message: 'Account is not active'
       });
     }
@@ -88,7 +83,6 @@ export const adminLogin = async (req, res) => {
     if (!adminSecret) {
       console.error('⚠️ ADMIN_JWT_SECRET not configured');
       return res.status(500).json({
-        success: false,
         message: 'Admin configuration not ready'
       });
     }
@@ -108,27 +102,23 @@ export const adminLogin = async (req, res) => {
     const clientIP = getRealIP(req);
     console.log(`✅ Admin login success: ${user.email} (${user.role}) from IP: ${clientIP}`);
 
-    // Trả về token và thông tin user
+    // ✅ TRẢ DIRECT FORMAT - Chuẩn JWT auth
     return res.status(200).json({
-      success: true,
-      message: 'Admin login successful',
-      data: {
-        token,
-        user: {
-          uid: user.uid,
-          email: user.email,
-          nickname: user.nickname,
-          avatar: user.avatar,
-          role: user.role,
-          status: user.status
-        }
+      token,
+      admin: {
+        id: user._id,
+        uid: user.uid,
+        email: user.email,
+        nickname: user.nickname,
+        avatar: user.avatar,
+        role: user.role,
+        status: user.status
       }
     });
 
   } catch (error) {
     console.error('❌ Admin login error:', error);
     return res.status(500).json({
-      success: false,
       message: 'Admin login error'
     });
   }
@@ -138,6 +128,8 @@ export const adminLogin = async (req, res) => {
  * Verify admin token
  * GET /api/admin/auth/verify
  * Header: Authorization: Bearer <token>
+ * 
+ * ✅ Response: { admin } - Direct format
  */
 export const verifyAdminToken = async (req, res) => {
   try {
@@ -146,24 +138,21 @@ export const verifyAdminToken = async (req, res) => {
     // ✅ AUTO UNBAN NẾU HẾT HẠN
     await checkAndUnbanUser(req.user);
 
+    // ✅ TRẢ DIRECT FORMAT
     return res.status(200).json({
-      success: true,
-      message: 'Token is valid',
-      data: {
-        user: {
-          uid: req.user.uid,
-          email: req.user.email,
-          nickname: req.user.nickname,
-          avatar: req.user.avatar,
-          role: req.user.role,
-          status: req.user.status
-        }
+      admin: {
+        id: req.user._id,
+        uid: req.user.uid,
+        email: req.user.email,
+        nickname: req.user.nickname,
+        avatar: req.user.avatar,
+        role: req.user.role,
+        status: req.user.status
       }
     });
   } catch (error) {
     console.error('❌ Verify admin token error:', error);
     return res.status(500).json({
-      success: false,
       message: 'Token verification error'
     });
   }
