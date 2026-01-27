@@ -31,8 +31,10 @@ export const AdminAuthProvider = ({ children }) => {
   }, []); // ⚠️ Empty dependency array - chỉ chạy 1 lần
 
   /**
-   * ✅ ĐỌC ĐÚNG FORMAT: { success, data: { user } }
-   * Backend hiện tại trả wrapped format
+   * Verify stored token
+   * Backend có thể trả 2 formats:
+   * - Direct: { admin: {...} }
+   * - Wrapped: { success: true, data: { user: {...} } }
    */
   const verifyStoredToken = async () => {
     try {
@@ -51,12 +53,27 @@ export const AdminAuthProvider = ({ children }) => {
 
       console.log('📥 Verify response:', response);
 
-      // ✅ ĐÚNG: Backend trả { success: true, data: { user: {...} } }
-      if (response.success && response.data && response.data.user) {
-        setAdmin(response.data.user);
-        console.log('✅ Admin authenticated:', response.data.user);
+      // ✅ TRY BOTH FORMATS
+      let adminData = null;
+      
+      // Format 1: Direct { admin: {...} }
+      if (response.admin) {
+        adminData = response.admin;
+      }
+      // Format 2: Wrapped { success: true, data: { user: {...} } }
+      else if (response.success && response.data && response.data.user) {
+        adminData = response.data.user;
+      }
+      // Format 3: Wrapped { data: { user: {...} } } (no success field)
+      else if (response.data && response.data.user) {
+        adminData = response.data.user;
+      }
+
+      if (adminData) {
+        setAdmin(adminData);
+        console.log('✅ Admin authenticated:', adminData);
       } else {
-        console.log('❌ Invalid response format, clearing token');
+        console.log('❌ No admin data in response, clearing token');
         localStorage.removeItem('adminToken');
         setAdmin(null);
       }
@@ -76,8 +93,10 @@ export const AdminAuthProvider = ({ children }) => {
   };
 
   /**
-   * ✅ ĐỌC ĐÚNG FORMAT: { success, data: { token, user } }
-   * Backend hiện tại trả wrapped format
+   * Login
+   * Backend có thể trả 2 formats:
+   * - Direct: { token: "...", admin: {...} }
+   * - Wrapped: { success: true, data: { token: "...", user: {...} } }
    */
   const login = async (email, password) => {
     setError(null);
@@ -91,10 +110,33 @@ export const AdminAuthProvider = ({ children }) => {
       
       console.log('📊 Login response:', response);
       
-      // ✅ ĐÚNG: Backend trả { success: true, data: { token, user } }
-      if (response.success && response.data && response.data.token && response.data.user) {
-        localStorage.setItem('adminToken', response.data.token);
-        setAdmin(response.data.user);
+      // ✅ TRY BOTH FORMATS
+      let token = null;
+      let adminData = null;
+
+      // Format 1: Direct { token, admin }
+      if (response.token && response.admin) {
+        token = response.token;
+        adminData = response.admin;
+      }
+      // Format 2: Wrapped { success: true, data: { token, user } }
+      else if (response.success && response.data) {
+        if (response.data.token && response.data.user) {
+          token = response.data.token;
+          adminData = response.data.user;
+        }
+      }
+      // Format 3: Wrapped { data: { token, user } } (no success field)
+      else if (response.data) {
+        if (response.data.token && response.data.user) {
+          token = response.data.token;
+          adminData = response.data.user;
+        }
+      }
+
+      if (token && adminData) {
+        localStorage.setItem('adminToken', token);
+        setAdmin(adminData);
         
         console.log('✅ Login successful, token saved');
         
@@ -104,8 +146,8 @@ export const AdminAuthProvider = ({ children }) => {
         };
       }
       
-      // ⚠️ Response không có format đúng
-      console.error('❌ Invalid login response format:', response);
+      // ⚠️ Response không có format hợp lệ
+      console.error('❌ Could not extract token/admin from response:', response);
       return { 
         success: false, 
         error: response.message || 'Invalid login response' 
