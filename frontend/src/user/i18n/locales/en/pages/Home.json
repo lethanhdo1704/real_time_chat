@@ -5,7 +5,11 @@
       "logout": "Logout",
       "copyUID": "Copy UID",
       "uidLabel": "UID:",
-      "settings": "Settings"
+      "settings": "Settings",
+      "changeLanguage": "Change Language",
+      "selectLanguage": "Select Language",
+      "vietnamese": "Vietnamese",
+      "english": "English"
     },
     "toast": {
       "copiedUID": "UID copied!"

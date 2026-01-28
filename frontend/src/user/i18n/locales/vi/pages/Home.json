@@ -5,7 +5,11 @@
       "logout": "Đăng xuất",
       "copyUID": "Sao chép UID",
       "uidLabel": "UID:",
-      "settings": "Cài đặt"
+      "settings": "Cài đặt",
+      "changeLanguage": "Đổi ngôn ngữ",
+      "selectLanguage": "Chọn ngôn ngữ",
+      "vietnamese": "Tiếng Việt",
+      "english": "Tiếng Anh"
     },
     "toast": {
       "copiedUID": "Đã sao chép UID!"

@@ -1,4 +1,4 @@
-// frontend/src/components/Home/ContextPanel.jsx - FINAL VERSION
+// frontend/src/components/Home/ContextPanel.jsx - FINAL VERSION WITH LANGUAGE SWITCHER
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -17,10 +17,23 @@ export default function ContextPanel({
   onUpdateRequestCount,
   onLogout
 }) {
-  const { t } = useTranslation("home");
+  const { t, i18n } = useTranslation("home");
   const navigate = useNavigate();
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+  // ============================================
+  // LANGUAGE SWITCHER
+  // ============================================
+  
+  const toggleLanguage = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newLang = i18n.language === 'vi' ? 'en' : 'vi';
+    i18n.changeLanguage(newLang);
+    localStorage.setItem('lang', newLang);
+    setShowMobileMenu(false);
+  };
 
   // ============================================
   // COPY UID TO CLIPBOARD
@@ -160,15 +173,31 @@ export default function ContextPanel({
           {/* Mobile Dropdown Menu */}
           {showMobileMenu && (
             <div className="md:hidden absolute top-full left-0 right-0 border-t border-white/20 bg-linear-to-b from-purple-600 to-purple-700 backdrop-blur-sm shadow-xl z-50">
+              {/* Language Switcher Button */}
+              <button
+                onClick={toggleLanguage}
+                type="button"
+                className="w-full px-4 py-3 text-left text-white hover:bg-white/10 active:bg-white/20 transition-colors flex items-center gap-3"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <LanguageIcon className="w-5 h-5" />
+                <span className="font-medium">
+                  {i18n.language === 'vi' ? 'English' : 'Tiếng Việt'}
+                </span>
+              </button>
+              
+              {/* Settings Button */}
               <button
                 onClick={handleSettings}
                 type="button"
-                className="w-full px-4 py-3 text-left text-white hover:bg-white/10 active:bg-white/20 transition-colors flex items-center gap-3"
+                className="w-full px-4 py-3 text-left text-white hover:bg-white/10 active:bg-white/20 transition-colors flex items-center gap-3 border-t border-white/20"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <SettingsIcon className="w-5 h-5" />
                 <span className="font-medium">{t("home.header.settings") || "Settings"}</span>
               </button>
+              
+              {/* Logout Button */}
               <button
                 onClick={handleLogout}
                 type="button"
@@ -273,6 +302,14 @@ function MenuIcon({ className }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
+function LanguageIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
     </svg>
   );
 }

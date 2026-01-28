@@ -1,22 +1,22 @@
 {
   "addFriend": {
-    "title": "Search Users",
+    "title": "Search users",
     "inputPlaceholder": "Enter user UID...",
     "searchButton": "Search",
     "searching": "Searching...",
-    "sendRequest": "Add Friend",
-    "resultTitle": "Search Result",
+    "sendRequest": "Add friend",
+    "resultTitle": "Search results",
     "status": {
-      "friends": "Already Friends",
-      "requestSent": "Request Sent",
-      "requestReceived": "Request Received"
+      "friends": "Already friends",
+      "requestSent": "Request sent",
+      "requestReceived": "Request received"
     },
     "messages": {
-      "emptyUID": "Please enter UID",
-      "cannotAddSelf": "Cannot add yourself as friend",
-      "alreadyFriends": "You are already friends with this person",
-      "requestAlreadySent": "You have already sent a friend request to this person",
-      "requestAlreadyReceived": "This person has sent you a friend request. Please check your friend requests",
+      "emptyUID": "Please enter a UID",
+      "cannotAddSelf": "You cannot add yourself as a friend",
+      "alreadyFriends": "You are already friends with this user",
+      "requestAlreadySent": "You have already sent a friend request to this user",
+      "requestAlreadyReceived": "This user has already sent you a friend request. Please check your friend requests",
       "userNotFound": "User not found",
       "requestSentSuccess": "Friend request sent successfully!",
       "requestFailed": "Failed to send friend request"
@@ -35,30 +35,32 @@
   "friendRequests": {
     "accept": "Accept",
     "reject": "Reject",
-    "removeRequest": "Remove Request",
-    "alreadyFriend": "Already Friends",
+    "removeRequest": "Remove request",
+    "alreadyFriend": "Already friends",
     "empty": "No friend requests",
     "errors": {
       "acceptFailed": "An error occurred while accepting the friend request",
       "rejectFailed": "An error occurred while rejecting the friend request",
-      "alreadyFriendAlert": "You are already friends with this person!"
+      "alreadyFriendAlert": "You are already friends with this user!"
     }
   },
+
   "groupList": {
-    "createButton": "Create Group",
-    "unnamedGroup": "Unnamed Group",
+    "createButton": "Create group",
+    "joinButton": "Join group",
+    "unnamedGroup": "Unnamed group",
     "noMessages": "No messages yet",
     "justNow": "Just now",
-    "minutesAgo": "m ago",
-    "hoursAgo": "h ago",
-    "daysAgo": "d ago",
+    "minutesAgo": " minutes ago",
+    "hoursAgo": " hours ago",
+    "daysAgo": " days ago",
     "empty": {
       "title": "No groups yet",
-      "subtitle": "Create a group to start chatting"
+      "subtitle": "Create or join a group to start chatting"
     },
     "createModal": {
-      "title": "Create New Group",
-      "groupName": "Group Name",
+      "title": "Create a new group",
+      "groupName": "Group name",
       "inputPlaceholder": "Enter group name...",
       "selectedMembers": "Members",
       "selected": "selected",
@@ -68,16 +70,17 @@
       "cancel": "Cancel",
       "create": "Create",
       "creating": "Creating...",
-      "minMembers": "Please select at least {{count}} members to create a group"
+      "minMembers": "You need to select at least {{count}} friends to create a group"
     }
   },
+
   "messagePreview": {
     "you": "You",
     "friend": "Friend",
-    "photo": "Sent a photo",
-    "file": "Sent a file",
-    "video": "Sent a video",
-    "audio": "Sent a voice message",
+    "photo": "📷 Sent a photo",
+    "file": "📎 Sent a file",
+    "video": "🎥 Sent a video",
+    "audio": "🎵 Sent a voice message",
     "startConversation": "Start a conversation",
     "recalled": "recalled a message",
     "youRecalled": "You recalled a message",
@@ -87,5 +90,38 @@
   "common": {
     "uid": "UID",
     "loading": "Loading..."
+  },
+
+  "joinGroup": {
+    "title": "Join group",
+    "subtitle": "Enter an invite code or link to join the group",
+    "inputLabel": "Invite code / link",
+    "placeholder": "Enter code or paste invite link",
+    "hint": "You can enter the code directly or paste the full invite link",
+    "join": "Join",
+    "joining": "Joining...",
+    "cancel": "Cancel",
+
+    "success": {
+      "title": "Joined successfully!",
+      "message": "You have joined the group. Redirecting..."
+    },
+
+    "error": "Unable to join the group",
+
+    "errors": {
+      "emptyInput": "Please enter an invite code or link",
+      "invalidFormat": "Invalid invite code or link format",
+      "notFound": "Invite link does not exist or has been removed",
+      "expired": "Invite link has expired",
+      "inactive": "Invite link is currently inactive",
+      "maxUses": "Invite link has reached the maximum number of uses",
+      "alreadyMember": "You are already a member of this group",
+      "generic": "An error occurred. Please try again"
+    },
+
+    "examples": {
+      "title": "Examples"
+    }
   }
 }
