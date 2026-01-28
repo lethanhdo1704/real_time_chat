@@ -66,7 +66,8 @@
 
   "roleWarnings": {
     "promoteToAdmin": "This user will gain admin privileges",
-    "demoteToUser": "This user will lose admin privileges"
+    "demoteToUser": "This user will lose admin privileges",
+    "cannotDemoteSuperAdmin  ": "Cannot demote the super admin user"
   },
 
   "roleUpdateSuccess": "User role updated successfully",

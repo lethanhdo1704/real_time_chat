@@ -66,7 +66,8 @@
 
   "roleWarnings": {
     "promoteToAdmin": "Người dùng này sẽ có quyền quản trị",
-    "demoteToUser": "Người dùng này sẽ mất quyền quản trị"
+    "demoteToUser": "Người dùng này sẽ mất quyền quản trị",
+    "cannotDemoteSuperAdmin  ": "Không thể hạ cấp người dùng quản trị viên cao nhất"
   },
 
   "roleUpdateSuccess": "Cập nhật vai trò thành công",
