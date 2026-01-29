@@ -5,7 +5,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const sendRegisterOTP = async (to, otp) => {
   await resend.emails.send({
-    from: `"REAL TIME CHAT" <${process.env.EMAIL_USER}>`,
+    from: `"REAL TIME CHAT" <${process.env.EMAIL_FROM}>`,
     to,
     subject: "🔐 Mã Xác Thực OTP - Đăng Nhập Tài Khoản",
     html: `
