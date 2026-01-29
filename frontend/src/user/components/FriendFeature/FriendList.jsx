@@ -7,19 +7,6 @@ import useFriendStore from "../../store/friendStore";
 import useFriendActions from "../../hooks/friends/useFriendActions";
 import { checkConversation } from "../../services/chatApi";
 
-/**
- * FriendList Component - ✅ OPTIMIZED VERSION
- * 
- * Performance improvements:
- * 1. Cache-first strategy for handleSelectFriend (avoid unnecessary API calls)
- * 2. Optimized sorting with pre-computed values
- * 3. Stable callback references
- * 
- * Sorting Priority (unchanged):
- * 1. lastMessageAt (conversation.lastMessage.createdAt) - MỚI NHẤT LÊN ĐẦU
- * 2. unreadCount - Nếu cùng thời gian, unread lên trước
- * 3. Alphabetical by name - Fallback
- */
 export default function FriendList({ currentUser, onSelectFriend }) {
   const { t } = useTranslation("friendFeature");
   const hasFetchedRef = useRef(false);

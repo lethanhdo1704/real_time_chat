@@ -6,16 +6,6 @@ import { AuthContext } from '../../context/AuthContext';
 import useChatStore from '../../store/chat/chatStore';
 import chatApi from '../../services/chatApi';
 
-/**
- * useSendMessage Hook - With Reply + Attachments Support
- * 
- * ✅ Accepts replyTo parameter
- * ✅ Accepts attachments parameter
- * ✅ 🔥 FIXED: Allows file-only messages (empty text + attachments)
- * ✅ Includes replyTo in optimistic message
- * ✅ Passes replyTo to API
- * ✅ Preserves reply data in confirmed message
- */
 const useSendMessage = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -119,9 +109,19 @@ const useSendMessage = () => {
 
         // If conversation was just created
         if (newConversation && !conversationId) {
-          console.log('🆕 [useSendMessage] New conversation created:', newConversation._id);
+          // 🔥 CRITICAL FIX: Backend returns conversationId field, NOT _id
+          // Backend response: { conversationId: "67a...", type: "private", friend: {...} }
+          const actualConversationId = newConversation.conversationId || newConversation._id;
           
-          const actualConversationId = newConversation._id;
+          if (!actualConversationId) {
+            console.error('❌ [useSendMessage] No conversationId in response:', newConversation);
+            throw new Error('Invalid conversation response from server');
+          }
+          
+          console.log('🆕 [useSendMessage] New conversation created:', {
+            conversationId: actualConversationId,
+            type: newConversation.type,
+          });
           
           // 1️⃣ Add conversation to store
           addConversation(newConversation);
@@ -144,11 +144,13 @@ const useSendMessage = () => {
           setActiveConversation(actualConversationId);
           setActiveFriend(null);
           
-          // 6️⃣ Navigate
+          // 6️⃣ Navigate with validated conversationId
           setTimeout(() => {
             const tab = newConversation.type === 'group' ? 'groups' : 'friends';
-            navigate(`/${tab}/${actualConversationId}`, { replace: true });
-            console.log('🔄 [useSendMessage] Navigated to new conversation:', actualConversationId);
+            const targetPath = `/${tab}/${actualConversationId}`;
+            
+            console.log('🔄 [useSendMessage] Navigating to:', targetPath);
+            navigate(targetPath, { replace: true });
           }, 50);
           
         } else {
